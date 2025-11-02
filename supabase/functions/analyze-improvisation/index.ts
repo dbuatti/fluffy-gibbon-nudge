@@ -25,13 +25,15 @@ const NON_PIANO_NAMES = [
     "Ambient Pad Flow"
 ];
 
-const GENRES = [
-    "Afrobeat", "Afropop", "Alternative", "Big Band", "Blues", "Children's Music", 
-    "Christian/Gospel", "Classical", "Comedy", "Country", "Dance", "Electronic", 
-    "Fitness & Workout", "Folk", "French Pop", "German Folk", "German Pop", 
-    "Hip Hop/Rap", "Holiday", "J-Pop", "Jazz", "K-Pop", "Latin", "Latin Urban", 
-    "Metal", "New Age", "Pop", "Punk", "R&B/Soul", "Reggae", "Rock", 
-    "Singer/Songwriter", "Soundtrack", "Spoken Word", "Vocal", "World"
+const PIANO_GENRES = [
+    "Classical", "Jazz", "New Age", "Folk", "Soundtrack", "Vocal", "Alternative", "Blues", "R&B/Soul", "Pop", "Singer/Songwriter"
+];
+
+const OTHER_GENRES = [
+    "Afrobeat", "Afropop", "Big Band", "Children's Music", "Christian/Gospel", "Comedy", 
+    "Country", "Dance", "Electronic", "Fitness & Workout", "French Pop", "German Folk", 
+    "German Pop", "Hip Hop/Rap", "Holiday", "J-Pop", "K-Pop", "Latin", "Latin Urban", 
+    "Metal", "Punk", "Reggae", "Rock", "Spoken Word", "World"
 ];
 
 // Helper function to simulate analysis and generate a name
@@ -94,16 +96,18 @@ serve(async (req) => {
     
     // --- SIMULATED ANALYSIS RESULTS ---
     
+    const availableGenres = isPiano ? PIANO_GENRES : OTHER_GENRES;
+
     // Randomly select primary genre
-    const primaryGenreIndex = Math.floor(Math.random() * GENRES.length);
-    const primaryGenre = GENRES[primaryGenreIndex];
+    const primaryGenreIndex = Math.floor(Math.random() * availableGenres.length);
+    const primaryGenre = availableGenres[primaryGenreIndex];
     
     // Randomly select secondary genre (must be different from primary)
-    let secondaryGenreIndex = Math.floor(Math.random() * GENRES.length);
+    let secondaryGenreIndex = Math.floor(Math.random() * availableGenres.length);
     while (secondaryGenreIndex === primaryGenreIndex) {
-        secondaryGenreIndex = Math.floor(Math.random() * GENRES.length);
+        secondaryGenreIndex = Math.floor(Math.random() * availableGenres.length);
     }
-    const secondaryGenre = GENRES[secondaryGenreIndex];
+    const secondaryGenre = availableGenres[secondaryGenreIndex];
 
     const analysisData = { 
         simulated_key: isPiano ? 'C Major' : 'A Minor', 
