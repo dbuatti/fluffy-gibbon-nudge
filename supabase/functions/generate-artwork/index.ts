@@ -17,7 +17,7 @@ async function generateImagePromptWithGemini(generatedName: string): Promise<str
         return generatedName; // Fallback to name if key is missing
     }
 
-    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution, and contain no text, logos, or human faces. Focus on mood, color, and texture.
+    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on mood, color, texture, and lighting. The style should be cinematic, painterly, or digital art.
     
     Respond ONLY with the prompt text, nothing else.`;
 
@@ -59,10 +59,10 @@ async function generateImagePromptWithGemini(generatedName: string): Promise<str
 
 // Placeholder function to simulate generating an image URL
 function generatePlaceholderImageUrl(prompt: string): string {
-    // Using picsum.photos for stability. We use the AI-generated prompt as the seed.
-    // Note: Picsum doesn't use the prompt content, but the prompt string ensures uniqueness.
-    const seed = prompt.replace(/\s/g, '');
-    return `https://picsum.photos/seed/${seed}/3000/3000`;
+    // Reverting to Unsplash for better abstract art results, despite potential 503 errors.
+    // We use the AI-generated prompt as the seed/keywords.
+    const keywords = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).slice(0, 5).join(',');
+    return `https://source.unsplash.com/random/3000x3000/?${keywords}`;
 }
 
 serve(async (req) => {
