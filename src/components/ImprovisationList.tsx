@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, Music, Button } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Music } from 'lucide-react';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 interface Improvisation {
   id: string;
