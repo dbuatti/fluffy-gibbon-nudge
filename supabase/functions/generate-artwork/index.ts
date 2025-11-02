@@ -10,11 +10,10 @@ const corsHeaders = {
 
 // Placeholder function to simulate generating an image URL
 function generatePlaceholderImageUrl(name: string): string {
-    // Using a high-resolution placeholder image (1600x1600) that is abstract/geometric 
-    // to avoid generating specific objects like heels.
+    // Using a high-resolution placeholder image (3000x3000) to meet the distribution requirements.
     const seed = name.replace(/\s/g, '');
     // Using a different placeholder service for more abstract results
-    return `https://source.unsplash.com/random/1600x1600/?abstract,music,art,${seed}`;
+    return `https://source.unsplash.com/random/3000x3000/?abstract,music,art,${seed}`;
 }
 
 serve(async (req) => {
