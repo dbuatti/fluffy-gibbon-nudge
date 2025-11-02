@@ -82,8 +82,8 @@ const ImprovisationDetails: React.FC = () => {
   };
   
   const handleRegenerateArtwork = async () => {
-    if (!imp || !imp.generated_name) {
-      showError("Cannot regenerate artwork: Analysis name is missing.");
+    if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) {
+      showError("Cannot regenerate artwork: Analysis data (name, genre, or mood) is missing. Please rescan analysis first.");
       return;
     }
 
@@ -95,6 +95,9 @@ const ImprovisationDetails: React.FC = () => {
         body: {
           improvisationId: imp.id,
           generatedName: imp.generated_name,
+          primaryGenre: imp.primary_genre, // Pass required parameter
+          secondaryGenre: imp.secondary_genre, // Pass required parameter
+          mood: imp.analysis_data.mood, // Pass required parameter
         },
       });
 
