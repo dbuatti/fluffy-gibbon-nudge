@@ -4,8 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import PasswordGenerator from '@/components/PasswordGenerator';
+import { Key, ArrowLeft } from 'lucide-react';
 
-const Login = () => {
+const Signup = () => {
   const { session, isLoading } = useSession();
 
   if (isLoading) {
@@ -19,8 +22,12 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
       <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 shadow-lg rounded-lg">
+        <Link to="/login" className="flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
+          <ArrowLeft className="w-4 h-4 mr-1" /> Back to Sign In
+        </Link>
+        
         <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
-          Sign in to analyze your improvisations
+          Create an Account
         </h2>
         
         <Auth
@@ -39,19 +46,27 @@ const Login = () => {
           }}
           theme="light"
           redirectTo={window.location.origin + '/'}
-          view="sign_in" // Force sign_in view
+          view="sign_up" // Force sign_up view
         />
 
         <div className="text-center pt-4">
-          <Link to="/signup">
-            <Button variant="link" className="text-sm text-muted-foreground hover:text-primary">
-              Don't have an account? Sign Up
-            </Button>
-          </Link>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="link" className="text-sm text-muted-foreground hover:text-primary">
+                <Key className="w-4 h-4 mr-2" /> Generate Strong Password
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Strong Password Generator</DialogTitle>
+              </DialogHeader>
+              <PasswordGenerator />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default Signup;
