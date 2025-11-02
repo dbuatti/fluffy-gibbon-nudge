@@ -8,10 +8,60 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Function to call Gemini API for image prompt generation
+async function generateImagePromptWithGemini(generatedName: string): Promise<string> {
+    // @ts-ignore
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+        console.error("GEMINI_API_KEY is not set for prompt generation.");
+        return generatedName; // Fallback to name if key is missing
+    }
+
+    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution, and contain no text, logos, or human faces. Focus on mood, color, and texture.
+    
+    Respond ONLY with the prompt text, nothing else.`;
+
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY,
+            },
+            body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.8,
+                }
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error("Gemini Prompt API Error:", errorBody);
+            return generatedName;
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || generatedName;
+        
+        // Clean up and return the prompt
+        return generatedText.replace(/^["']|["']$/g, '');
+
+    } catch (error) {
+        console.error("Error calling Gemini Prompt API:", error);
+        return generatedName;
+    }
+}
+
+
 // Placeholder function to simulate generating an image URL
-function generatePlaceholderImageUrl(name: string): string {
-    // Using picsum.photos for stability.
-    const seed = name.replace(/\s/g, '');
+function generatePlaceholderImageUrl(prompt: string): string {
+    // Using picsum.photos for stability. We use the AI-generated prompt as the seed.
+    // Note: Picsum doesn't use the prompt content, but the prompt string ensures uniqueness.
+    const seed = prompt.replace(/\s/g, '');
     return `https://picsum.photos/seed/${seed}/3000/3000`;
 }
 
@@ -40,10 +90,15 @@ serve(async (req) => {
 
     console.log(`Starting artwork generation for ID: ${improvisationId} based on name: ${generatedName}`);
 
-    // Simulate image generation time
+    // 1. Generate a detailed, artistic prompt using Gemini
+    const imagePrompt = await generateImagePromptWithGemini(generatedName);
+    console.log(`AI Generated Image Prompt: ${imagePrompt}`);
+
+    // 2. Simulate image generation time
     await new Promise(resolve => setTimeout(resolve, 3000)); 
 
-    const artworkUrl = generatePlaceholderImageUrl(generatedName);
+    // 3. Use the AI prompt as the seed for the placeholder URL
+    const artworkUrl = generatePlaceholderImageUrl(imagePrompt);
 
     // Update the database record with the artwork URL
     const { error } = await supabase
