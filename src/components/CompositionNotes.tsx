@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, Loader2, NotebookText } from 'lucide-react';
+import { Save, Loader2, NotebookText, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface NoteTab {
@@ -30,11 +30,48 @@ const defaultNotes: NoteTab[] = [
 const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, initialNotes }) => {
   const [notes, setNotes] = useState<NoteTab[]>(initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes);
   const [activeTab, setActiveTab] = useState(notes[0].id);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  const activeNote = notes.find(n => n.id === activeTab);
+  // Debounced save function
+  const saveNotes = useCallback(async (currentNotes: NoteTab[]) => {
+    setSaveStatus('saving');
+    try {
+      const { error } = await supabase
+        .from('improvisations')
+        .update({ notes: currentNotes })
+        .eq('id', improvisationId);
+
+      if (error) throw error;
+
+      setSaveStatus('saved');
+      // Reset status after a short delay to show the checkmark
+      setTimeout(() => setSaveStatus('idle'), 2000); 
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+      showError('Failed to autosave notes.');
+      setSaveStatus('idle'); // Revert to idle on error
+    }
+  }, [improvisationId]);
+
+  // Effect to debounce saving whenever notes change
+  useEffect(() => {
+    if (saveStatus === 'saved') return; // Don't trigger debounce immediately after a successful save reset
+
+    const handler = setTimeout(() => {
+      // Only save if content is actually different from the initial load (or if we just started typing)
+      if (JSON.stringify(notes) !== JSON.stringify(initialNotes)) {
+        saveNotes(notes);
+      }
+    }, 1500); // 1.5 second debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [notes, saveNotes, initialNotes]);
+
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setSaveStatus('idle'); // Indicate typing started
     setNotes(prevNotes => 
       prevNotes.map(note => 
         note.id === activeTab ? { ...note, content: e.target.value } : note
@@ -42,22 +79,27 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
     );
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from('improvisations')
-        .update({ notes: notes })
-        .eq('id', improvisationId);
-
-      if (error) throw error;
-
-      showSuccess('Notes saved successfully!');
-    } catch (error) {
-      console.error('Failed to save notes:', error);
-      showError('Failed to save notes.');
-    } finally {
-      setIsSaving(false);
+  const renderSaveStatus = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return (
+          <span className="flex items-center text-yellow-600 dark:text-yellow-400 text-sm">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Autosaving...
+          </span>
+        );
+      case 'saved':
+        return (
+          <span className="flex items-center text-green-600 dark:text-green-400 text-sm">
+            <Check className="h-4 w-4 mr-2" /> Saved
+          </span>
+        );
+      case 'idle':
+      default:
+        return (
+          <span className="text-sm text-muted-foreground">
+            Notes autosave automatically.
+          </span>
+        );
     }
   };
 
@@ -67,14 +109,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
         <CardTitle className="flex items-center text-xl">
           <NotebookText className="w-5 h-5 mr-2" /> Creative Notes
         </CardTitle>
-        <Button onClick={handleSave} disabled={isSaving} size="sm">
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          Save Notes
-        </Button>
+        {renderSaveStatus()}
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
