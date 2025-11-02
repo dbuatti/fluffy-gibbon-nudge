@@ -24,7 +24,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
-import GenreSelect from '@/components/GenreSelect'; // Import new component
+import GenreSelect from '@/components/GenreSelect';
+import AudioPlayer from '@/components/AudioPlayer'; // Import AudioPlayer
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -77,6 +78,20 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
   if (error) throw new Error(error.message);
   return data as Improvisation;
 };
+
+// Function to get the public URL for the audio file
+const getPublicAudioUrl = (storagePath: string | null): string | null => {
+    if (!storagePath) return null;
+    
+    // NOTE: Supabase Storage URLs are typically public if RLS is set up correctly on the bucket, 
+    // or if the bucket is public. Assuming 'piano_improvisations' is public for simplicity here.
+    // For production, you might use `supabase.storage.from('bucket').getPublicUrl(path)`
+    
+    // Since we don't have access to the bucket settings, we'll use the client method:
+    const { data } = supabase.storage.from('piano_improvisations').getPublicUrl(storagePath);
+    return data.publicUrl;
+};
+
 
 const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: string }> = ({ href, icon: Icon, label }) => (
   <a href={href} target="_blank" rel="noopener noreferrer" className="w-full">
@@ -203,6 +218,9 @@ const ImprovisationDetails: React.FC = () => {
   const hasAudioFile = !!imp?.storage_path;
   const isCompleted = imp?.status === 'completed';
   const isReadyForRelease = imp?.is_ready_for_release;
+  
+  // Get public URL for the audio file
+  const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
 
   // --- HANDLER DEFINITIONS ---
 
@@ -591,6 +609,15 @@ const ImprovisationDetails: React.FC = () => {
           />
         </div>
       </div>
+      
+      {/* AUDIO PLAYER (New Component) */}
+      {audioPublicUrl && imp.file_name && imp.storage_path && (
+        <AudioPlayer 
+          publicUrl={audioPublicUrl} 
+          fileName={imp.file_name} 
+          storagePath={imp.storage_path} 
+        />
+      )}
 
       <Tabs defaultValue="creative-hub" className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
@@ -835,7 +862,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
