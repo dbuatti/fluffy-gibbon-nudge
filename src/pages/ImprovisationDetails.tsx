@@ -88,36 +88,86 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
   </a>
 );
 
-const MetadataSummaryCard: React.FC<{ imp: Improvisation }> = ({ imp }) => {
-    const isCompleted = imp.status === 'completed';
-    const analysis = imp.analysis_data;
+interface EditableMetadataCardProps {
+    imp: Improvisation;
+    isPending: boolean;
+    handleUpdatePrimaryGenre: (v: string) => Promise<void>;
+    handleUpdateSecondaryGenre: (v: string) => Promise<void>;
+    handleUpdateAnalysisData: (key: keyof AnalysisData, newValue: string) => Promise<void>;
+}
 
-    const renderItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined) => (
-        <div className="flex items-center space-x-2">
-            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm font-medium text-muted-foreground">{label}:</span>
-            <span className="text-sm font-semibold text-primary truncate">
-                {value || (isCompleted ? 'N/A' : 'Awaiting Analysis')}
-            </span>
-        </div>
-    );
+const EditableMetadataCard: React.FC<EditableMetadataCardProps> = ({ 
+    imp, 
+    isPending, 
+    handleUpdatePrimaryGenre, 
+    handleUpdateSecondaryGenre, 
+    handleUpdateAnalysisData 
+}) => {
+    const analysis = imp.analysis_data;
+    const isCompleted = imp.status === 'completed';
 
     if (!imp.storage_path) {
         return null; // Only show this card once the file is uploaded
     }
+    
+    if (!isCompleted) {
+        return (
+            <Card className="p-6 text-center border-dashed border-2 border-muted-foreground/50">
+                <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
+                <p className="text-lg font-semibold">Analysis Pending</p>
+                <p className="text-sm text-muted-foreground">
+                    Metadata will appear here once the AI analysis is complete.
+                </p>
+            </Card>
+        );
+    }
+
+    const renderEditableItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, key: keyof AnalysisData) => (
+        <div className="flex items-center space-x-2">
+            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
+            <EditableField
+                value={String(value || '')}
+                label={label}
+                onSave={(v) => handleUpdateAnalysisData(key, v)}
+                className="flex-grow"
+                placeholder="Click to set"
+                disabled={isPending}
+            />
+        </div>
+    );
+    
+    const renderGenreItem = (Icon: React.ElementType, label: string, value: string | null | undefined, onSave: (v: string) => Promise<void>) => (
+        <div className="flex items-center space-x-2">
+            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
+            <div className="flex-grow">
+                <GenreSelect
+                    value={value}
+                    label={label}
+                    onSave={onSave}
+                    placeholder="Select or type genre"
+                    disabled={isPending}
+                />
+            </div>
+        </div>
+    );
+
 
     return (
         <Card className="border-l-4 border-blue-500/50">
             <CardHeader className="pb-3">
                 <CardTitle className="text-xl flex items-center">
-                    <Zap className="h-5 w-5 mr-2 text-blue-500" /> AI Metadata Summary
+                    <Zap className="h-5 w-5 mr-2 text-blue-500" /> AI Metadata (Editable)
                 </CardTitle>
+                <p className="text-sm text-muted-foreground">Quickly adjust key analysis results here.</p>
             </CardHeader>
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {renderItem(Music, "Primary Genre", imp.primary_genre)}
-                {renderItem(Hash, "Key", analysis?.simulated_key)}
-                {renderItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo)}
-                {renderItem(Palette, "Mood", analysis?.mood)}
+                {renderGenreItem(Music, "Primary Genre", imp.primary_genre, handleUpdatePrimaryGenre)}
+                {renderGenreItem(Music, "Secondary Genre", imp.secondary_genre, handleUpdateSecondaryGenre)}
+                {renderEditableItem(Hash, "Key", analysis?.simulated_key, 'simulated_key')}
+                {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo')}
+                {renderEditableItem(Palette, "Mood", analysis?.mood, 'mood')}
             </CardContent>
         </Card>
     );
@@ -585,8 +635,16 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
-          {/* NEW: Metadata Summary Card */}
-          {imp && <MetadataSummaryCard imp={imp} />}
+          {/* NEW: Editable Metadata Card */}
+          {imp && (
+            <EditableMetadataCard 
+                imp={imp} 
+                isPending={updateMutation.isPending}
+                handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
+                handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
+                handleUpdateAnalysisData={handleUpdateAnalysisData}
+            />
+          )}
 
           {/* Composition Status Card */}
           <Card>

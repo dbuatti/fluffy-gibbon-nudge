@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Check, X, Edit2, Loader2 } from 'lucide-react';
-import { showError } from '@/utils/toast'; // ADDED
+import { showSuccess, showError } from '@/utils/toast';
+import { cn } from '@/lib/utils';
 
 interface EditableFieldProps {
   value: string | null | undefined;
@@ -10,58 +11,56 @@ interface EditableFieldProps {
   onSave: (newValue: string) => Promise<void>;
   className?: string;
   placeholder?: string;
+  // FIX: Add disabled prop
+  disabled?: boolean; 
 }
 
-const EditableField: React.FC<EditableFieldProps> = ({ value, label, onSave, className = '', placeholder = 'Click to edit' }) => {
+const EditableField: React.FC<EditableFieldProps> = ({ 
+  value, 
+  label, 
+  onSave, 
+  className, 
+  placeholder = `Enter ${label}`,
+  disabled = false, // Default to false
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentValue, setCurrentValue] = useState(value || '');
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Update internal state if external value changes (e.g., after a successful save or refetch)
   useEffect(() => {
-    setCurrentValue(value || '');
-  }, [value]);
-
-  const handleStartEdit = () => {
-    setIsEditing(true);
-    // Focus the input field after the state transition
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setCurrentValue(value || ''); // Revert to original value
-  };
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
 
   const handleSave = async () => {
-    const trimmedValue = currentValue.trim();
-    const originalValue = (value || '').trim();
-    
-    // 1. Check if the value has actually changed
-    if (trimmedValue === originalValue) {
+    if (currentValue === (value || '')) {
       setIsEditing(false);
-      return; // No change, exit silently
+      return;
     }
     
-    // 2. Check for empty value (if original was not empty)
-    if (!trimmedValue && originalValue) {
-        showError(`The ${label} cannot be empty.`);
-        setCurrentValue(originalValue); // Revert to original
-        setIsEditing(false);
+    if (currentValue.trim() === '') {
+        showError(`${label} cannot be empty.`);
         return;
     }
 
     setIsLoading(true);
     try {
-      await onSave(trimmedValue);
+      await onSave(currentValue);
+      showSuccess(`${label} updated successfully.`);
       setIsEditing(false);
-    } catch (e) {
-      // Error handled by the mutation hook, but we revert state here
-      setCurrentValue(value || '');
+    } catch (error) {
+      console.error('Failed to save field:', error);
+      showError(`Failed to update ${label}.`);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    setCurrentValue(value || '');
+    setIsEditing(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -74,22 +73,22 @@ const EditableField: React.FC<EditableFieldProps> = ({ value, label, onSave, cla
 
   if (isEditing) {
     return (
-      <div className="flex items-center space-x-2 w-full">
+      <div className={cn("flex items-center space-x-2", className)}>
         <Input
           ref={inputRef}
           value={currentValue}
           onChange={(e) => setCurrentValue(e.target.value)}
-          onBlur={handleSave} // Save on blur
           onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="h-8 flex-grow"
           disabled={isLoading}
-          className="flex-grow"
         />
         <Button 
           onClick={handleSave} 
           size="icon" 
           variant="ghost" 
-          disabled={isLoading}
           className="h-8 w-8"
+          disabled={isLoading}
         >
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-500" />}
         </Button>
@@ -97,8 +96,8 @@ const EditableField: React.FC<EditableFieldProps> = ({ value, label, onSave, cla
           onClick={handleCancel} 
           size="icon" 
           variant="ghost" 
-          disabled={isLoading}
           className="h-8 w-8"
+          disabled={isLoading}
         >
           <X className="h-4 w-4 text-red-500" />
         </Button>
@@ -107,15 +106,20 @@ const EditableField: React.FC<EditableFieldProps> = ({ value, label, onSave, cla
   }
 
   return (
-    <div 
-      className={`flex items-center group cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors ${className}`}
-      onClick={handleStartEdit}
-      title={`Click to edit ${label}`}
-    >
-      <span className="truncate flex-grow">
-        {value || <span className="text-muted-foreground italic">{placeholder}</span>}
+    <div className={cn("flex items-center group", className)}>
+      <span className={cn("truncate", !value && "text-muted-foreground italic")}>
+        {value || placeholder}
       </span>
-      <Edit2 className="h-4 w-4 ml-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+      {!disabled && (
+        <Button 
+          onClick={() => setIsEditing(true)} 
+          size="icon" 
+          variant="ghost" 
+          className="h-6 w-6 ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-0"
+        >
+          <Edit2 className="h-3 w-3" />
+        </Button>
+      )}
     </div>
   );
 };
