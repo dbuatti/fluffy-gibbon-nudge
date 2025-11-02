@@ -171,7 +171,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
         );
     }
 
-    // Select view
+    // Select view (This is the default dropdown view)
     return (
         <Select 
             value={value || ""} 
