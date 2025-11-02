@@ -14,7 +14,7 @@ import DistroKidTab from '@/components/DistroKidTab';
 import InsightTimerTab from '@/components/InsightTimerTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import AudioUploadForIdea from '@/components/AudioUploadForIdea';
-import CompositionNotes from '@/components/CompositionNotes'; // Import new component
+import CompositionNotes from '@/components/CompositionNotes';
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -249,13 +249,13 @@ const ImprovisationDetails: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
         <div className="flex-grow">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
             {imp.generated_name || imp.file_name || 'Untitled Idea'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Uploaded: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+            Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
           </p>
         </div>
         
@@ -289,156 +289,197 @@ const ImprovisationDetails: React.FC = () => {
         </div>
       </div>
 
-      {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
-        <AudioUploadForIdea 
-          improvisationId={imp.id} 
-          isImprovisation={imp.is_improvisation}
-          onUploadSuccess={handleRefetch}
-        />
-      )}
+      <Tabs defaultValue="creative-hub" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-auto p-1">
+          <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
+          <TabsTrigger value="analysis-distro" className="text-base py-2" disabled={!hasAudioFile}>
+            Analysis & Distribution {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+          </TabsTrigger>
+        </TabsList>
 
-      <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Artwork & Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* --- CREATIVE HUB TAB --- */}
+        <TabsContent value="creative-hub" className="space-y-8 mt-6">
           
-          {/* Artwork Column */}
-          <div className="col-span-1 space-y-4">
-            {imp.artwork_url ? (
-              <img 
-                src={imp.artwork_url} 
-                alt="Generated Artwork" 
-                className="w-full aspect-square object-cover rounded-lg shadow-lg"
-              />
-            ) : (
-              <div className="w-full aspect-square bg-muted rounded-lg flex flex-col items-center justify-center text-muted-foreground">
-                <Music className="h-12 w-12" />
-                <p className="mt-2">
-                  {hasAudioFile ? 'Artwork generating...' : 'Upload audio to generate artwork.'}
-                </p>
+          {/* 1. Audio Upload (if needed) */}
+          {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
+            <AudioUploadForIdea 
+              improvisationId={imp.id} 
+              isImprovisation={imp.is_improvisation}
+              onUploadSuccess={handleRefetch}
+            />
+          )}
+
+          {/* 2. Composition Notes */}
+          <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} />
+
+          {/* 3. Artwork & Quick Actions Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Artwork & Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Artwork Column */}
+              <div className="col-span-1 space-y-4">
+                {imp.artwork_url ? (
+                  <img 
+                    src={imp.artwork_url} 
+                    alt="Generated Artwork" 
+                    className="w-full aspect-square object-cover rounded-lg shadow-lg"
+                  />
+                ) : (
+                  <div className="w-full aspect-square bg-muted rounded-lg flex flex-col items-center justify-center text-muted-foreground">
+                    <Music className="h-12 w-12" />
+                    <p className="mt-2">
+                      {hasAudioFile ? 'Artwork generating...' : 'Upload audio to generate artwork.'}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                    {isCompleted && imp.artwork_url && (
+                      <Button onClick={handleDownload} className="w-full">
+                        <Download className="h-4 w-4 mr-2" /> Download Artwork (3000x3000)
+                      </Button>
+                    )}
+                    {isCompleted && (
+                      <Button 
+                        onClick={handleRegenerateArtwork} 
+                        variant="outline" 
+                        className="w-full"
+                        disabled={isRegenerating || isAnalyzing}
+                      >
+                        {isRegenerating ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
+                      </Button>
+                    )}
+                    {hasAudioFile && (
+                      <Button 
+                        onClick={handleRescanAnalysis} 
+                        variant="secondary" 
+                        className="w-full"
+                        disabled={isRescanning || isAnalyzing}
+                      >
+                        {isRescanning || isAnalyzing ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                      </Button>
+                    )}
+                </div>
               </div>
-            )}
-            
-            <div className="space-y-2">
-                {isCompleted && imp.artwork_url && (
-                  <Button onClick={handleDownload} className="w-full">
-                    <Download className="h-4 w-4 mr-2" /> Download Artwork (3000x3000)
-                  </Button>
-                )}
-                {isCompleted && (
-                  <Button 
-                    onClick={handleRegenerateArtwork} 
-                    variant="outline" 
-                    className="w-full"
-                    disabled={isRegenerating || isAnalyzing}
-                  >
-                    {isRegenerating ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
-                  </Button>
-                )}
-                {hasAudioFile && (
-                  <Button 
-                    onClick={handleRescanAnalysis} 
-                    variant="secondary" 
-                    className="w-full"
-                    disabled={isRescanning || isAnalyzing}
-                  >
-                    {isRescanning || isAnalyzing ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
-                  </Button>
-                )}
-            </div>
-          </div>
 
-          {/* Quick Links Column */}
-          <div className="col-span-1 space-y-4">
-            <h3 className="text-lg font-semibold">Distribution Links</h3>
-            <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
-            <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
-            
-            <Separator />
-
-            <h3 className="text-lg font-semibold">Asset Tools</h3>
-            <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Biteable Image Resizer" />
-          </div>
-
-          {/* Metadata Column */}
-          <div className="col-span-1 space-y-4">
-            <h3 className="text-lg font-semibold">Composition Metadata</h3>
-            
-            <div className="space-y-2">
-                <div className="flex items-center">
-                    <span className="font-semibold w-24">Status:</span> 
-                    <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
-                </div>
-                <div className="flex items-center">
-                    <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A (Audio Missing)'}</span>
-                </div>
-                <div className="flex items-center">
-                    <Piano className="h-5 w-5 mr-2" />
-                    <span className="font-semibold">Type:</span> 
-                    <Badge variant={imp.is_improvisation ? 'default' : 'secondary'} className="ml-2">
-                        {imp.is_improvisation ? 'Improvisation' : 'Composition'}
-                    </Badge>
-                </div>
-                <div className="flex items-center">
-                    <Piano className="h-5 w-5 mr-2" />
-                    <span className="font-semibold">Is Piano:</span> 
-                    <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
-                        {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                        {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
-                    </Badge>
-                </div>
-                <div className="flex items-center">
-                    <span className="font-semibold">Primary Genre:</span> <span className="ml-2">{imp.primary_genre || 'N/A'}</span>
-                </div>
-                <div className="flex items-center">
-                    <span className="font-semibold">Secondary Genre:</span> <span className="ml-2">{imp.secondary_genre || 'N/A'}</span>
-                </div>
-            </div>
-
-            {imp.analysis_data && (
-              <>
+              {/* Quick Links Column */}
+              <div className="col-span-1 space-y-4">
+                <h3 className="text-lg font-semibold">Distribution Links</h3>
+                <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
+                <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
+                
                 <Separator />
-                <h3 className="text-lg font-semibold">Technical Data</h3>
-                <ul className="list-disc list-inside ml-4 space-y-1 text-sm text-muted-foreground">
-                  {Object.entries(imp.analysis_data).map(([key, value]) => (
-                    <li key={key}>
-                      <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span> {String(value)}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      
-      {imp.status === 'completed' && (
-        <Tabs defaultValue="distrokid" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="distrokid">DistroKid Prep</TabsTrigger>
-            <TabsTrigger value="insight-timer">Insight Timer Prep</TabsTrigger>
-          </TabsList>
-          <TabsContent value="distrokid">
-            <DistroKidTab imp={imp} />
-          </TabsContent>
-          <TabsContent value="insight-timer">
-            <InsightTimerTab imp={imp} />
-          </TabsContent>
-        </Tabs>
-      )}
+
+                <h3 className="text-lg font-semibold">Asset Tools</h3>
+                <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Biteable Image Resizer" />
+              </div>
+
+              {/* General Metadata Column (Moved from Analysis Tab) */}
+              <div className="col-span-1 space-y-4">
+                <h3 className="text-lg font-semibold">Composition Status</h3>
+                
+                <div className="space-y-2">
+                    <div className="flex items-center">
+                        <span className="font-semibold w-24">Status:</span> 
+                        <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
+                    </div>
+                    <div className="flex items-center">
+                        <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A (Audio Missing)'}</span>
+                    </div>
+                    <div className="flex items-center">
+                        <Piano className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Type:</span> 
+                        <Badge variant={imp.is_improvisation ? 'default' : 'secondary'} className="ml-2">
+                            {imp.is_improvisation ? 'Improvisation' : 'Composition'}
+                        </Badge>
+                    </div>
+                    <div className="flex items-center">
+                        <Piano className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Is Piano:</span> 
+                        <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
+                            {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                            {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
+                        </Badge>
+                    </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* --- ANALYSIS & DISTRIBUTION TAB --- */}
+        <TabsContent value="analysis-distro" className="space-y-8 mt-6">
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Analysis Results</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <h3 className="text-lg font-semibold">AI Generated Metadata</h3>
+                <div className="space-y-2">
+                    <div className="flex items-center">
+                        <span className="font-semibold w-32">Primary Genre:</span> <span className="ml-2">{imp.primary_genre || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center">
+                        <span className="font-semibold w-32">Secondary Genre:</span> <span className="ml-2">{imp.secondary_genre || 'N/A'}</span>
+                    </div>
+                </div>
+
+                {imp.analysis_data && (
+                  <>
+                    <Separator />
+                    <h3 className="text-lg font-semibold">Technical Data</h3>
+                    <ul className="list-disc list-inside ml-4 space-y-1 text-sm text-muted-foreground">
+                      {Object.entries(imp.analysis_data).map(([key, value]) => (
+                        <li key={key}>
+                          <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span> {String(value)}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+            </CardContent>
+          </Card>
+
+          {imp.status === 'completed' && (
+            <Tabs defaultValue="distrokid" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="distrokid">DistroKid Prep</TabsTrigger>
+                <TabsTrigger value="insight-timer">Insight Timer Prep</TabsTrigger>
+              </TabsList>
+              <TabsContent value="distrokid">
+                <DistroKidTab imp={imp} />
+              </TabsContent>
+              <TabsContent value="insight-timer">
+                <InsightTimerTab imp={imp} />
+              </TabsContent>
+            </Tabs>
+          )}
+          
+          {imp.status !== 'completed' && (
+            <Card className="p-6 text-center border-dashed border-2 border-muted-foreground/50">
+                <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
+                <p className="text-lg font-semibold">Analysis Pending</p>
+                <p className="text-sm text-muted-foreground">
+                    This section will populate once the audio file is uploaded and the AI analysis is complete.
+                </p>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
