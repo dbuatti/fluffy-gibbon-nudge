@@ -12,7 +12,7 @@ const corsHeaders = {
 function generatePlaceholderImageUrl(name: string): string {
     // Using a high-resolution placeholder image (3000x3000) to meet the distribution requirements.
     const seed = name.replace(/\s/g, '');
-    // Using a different placeholder service for more abstract results
+    // Switching to a different placeholder service for reliability and abstract results
     return `https://source.unsplash.com/random/3000x3000/?abstract,music,art,${seed}`;
 }
 
