@@ -26,7 +26,7 @@ import { Switch } from '@/components/ui/switch';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import GenreSelect from '@/components/GenreSelect';
 import AudioPlayer from '@/components/AudioPlayer';
-import CompositionMetadataSheet from '@/components/CompositionMetadataSheet'; // Import new component
+import CompositionMetadataDialog from '@/components/CompositionMetadataDialog'; // Import new component name
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -104,7 +104,7 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
   </a>
 );
 
-// Removed EditableMetadataCard as its content is moved to CompositionMetadataSheet
+// Removed EditableMetadataCard as its content is moved to CompositionMetadataDialog
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -512,9 +512,9 @@ const ImprovisationDetails: React.FC = () => {
                 </Button>
             </div>
             
-            {/* NEW: Metadata Sheet Trigger */}
+            {/* NEW: Metadata Dialog Trigger */}
             {imp && (
-                <CompositionMetadataSheet
+                <CompositionMetadataDialog
                     imp={imp}
                     isPending={updateMutation.isPending}
                     handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
@@ -595,9 +595,6 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
-          {/* REMOVED: Editable Metadata Card (Moved to Sheet) */}
-          {/* REMOVED: Distribution Toggles Card (Moved to Sheet) */}
-          
           {/* Composition Status Card (Simplified) */}
           <Card>
             <CardHeader>
