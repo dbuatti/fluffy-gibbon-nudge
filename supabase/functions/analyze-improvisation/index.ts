@@ -52,7 +52,7 @@ async function generateNameWithGemini(analysisData: any, isImprovisation: boolea
     const prompt = `You are an expert music analyst and poet. Based on the following analysis of an audio track, generate a single, evocative, and unique title for the piece. 
     The piece is classified as a ${isPiano ? 'Piano' : 'Non-Piano'} ${isImprovisation ? 'Improvisation' : 'Composition'}.
     Primary Genre: ${primaryGenre}. Secondary Genre: ${secondaryGenre}.
-    Technical Data: Key=${analysisData.simulated_key}, Tempo=${analysisData.simulated_tempo}, Mood=${analysisData.mood}.
+    Technical Data: Tempo=${analysisData.simulated_tempo}, Mood=${analysisData.mood}. (Key: ${analysisData.simulated_key} - DO NOT include the key in the final title).
     
     Respond ONLY with the title, nothing else. The title should be suitable for a music release.`;
 
