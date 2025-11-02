@@ -603,7 +603,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
+                        {isRegenerating ? 'Regenerate Artwork' : 'Regenerate Artwork'}
                       </Button>
                     )}
                     {hasAudioFile && (
@@ -626,25 +626,12 @@ const ImprovisationDetails: React.FC = () => {
             </CardContent>
           </Card>
           
-          {/* External Tools Card (Moved from Creative Hub) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>External Tools & Organization</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <FilePathSuggestion 
-                    generatedName={imp.generated_name}
-                    primaryGenre={imp.primary_genre}
-                    isCompleted={isCompleted}
-                />
-                <Separator />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
-                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
-                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
-                </div>
-            </CardContent>
-          </Card>
+          {/* File Path Suggestion remains here as it relates to local file assets */}
+          <FilePathSuggestion 
+              generatedName={imp.generated_name}
+              primaryGenre={imp.primary_genre}
+              isCompleted={isCompleted}
+          />
 
         </TabsContent>
 
@@ -695,6 +682,20 @@ const ImprovisationDetails: React.FC = () => {
                     </ul>
                   </>
                 )}
+            </CardContent>
+          </Card>
+
+          {/* External Tools Card (MOVED HERE) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Distribution Quick Links</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
+                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
+                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+                </div>
             </CardContent>
           </Card>
 
