@@ -271,6 +271,31 @@ const ImprovisationDetails: React.FC = () => {
       setIsDeleting(false);
     }
   };
+  
+  const handleClearFile = async () => {
+    if (!imp) return;
+    
+    // 1. Reset file-related fields and status to 'uploaded' (Needs Audio)
+    try {
+        const { error: dbError } = await supabase
+            .from('improvisations')
+            .update({
+                file_name: null,
+                storage_path: null,
+                status: 'uploaded',
+            })
+            .eq('id', imp.id);
+
+        if (dbError) throw dbError;
+        
+        showSuccess("Audio file path cleared. Please upload a new file.");
+        handleRefetch();
+    } catch (error) {
+        console.error('Failed to clear file path:', error);
+        showError(`Failed to clear file path: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+    // NOTE: We do NOT attempt to delete the file from storage here, as we assume it was already missing/failed.
+  };
 
   // Handlers for Editable Fields
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
@@ -561,6 +586,7 @@ const ImprovisationDetails: React.FC = () => {
           publicUrl={audioPublicUrl} 
           fileName={imp.file_name} 
           storagePath={imp.storage_path} 
+          onClearFile={handleClearFile} // Pass the new handler
         />
       )}
 

@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Play, Pause, Loader2, Volume2, VolumeX, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Loader2, Volume2, VolumeX, AlertTriangle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -10,6 +10,7 @@ interface AudioPlayerProps {
   publicUrl: string;
   fileName: string;
   storagePath: string;
+  onClearFile: () => void; // New prop to handle clearing the file path
 }
 
 const formatTime = (seconds: number): string => {
@@ -18,7 +19,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
 };
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearFile }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -208,11 +209,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName }) => {
         
         {/* Error Message Display */}
         {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/50 border border-red-300 rounded-lg">
+            <div className="p-3 bg-red-50 dark:bg-red-950/50 border border-red-300 rounded-lg mt-4 flex justify-between items-center">
                 <p className="text-sm text-red-700 dark:text-red-300 font-medium flex items-center">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                     {error}
                 </p>
+                <Button 
+                    onClick={onClearFile} 
+                    variant="destructive" 
+                    size="sm" 
+                    className="flex-shrink-0 ml-4"
+                >
+                    <Trash2 className="h-4 w-4 mr-2" /> Clear Audio File
+                </Button>
             </div>
         )}
 
