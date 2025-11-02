@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -26,7 +26,7 @@ import { Switch } from '@/components/ui/switch';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import GenreSelect from '@/components/GenreSelect';
 import AudioPlayer from '@/components/AudioPlayer';
-import DistributionTogglesCard from '@/components/DistributionTogglesCard'; // Import new component
+import CompositionMetadataSheet from '@/components/CompositionMetadataSheet'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -104,91 +104,7 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
   </a>
 );
 
-interface EditableMetadataCardProps {
-    imp: Improvisation;
-    isPending: boolean;
-    handleUpdatePrimaryGenre: (v: string) => Promise<void>;
-    handleUpdateSecondaryGenre: (v: string) => Promise<void>;
-    handleUpdateAnalysisData: (key: keyof AnalysisData, newValue: string) => Promise<void>;
-}
-
-const EditableMetadataCard: React.FC<EditableMetadataCardProps> = ({ 
-    imp, 
-    isPending, 
-    handleUpdatePrimaryGenre, 
-    handleUpdateSecondaryGenre, 
-    handleUpdateAnalysisData 
-}) => {
-    const analysis = imp.analysis_data;
-    const isCompleted = imp.status === 'completed';
-
-    if (!imp.storage_path) {
-        return null; // Only show this card once the file is uploaded
-    }
-    
-    if (!isCompleted) {
-        return (
-            <Card className="p-6 text-center border-dashed border-2 border-muted-foreground/50">
-                <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
-                <p className="text-lg font-semibold">Analysis Pending</p>
-                <p className="text-sm text-muted-foreground">
-                    Metadata will appear here once the AI analysis is complete.
-                </p>
-            </Card>
-        );
-    }
-
-    const renderEditableItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, key: keyof AnalysisData) => (
-        <div className="flex items-center space-x-2">
-            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
-            <EditableField
-                value={String(value || '')}
-                label={label}
-                onSave={(v) => handleUpdateAnalysisData(key, v)}
-                className="flex-grow"
-                placeholder="Click to set"
-                disabled={isPending}
-            />
-        </div>
-    );
-    
-    const renderGenreItem = (Icon: React.ElementType, label: string, value: string | null | undefined, onSave: (v: string) => Promise<void>) => (
-        <div className="flex items-center space-x-2">
-            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
-            <div className="flex-grow">
-                <GenreSelect
-                    value={value}
-                    label={label}
-                    onSave={onSave}
-                    placeholder="Select or type genre"
-                    disabled={isPending}
-                />
-            </div>
-        </div>
-    );
-
-
-    return (
-        <Card className="border-l-4 border-blue-500/50">
-            <CardHeader className="pb-3">
-                <CardTitle className="text-xl flex items-center">
-                    <Zap className="h-5 w-5 mr-2 text-blue-500" /> AI Metadata (Editable)
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">Quickly adjust key analysis results here.</p>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {renderGenreItem(Music, "Primary Genre", imp.primary_genre, handleUpdatePrimaryGenre)}
-                {renderGenreItem(Music, "Secondary Genre", imp.secondary_genre, handleUpdateSecondaryGenre)}
-                {renderEditableItem(Hash, "Key", analysis?.simulated_key, 'simulated_key')}
-                {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo')}
-                {renderEditableItem(Palette, "Mood", analysis?.mood, 'mood')}
-            </CardContent>
-        </Card>
-    );
-};
-
+// Removed EditableMetadataCard as its content is moved to CompositionMetadataSheet
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -517,6 +433,10 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
+  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
+  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
+  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
+  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
   
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
@@ -591,6 +511,22 @@ const ImprovisationDetails: React.FC = () => {
                     )}
                 </Button>
             </div>
+            
+            {/* NEW: Metadata Sheet Trigger */}
+            {imp && (
+                <CompositionMetadataSheet
+                    imp={imp}
+                    isPending={updateMutation.isPending}
+                    handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
+                    handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
+                    handleUpdateAnalysisData={handleUpdateAnalysisData}
+                    handleUpdateIsImprovisation={handleUpdateIsImprovisation}
+                    handleUpdateIsPiano={handleUpdateIsPiano}
+                    handleUpdateIsInstrumental={handleUpdateIsInstrumental}
+                    handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
+                    handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
+                />
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
@@ -659,18 +595,10 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
-          {/* NEW: Editable Metadata Card */}
-          {imp && (
-            <EditableMetadataCard 
-                imp={imp} 
-                isPending={updateMutation.isPending}
-                handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
-                handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
-                handleUpdateAnalysisData={handleUpdateAnalysisData}
-            />
-          )}
-
-          {/* Composition Status Card (Refactored) */}
+          {/* REMOVED: Editable Metadata Card (Moved to Sheet) */}
+          {/* REMOVED: Distribution Toggles Card (Moved to Sheet) */}
+          
+          {/* Composition Status Card (Simplified) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">Composition Status</CardTitle>
@@ -683,29 +611,6 @@ const ImprovisationDetails: React.FC = () => {
                     </div>
                     <div className="flex items-center">
                         <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A'}</span>
-                    </div>
-                    
-                    {/* EDITABLE: Is Improvisation */}
-                    <div className="space-y-2 pt-2">
-                        <div className="flex items-center">
-                            <Piano className="h-5 w-5 mr-2" />
-                            <span className="font-semibold">Type:</span> 
-                        </div>
-                        <RadioGroup 
-                            defaultValue={String(imp.is_improvisation)} 
-                            onValueChange={handleUpdateIsImprovisation}
-                            disabled={updateMutation.isPending}
-                            className="flex space-x-4 ml-4"
-                        >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="improv" />
-                              <Label htmlFor="improv">Spontaneous Improvisation</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="composition" />
-                              <Label htmlFor="composition">Fixed Composition</Label>
-                            </div>
-                        </RadioGroup>
                     </div>
                 </div>
                 <div className="space-y-4">
@@ -722,17 +627,6 @@ const ImprovisationDetails: React.FC = () => {
                 </div>
             </CardContent>
           </Card>
-          
-          {/* NEW: Distribution Toggles Card */}
-          {imp && (
-            <DistributionTogglesCard
-                improvisationId={imp.id}
-                isPiano={imp.is_piano}
-                isInstrumental={imp.is_instrumental}
-                isOriginalSong={imp.is_original_song}
-                hasExplicitLyrics={imp.has_explicit_lyrics}
-            />
-          )}
 
           {/* 1. Audio Upload (if needed) - Prominent CTA */}
           {!hasAudioFile && imp.is_improvisation !== null && (
@@ -857,8 +751,6 @@ const ImprovisationDetails: React.FC = () => {
               <CardTitle>AI Analysis Results</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Removed duplicated editable fields (Genre, Key, Tempo, Mood) */}
-                
                 {imp.analysis_data && (
                   <>
                     <h3 className="text-lg font-semibold">Technical Data (Read-Only Summary)</h3>
