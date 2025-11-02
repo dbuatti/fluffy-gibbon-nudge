@@ -5,6 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { Play, Pause, Loader2, Volume2, VolumeX, AlertTriangle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import WaveformVisualizer from './WaveformVisualizer'; // Import the new component
 
 interface AudioPlayerProps {
   publicUrl: string;
@@ -70,11 +71,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
     setCurrentTime(0);
   }, []);
 
-  const handleSeek = useCallback((value: number[]) => {
+  const handleSeek = useCallback((newTime: number) => {
     const audio = audioRef.current;
     if (audio) {
-      audio.currentTime = value[0];
-      setCurrentTime(value[0]);
+      audio.currentTime = newTime;
+      setCurrentTime(newTime);
     }
   }, []);
 
@@ -178,18 +179,19 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
             )}
           </Button>
 
-          {/* Time Slider */}
-          <div className="flex-grow flex items-center space-x-3">
-            <span className="text-sm text-muted-foreground w-10 text-right">{formatTime(currentTime)}</span>
-            <Slider
-              value={[currentTime]}
-              max={duration}
-              step={0.1}
-              onValueChange={handleSeek}
-              disabled={!isLoaded || error !== null}
-              className="flex-grow"
+          {/* Waveform and Time Display */}
+          <div className="flex-grow space-y-1">
+            <WaveformVisualizer 
+                duration={duration}
+                currentTime={currentTime}
+                isPlaying={isPlaying}
+                onSeek={handleSeek}
+                className={cn(!isLoaded && "opacity-50 pointer-events-none")}
             />
-            <span className="text-sm text-muted-foreground w-10">{formatTime(duration)}</span>
+            <div className="flex justify-between text-xs text-muted-foreground font-mono px-1">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+            </div>
           </div>
 
           {/* Volume Controls */}
