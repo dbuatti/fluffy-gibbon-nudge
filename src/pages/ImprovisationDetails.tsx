@@ -656,10 +656,10 @@ const ImprovisationDetails: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* --- ASSETS & DOWNLOADS TAB (NEW) --- */}
+        {/* --- ASSETS & DOWNLOADS TAB --- */}
         <TabsContent value="assets-downloads" className="space-y-8 mt-6">
           
-          {/* Artwork & Actions Card (Moved from Creative Hub) */}
+          {/* Artwork & Actions Card */}
           <Card id="artwork-actions">
             <CardHeader>
               <CardTitle>Artwork & Asset Actions</CardTitle>
@@ -708,21 +708,6 @@ const ImprovisationDetails: React.FC = () => {
                         {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
                       </Button>
                     )}
-                    {hasAudioFile && (
-                      <Button 
-                        onClick={handleRescanAnalysis} 
-                        variant="secondary" 
-                        className="w-full"
-                        disabled={isRescanning || isAnalyzing}
-                      >
-                        {isRescanning || isAnalyzing ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                        )}
-                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
-                      </Button>
-                    )}
                 </div>
               </div>
             </CardContent>
@@ -735,28 +720,29 @@ const ImprovisationDetails: React.FC = () => {
               isCompleted={isCompleted}
           />
           
-          {/* External Tools Card (Kept here, removed from Analysis tab) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>External Tools & Organization</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
-                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
-                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
-                </div>
-            </CardContent>
-          </Card>
-
         </TabsContent>
 
         {/* --- ANALYSIS & DISTRIBUTION TAB --- */}
         <TabsContent value="analysis-distro" className="space-y-8 mt-6">
           
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>AI Analysis Results</CardTitle>
+              {hasAudioFile && (
+                <Button 
+                  onClick={handleRescanAnalysis} 
+                  variant="secondary" 
+                  className="h-8 px-3 text-sm"
+                  disabled={isRescanning || isAnalyzing}
+                >
+                  {isRescanning || isAnalyzing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
                 {imp.analysis_data && (
@@ -803,6 +789,20 @@ const ImprovisationDetails: React.FC = () => {
                     )}
                   </>
                 )}
+            </CardContent>
+          </Card>
+          
+          {/* External Tools Card (MOVED HERE) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>External Tools & Submission Links</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
+                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
+                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+                </div>
             </CardContent>
           </Card>
 
