@@ -409,7 +409,6 @@ const ImprovisationDetails: React.FC = () => {
   const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
 
   // Handlers for Editable Fields
-  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
