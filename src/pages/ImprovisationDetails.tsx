@@ -322,7 +322,10 @@ const ImprovisationDetails: React.FC = () => {
         if (!imp.artwork_url) {
             primaryAction = {
                 label: "Generate Artwork (10% Progress Boost)",
-                onClick: handleRegenerateArtwork, // Use existing function
+                onClick: () => {
+                    // Switch to Assets tab
+                    document.getElementById('assets-tab-trigger')?.click();
+                },
                 variant: "outline"
             };
         }
@@ -427,8 +430,9 @@ const ImprovisationDetails: React.FC = () => {
       </div>
 
       <Tabs defaultValue="creative-hub" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
+          <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2" disabled={!hasAudioFile}>Assets & Downloads</TabsTrigger>
           <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2" disabled={!hasAudioFile}>
             Analysis & Distribution {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
           </TabsTrigger>
@@ -468,7 +472,7 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
-          {/* NEW: Composition Status Card (Extracted from old 3-col layout) */}
+          {/* Composition Status Card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">Composition Status</CardTitle>
@@ -531,8 +535,12 @@ const ImprovisationDetails: React.FC = () => {
           <div id="composition-notes">
             <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
           </div>
+        </TabsContent>
 
-          {/* 3. Artwork & Actions Card (Simplified) */}
+        {/* --- ASSETS & DOWNLOADS TAB (NEW) --- */}
+        <TabsContent value="assets-downloads" className="space-y-8 mt-6">
+          
+          {/* Artwork & Actions Card (Moved from Creative Hub) */}
           <Card id="artwork-actions">
             <CardHeader>
               <CardTitle>Artwork & Asset Actions</CardTitle>
@@ -578,7 +586,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRegenerating ? 'Regenerating...' : 'Rescan Artwork'}
+                        {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
                       </Button>
                     )}
                     {hasAudioFile && (
@@ -601,7 +609,7 @@ const ImprovisationDetails: React.FC = () => {
             </CardContent>
           </Card>
           
-          {/* NEW: External Tools Card */}
+          {/* External Tools Card (Moved from Creative Hub) */}
           <Card>
             <CardHeader>
               <CardTitle>External Tools & Organization</CardTitle>
