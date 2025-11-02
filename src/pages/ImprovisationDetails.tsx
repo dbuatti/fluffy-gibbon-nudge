@@ -857,71 +857,26 @@ const ImprovisationDetails: React.FC = () => {
               <CardTitle>AI Analysis Results</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <h3 className="text-lg font-semibold">AI Generated Metadata (Editable)</h3>
-                <div className="space-y-3">
-                    {/* EDITABLE: Primary Genre */}
-                    <div className="flex items-center">
-                        <span className="font-semibold w-32 flex-shrink-0">Primary Genre:</span> 
-                        <div className="ml-2 flex-grow">
-                            <GenreSelect
-                                value={imp.primary_genre}
-                                label="Primary Genre"
-                                onSave={handleUpdatePrimaryGenre}
-                                placeholder="Select or type primary genre"
-                            />
-                        </div>
-                    </div>
-                    {/* EDITABLE: Secondary Genre */}
-                    <div className="flex items-center">
-                        <span className="font-semibold w-32 flex-shrink-0">Secondary Genre:</span> 
-                        <div className="ml-2 flex-grow">
-                            <GenreSelect
-                                value={imp.secondary_genre}
-                                label="Secondary Genre"
-                                onSave={handleUpdateSecondaryGenre}
-                                placeholder="Select or type secondary genre"
-                            />
-                        </div>
-                    </div>
-                </div>
-
+                {/* Removed duplicated editable fields (Genre, Key, Tempo, Mood) */}
+                
                 {imp.analysis_data && (
                   <>
-                    <Separator />
-                    <h3 className="text-lg font-semibold">Technical Data (Editable)</h3>
+                    <h3 className="text-lg font-semibold">Technical Data (Read-Only Summary)</h3>
                     <div className="space-y-3">
-                        {/* EDITABLE: Simulated Key */}
+                        {/* Display Key */}
                         <div className="flex items-center">
                             <span className="font-semibold w-32 flex-shrink-0">Key:</span> 
-                            <EditableField
-                                value={imp.analysis_data.simulated_key}
-                                label="Key"
-                                onSave={(v) => handleUpdateAnalysisData('simulated_key', v)}
-                                className="ml-2 flex-grow"
-                                placeholder="E.g., C Major"
-                            />
+                            <span className="ml-2 text-sm">{imp.analysis_data.simulated_key || 'N/A'}</span>
                         </div>
-                        {/* EDITABLE: Simulated Tempo */}
+                        {/* Display Tempo */}
                         <div className="flex items-center">
                             <span className="font-semibold w-32 flex-shrink-0">Tempo (BPM):</span> 
-                            <EditableField
-                                value={String(imp.analysis_data.simulated_tempo || '')}
-                                label="Tempo"
-                                onSave={(v) => handleUpdateAnalysisData('simulated_tempo', v)}
-                                className="ml-2 flex-grow"
-                                placeholder="E.g., 120"
-                            />
+                            <span className="ml-2 text-sm">{imp.analysis_data.simulated_tempo || 'N/A'}</span>
                         </div>
-                        {/* EDITABLE: Mood */}
+                        {/* Display Mood */}
                         <div className="flex items-center">
                             <span className="font-semibold w-32 flex-shrink-0">Mood:</span> 
-                            <EditableField
-                                value={imp.analysis_data.mood}
-                                label="Mood"
-                                onSave={(v) => handleUpdateAnalysisData('mood', v)}
-                                className="ml-2 flex-grow"
-                                placeholder="E.g., Melancholy"
-                            />
+                            <span className="ml-2 text-sm">{imp.analysis_data.mood || 'N/A'}</span>
                         </div>
                     </div>
                     
