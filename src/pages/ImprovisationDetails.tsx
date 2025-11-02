@@ -22,6 +22,8 @@ import EditableField from '@/components/EditableField';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import LocalScriptGenerator from '@/components/LocalScriptGenerator'; // Import new component
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'; // Import Collapsible components
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -618,7 +620,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
@@ -632,6 +634,10 @@ const ImprovisationDetails: React.FC = () => {
               <CardTitle>External Tools & Organization</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+                <LocalScriptGenerator 
+                    generatedName={imp.generated_name}
+                    isCompleted={isCompleted}
+                />
                 <FilePathSuggestion 
                     generatedName={imp.generated_name}
                     primaryGenre={imp.primary_genre}
