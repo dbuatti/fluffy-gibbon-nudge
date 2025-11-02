@@ -528,7 +528,7 @@ const ImprovisationDetails: React.FC = () => {
           </div>
 
           {/* 3. Artwork & Actions Card (Simplified) */}
-          <Card>
+          <Card id="artwork-actions">
             <CardHeader>
               <CardTitle>Artwork & Asset Actions</CardTitle>
             </CardHeader>
