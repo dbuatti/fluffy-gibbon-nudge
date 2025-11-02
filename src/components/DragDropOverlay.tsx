@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { UploadCloud, Music, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,10 +11,12 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const dragCounter = useRef(0); // Ref to track nested dragenter/dragleave events
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounter.current++;
     if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
       setIsDragging(true);
     }
@@ -23,8 +25,10 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set dragging to false if the drag leaves the entire window
-    if (e.clientX === 0 || e.clientY === 0 || e.clientX === window.innerWidth || e.clientY === window.innerHeight) {
+    dragCounter.current--;
+    
+    // Only set dragging to false when the counter hits zero (meaning drag left the entire window)
+    if (dragCounter.current === 0) {
         setIsDragging(false);
     }
   }, []);
@@ -38,6 +42,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    dragCounter.current = 0; // Reset counter on drop
 
     if (!session) {
         showError("Please sign in to upload files.");
@@ -146,8 +151,8 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
             ) : (
                 <>
                     <UploadCloud className="w-16 h-16 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold">Drop Audio File Here</h2>
-                    <p className="mt-2">MP3 or M4A only. This will instantly create a new composition.</p>
+                    <h2 className="text-2xl font-bold">Drop Audio File Here to Capture Instantly</h2>
+                    <p className="mt-2">MP3 or M4A only. Creates a new idea and starts AI analysis immediately.</p>
                 </>
             )}
           </div>
