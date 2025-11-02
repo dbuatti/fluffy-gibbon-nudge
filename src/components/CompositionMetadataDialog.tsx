@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, XCircle, Loader2, Send, Clock, Users } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -182,6 +182,9 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           <DialogTitle className="text-2xl font-bold flex items-center">
             <Info className="h-6 w-6 mr-2" /> Composition Metadata
           </DialogTitle>
+          <DialogDescription>
+            Edit technical analysis data and distribution toggles for your composition.
+          </DialogDescription>
         </DialogHeader>
         
         <ScrollArea className="flex-grow pr-4">

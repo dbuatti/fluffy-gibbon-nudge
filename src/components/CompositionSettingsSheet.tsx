@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Menu, Trash2, Loader2, Settings, AlertTriangle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -25,6 +25,9 @@ const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ imp
           <SheetTitle className="flex items-center">
             <Settings className="h-5 w-5 mr-2" /> Composition Settings
           </SheetTitle>
+          <SheetDescription>
+            Manage advanced settings and perform destructive actions for this composition.
+          </SheetDescription>
         </SheetHeader>
         
         <div className="py-6 space-y-6">
