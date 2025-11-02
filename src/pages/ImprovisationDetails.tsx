@@ -66,9 +66,30 @@ interface Improvisation {
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
+  // Explicitly list all columns to avoid Supabase 400 error when mixing '*' with complex types
   const { data, error } = await supabase
     .from('improvisations')
-    .select('*, is_ready_for_release, user_tags, is_instrumental, is_original_song, has_explicit_lyrics') // Select new columns
+    .select(`
+      id,
+      user_id,
+      file_name,
+      storage_path,
+      status,
+      generated_name,
+      analysis_data,
+      created_at,
+      artwork_url,
+      is_piano,
+      primary_genre,
+      secondary_genre,
+      is_improvisation,
+      notes,
+      is_ready_for_release,
+      user_tags,
+      is_instrumental,
+      is_original_song,
+      has_explicit_lyrics
+    `)
     .eq('id', id)
     .single();
 
@@ -736,7 +757,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
