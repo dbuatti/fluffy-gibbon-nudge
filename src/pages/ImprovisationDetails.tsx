@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -15,6 +15,7 @@ import InsightTimerTab from '@/components/InsightTimerTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import AudioUploadForIdea from '@/components/AudioUploadForIdea';
 import CompositionNotes from '@/components/CompositionNotes';
+import { Progress } from '@/components/ui/progress'; // Import Progress component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -84,6 +85,44 @@ const ImprovisationDetails: React.FC = () => {
   const isAnalyzing = imp?.status === 'analyzing';
   const showLoadingSpinner = isLoading || isAnalyzing;
   const hasAudioFile = !!imp?.storage_path;
+  const isCompleted = imp?.status === 'completed';
+
+  // --- Progress Logic ---
+  let progressValue = 0;
+  let progressMessage = "Capture your idea first.";
+
+  if (imp) {
+    // Step 1: Idea Captured (10%)
+    progressValue = 10;
+    progressMessage = "Idea captured. Now record and upload the audio file.";
+
+    // Step 2: Audio Uploaded (30%)
+    if (hasAudioFile) {
+      progressValue = 30;
+      progressMessage = "Audio uploaded. Analysis is running...";
+    }
+
+    // Step 3: Analysis Completed (60%)
+    if (isCompleted) {
+      progressValue = 60;
+      progressMessage = "Analysis complete! Review metadata and notes.";
+    }
+
+    // Step 4: Notes Added (80%) - Simple check if any note content exists
+    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
+    if (isCompleted && hasNotes) {
+      progressValue = 80;
+      progressMessage = "Notes added. Ready for distribution prep!";
+    }
+
+    // Step 5: Artwork Generated (100%)
+    if (isCompleted && hasNotes && imp.artwork_url) {
+      progressValue = 100;
+      progressMessage = "Composition is 100% ready for release!";
+    }
+  }
+  // --- End Progress Logic ---
+
 
   if (!id) {
     return <Navigate to="/" replace />;
@@ -245,7 +284,6 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
-  const isCompleted = imp.status === 'completed';
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
@@ -300,7 +338,19 @@ const ImprovisationDetails: React.FC = () => {
         {/* --- CREATIVE HUB TAB --- */}
         <TabsContent value="creative-hub" className="space-y-8 mt-6">
           
-          {/* 1. Audio Upload (if needed) */}
+          {/* Progress Bar (Gamification) */}
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold flex items-center">
+                <Zap className="h-5 w-5 mr-2 text-yellow-500" /> Composition Readiness
+              </h3>
+              <span className="text-sm font-bold text-primary">{progressValue}%</span>
+            </div>
+            <Progress value={progressValue} className="h-2 mb-2" />
+            <p className="text-sm text-muted-foreground">{progressMessage}</p>
+          </Card>
+
+          {/* 1. Audio Upload (if needed) - Prominent CTA */}
           {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
             <AudioUploadForIdea 
               improvisationId={imp.id} 
@@ -387,7 +437,7 @@ const ImprovisationDetails: React.FC = () => {
                 <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Biteable Image Resizer" />
               </div>
 
-              {/* General Metadata Column (Moved from Analysis Tab) */}
+              {/* General Metadata Column */}
               <div className="col-span-1 space-y-4">
                 <h3 className="text-lg font-semibold">Composition Status</h3>
                 
@@ -454,7 +504,7 @@ const ImprovisationDetails: React.FC = () => {
             </CardContent>
           </Card>
 
-          {imp.status === 'completed' && (
+          {isCompleted && (
             <Tabs defaultValue="distrokid" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="distrokid">DistroKid Prep</TabsTrigger>
@@ -469,7 +519,7 @@ const ImprovisationDetails: React.FC = () => {
             </Tabs>
           )}
           
-          {imp.status !== 'completed' && (
+          {!isCompleted && (
             <Card className="p-6 text-center border-dashed border-2 border-muted-foreground/50">
                 <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
                 <p className="text-lg font-semibold">Analysis Pending</p>
