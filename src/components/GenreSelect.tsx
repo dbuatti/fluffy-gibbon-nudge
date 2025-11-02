@@ -23,7 +23,6 @@ interface GenreSelectProps {
     label: string;
     onSave: (newValue: string) => Promise<void>;
     placeholder?: string;
-    // FIX: Add disabled prop
     disabled?: boolean;
 }
 
@@ -32,7 +31,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
     label, 
     onSave, 
     placeholder = `Select or type ${label}`,
-    disabled = false, // Default to false
+    disabled = false,
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isCustomInput, setIsCustomInput] = useState(false);
@@ -40,13 +39,14 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Effect to determine if the current value is a custom input
     useEffect(() => {
-        // If the current value is not in the common list, switch to custom input mode
-        if (value && !COMMON_GENRES.includes(value) && !isEditing) {
-            setIsCustomInput(true);
-        } else if (!value) {
-            setIsCustomInput(false);
+        const isValueCustom = value && !COMMON_GENRES.includes(value);
+        // Only set isCustomInput if we are not actively editing, to prevent flicker
+        if (!isEditing) {
+            setIsCustomInput(isValueCustom);
         }
+        setCurrentValue(value || '');
     }, [value, isEditing]);
 
     useEffect(() => {
@@ -56,24 +56,24 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
     }, [isEditing, isCustomInput]);
 
     const handleSave = async (newValue: string) => {
-        if (newValue === (value || '')) {
+        const trimmedValue = newValue.trim();
+        if (trimmedValue === (value || '')) {
             setIsEditing(false);
-            setIsCustomInput(!COMMON_GENRES.includes(newValue));
+            setIsCustomInput(!COMMON_GENRES.includes(trimmedValue));
             return;
         }
         
-        if (newValue.trim() === '') {
+        if (trimmedValue === '') {
             showError(`${label} cannot be empty.`);
             return;
         }
 
         setIsLoading(true);
         try {
-            await onSave(newValue);
+            await onSave(trimmedValue);
             showSuccess(`${label} updated successfully.`);
             setIsEditing(false);
-            // Determine if we should stay in custom input mode after saving
-            setIsCustomInput(!COMMON_GENRES.includes(newValue));
+            setIsCustomInput(!COMMON_GENRES.includes(trimmedValue));
         } catch (error) {
             console.error('Failed to save genre:', error);
             showError(`Failed to update ${label}.`);
@@ -85,16 +85,17 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
     const handleCancel = () => {
         setCurrentValue(value || '');
         setIsEditing(false);
-        // Reset custom input state based on original value
         setIsCustomInput(value ? !COMMON_GENRES.includes(value) : false);
     };
 
     const handleSelectChange = (newValue: string) => {
         if (newValue === "+custom") {
-            setCurrentValue(value || ''); // Keep current value if switching to custom input
+            // Switch to text input mode
+            setCurrentValue(value || ''); 
             setIsCustomInput(true);
             setIsEditing(true);
         } else {
+            // Save selected common genre immediately
             handleSave(newValue);
         }
     };
@@ -116,7 +117,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
         );
     }
 
-    // If editing in custom input mode
+    // If actively editing in custom input mode
     if (isEditing && isCustomInput) {
         return (
             <div className="flex items-center space-x-2">
@@ -151,45 +152,46 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
         );
     }
 
-    // Default view (Select or Read-only custom text)
-    if (isCustomInput) {
-        // Display custom genre with an edit button
-        return (
-            <div className="flex items-center group">
-                <span className="truncate text-sm font-semibold">
-                    {value}
-                </span>
+    // Default view: Always render the Select dropdown
+    return (
+        <div className="flex items-center space-x-2">
+            <Select 
+                value={value || ""} 
+                onValueChange={handleSelectChange}
+                disabled={isLoading}
+            >
+                <SelectTrigger className="h-8 flex-grow">
+                    <SelectValue placeholder={placeholder} />
+                </SelectTrigger>
+                <SelectContent>
+                    {COMMON_GENRES.map(genre => (
+                        <SelectItem key={genre} value={genre}>{genre}</SelectItem>
+                    ))}
+                    {/* If a custom value is set, show it as a selected item */}
+                    {isCustomInput && value && !COMMON_GENRES.includes(value) && (
+                        <SelectItem key={value} value={value} className="font-semibold text-primary">
+                            {value} (Custom)
+                        </SelectItem>
+                    )}
+                    <SelectItem value="+custom" className="font-semibold text-primary">
+                        + Enter Custom Genre
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+            
+            {/* Show edit button only if a custom value is currently selected (and we are not editing) */}
+            {isCustomInput && !isEditing && (
                 <Button 
                     onClick={() => setIsEditing(true)} 
                     size="icon" 
                     variant="ghost" 
-                    className="h-6 w-6 ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-0"
+                    className="h-8 w-8 flex-shrink-0"
+                    title="Edit Custom Genre Text"
                 >
-                    <Edit2 className="h-3 w-3" />
+                    <Edit2 className="h-4 w-4" />
                 </Button>
-            </div>
-        );
-    }
-
-    // Select view (This is the default dropdown view)
-    return (
-        <Select 
-            value={value || ""} 
-            onValueChange={handleSelectChange}
-            disabled={isLoading}
-        >
-            <SelectTrigger className="h-8">
-                <SelectValue placeholder={placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-                {COMMON_GENRES.map(genre => (
-                    <SelectItem key={genre} value={genre}>{genre}</SelectItem>
-                ))}
-                <SelectItem value="+custom" className="font-semibold text-primary">
-                    + Enter Custom Genre
-                </SelectItem>
-            </SelectContent>
-        </Select>
+            )}
+        </div>
     );
 };
 
