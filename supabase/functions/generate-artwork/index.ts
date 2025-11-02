@@ -59,9 +59,10 @@ async function generateImagePromptWithGemini(generatedName: string, primaryGenre
 
 // Placeholder function to simulate generating an image URL
 function generatePlaceholderImageUrl(prompt: string): string {
-    // ENFORCING PICSUM for stability. We use the AI-generated prompt as the seed.
-    const seed = prompt.replace(/\s/g, '');
-    return `https://picsum.photos/seed/${seed}/3000/3000`;
+    // Reverting to Unsplash to allow AI prompt keywords to influence the image content.
+    // We extract the first 5 relevant keywords from the AI prompt.
+    const keywords = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).slice(0, 5).join(',');
+    return `https://source.unsplash.com/random/3000x3000/?${keywords}`;
 }
 
 serve(async (req) => {
@@ -96,7 +97,7 @@ serve(async (req) => {
     // 2. Simulate image generation time
     await new Promise(resolve => setTimeout(resolve, 3000)); 
 
-    // 3. Use the AI prompt as the seed for the placeholder URL
+    // 3. Use the AI prompt keywords to influence the Unsplash image selection
     const artworkUrl = generatePlaceholderImageUrl(imagePrompt);
 
     // Update the database record with the artwork URL
