@@ -15,7 +15,8 @@ import InsightTimerTab from '@/components/InsightTimerTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import AudioUploadForIdea from '@/components/AudioUploadForIdea';
 import CompositionNotes from '@/components/CompositionNotes';
-import { Progress } from '@/components/ui/progress'; // Import Progress component
+import { Progress } from '@/components/ui/progress';
+import FilePathSuggestion from '@/components/FilePathSuggestion'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -354,6 +355,13 @@ const ImprovisationDetails: React.FC = () => {
             <Progress value={progressValue} className="h-2 mb-2" />
             <p className="text-sm text-muted-foreground">{progressMessage}</p>
           </Card>
+
+          {/* NEW: File Path Suggestion (Organization Tool) */}
+          <FilePathSuggestion 
+            generatedName={imp.generated_name}
+            primaryGenre={imp.primary_genre}
+            isCompleted={isCompleted}
+          />
 
           {/* 1. Audio Upload (if needed) - Prominent CTA */}
           {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
