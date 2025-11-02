@@ -64,7 +64,8 @@ async function generateNameWithGemini(analysisData: any, isImprovisation: boolea
             },
             body: JSON.stringify({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                config: {
+                // FIX: Renamed 'config' to 'generationConfig'
+                generationConfig: { 
                     temperature: 0.9,
                 }
             }),
