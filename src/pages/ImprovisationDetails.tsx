@@ -466,15 +466,52 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
-          {/* NEW: File Path Suggestion (Organization Tool) */}
-          <FilePathSuggestion 
-            generatedName={imp.generated_name}
-            primaryGenre={imp.primary_genre}
-            isCompleted={isCompleted}
-          />
+          {/* NEW: Composition Status Card (Extracted from old 3-col layout) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Composition Status</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <div className="flex items-center">
+                        <span className="font-semibold w-24">Status:</span> 
+                        <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
+                    </div>
+                    <div className="flex items-center">
+                        <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center">
+                        <Piano className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Type:</span> 
+                        <Badge variant={imp.is_improvisation ? 'default' : 'secondary'} className="ml-2">
+                            {imp.is_improvisation ? 'Improvisation' : 'Composition'}
+                        </Badge>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <div className="flex items-center">
+                        <Piano className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Is Piano:</span> 
+                        <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
+                            {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                            {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
+                        </Badge>
+                    </div>
+                    <div className="flex items-center">
+                        <Send className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Ready:</span> 
+                        <Badge variant={isReadyForRelease ? 'default' : 'outline'} className="ml-2 bg-green-500 hover:bg-green-500 text-white">
+                            {isReadyForRelease ? <CheckCircle className="h-3 w-3 mr-1" /> : 'Pending'}
+                        </Badge>
+                    </div>
+                    <div className="flex items-center">
+                        <span className="font-semibold w-24">Created:</span> <span className="ml-2 text-sm">{imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy') : 'N/A'}</span>
+                    </div>
+                </div>
+            </CardContent>
+          </Card>
 
           {/* 1. Audio Upload (if needed) - Prominent CTA */}
-          {/* SIMPLIFIED CONDITION: Show if audio is missing and we know the type of piece */}
           {!hasAudioFile && imp.is_improvisation !== null && (
             <div id="audio-upload-cta">
                 <AudioUploadForIdea 
@@ -490,15 +527,15 @@ const ImprovisationDetails: React.FC = () => {
             <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
           </div>
 
-          {/* 3. Artwork & Quick Actions Card */}
+          {/* 3. Artwork & Actions Card (Simplified) */}
           <Card>
             <CardHeader>
-              <CardTitle>Artwork & Quick Actions</CardTitle>
+              <CardTitle>Artwork & Asset Actions</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Artwork Column */}
-              <div className="col-span-1 space-y-4">
+              <div className="space-y-4">
                 {imp.artwork_url ? (
                   <img 
                     src={imp.artwork_url} 
@@ -513,7 +550,11 @@ const ImprovisationDetails: React.FC = () => {
                     </p>
                   </div>
                 )}
-                
+              </div>
+
+              {/* Actions Column */}
+              <div className="space-y-4 pt-4 md:pt-0">
+                <h3 className="text-lg font-semibold">Asset Management</h3>
                 <div className="space-y-2">
                     {isCompleted && imp.artwork_url && (
                       <Button onClick={handleDownload} className="w-full">
@@ -547,62 +588,34 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
               </div>
-
-              {/* Quick Links Column */}
-              <div className="col-span-1 space-y-4">
-                <h3 className="text-lg font-semibold">Distribution Links</h3>
-                <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
-                <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
-                
-                <Separator />
-
-                <h3 className="text-lg font-semibold">Asset Tools</h3>
-                <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Biteable Image Resizer" />
-              </div>
-
-              {/* General Metadata Column */}
-              <div className="col-span-1 space-y-4">
-                <h3 className="text-lg font-semibold">Composition Status</h3>
-                
-                <div className="space-y-2">
-                    <div className="flex items-center">
-                        <span className="font-semibold w-24">Status:</span> 
-                        <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
-                    </div>
-                    <div className="flex items-center">
-                        <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A (Audio Missing)'}</span>
-                    </div>
-                    <div className="flex items-center">
-                        <Piano className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">Type:</span> 
-                        <Badge variant={imp.is_improvisation ? 'default' : 'secondary'} className="ml-2">
-                            {imp.is_improvisation ? 'Improvisation' : 'Composition'}
-                        </Badge>
-                    </div>
-                    <div className="flex items-center">
-                        <Piano className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">Is Piano:</span> 
-                        <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
-                            {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                            {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
-                        </Badge>
-                    </div>
-                    <div className="flex items-center">
-                        <Send className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">Ready:</span> 
-                        <Badge variant={isReadyForRelease ? 'default' : 'outline'} className="ml-2 bg-green-500 hover:bg-green-500 text-white">
-                            {isReadyForRelease ? <CheckCircle className="h-3 w-3 mr-1" /> : 'Pending'}
-                        </Badge>
-                    </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
+          
+          {/* NEW: External Tools Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>External Tools & Organization</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <FilePathSuggestion 
+                    generatedName={imp.generated_name}
+                    primaryGenre={imp.primary_genre}
+                    isCompleted={isCompleted}
+                />
+                <Separator />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
+                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
+                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+                </div>
+            </CardContent>
+          </Card>
+
         </TabsContent>
 
         {/* --- ANALYSIS & DISTRIBUTION TAB --- */}
