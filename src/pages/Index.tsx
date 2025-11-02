@@ -102,12 +102,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
-      <header className="mb-10">
-        <h1 className="text-4xl font-extrabold text-center tracking-tight text-primary dark:text-primary-foreground">
-          Composition & Analysis Hub
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+          Dashboard
         </h1>
-        <p className="text-center text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">
-          Capture your spontaneous ideas first, then upload the audio to generate AI-powered metadata and prepare for distribution.
+        <p className="text-md text-muted-foreground mt-1">
+          Welcome back! Manage your ideas and compositions here.
         </p>
       </header>
       
@@ -115,7 +115,7 @@ const Index = () => {
         
         {/* ACTION ZONE: Capture Idea & Pipeline */}
         <div className="space-y-6">
-            <div className="flex justify-center">
+            <div className="flex justify-start">
                 <CaptureIdeaDialog onIdeaCaptured={handleRefetch} /> 
             </div>
             <CompositionPipeline />

@@ -7,10 +7,13 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import ImprovisationDetails from "./pages/ImprovisationDetails"; // Import new details page
+import ImprovisationDetails from "./pages/ImprovisationDetails";
+import Improvisations from "./pages/Improvisations"; // Import new page
+import Settings from "./pages/Settings"; // Import new page
 import { SessionContextProvider } from "./integrations/supabase/session-context";
 import ProtectedRoute from "./components/ProtectedRoute";
-import DragDropOverlay from "./components/DragDropOverlay"; // Import DragDropOverlay
+import DragDropOverlay from "./components/DragDropOverlay";
+import AppLayout from "./components/AppLayout"; // Import AppLayout
 
 const queryClient = new QueryClient();
 
@@ -23,12 +26,18 @@ const App = () => (
         <SessionContextProvider>
           <DragDropOverlay>
             <Routes>
+              {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               
+              {/* Protected Routes wrapped in AppLayout */}
               <Route element={<ProtectedRoute />}>
-                <Route path="/" element={<Index />} />
-                <Route path="/improvisation/:id" element={<ImprovisationDetails />} /> {/* New route */}
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/improvisation/:id" element={<ImprovisationDetails />} />
+                  <Route path="/improvisations" element={<Improvisations />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
               </Route>
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
