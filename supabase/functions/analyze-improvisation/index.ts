@@ -8,6 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const GENRES = [
+    "Afrobeat", "Afropop", "Alternative", "Big Band", "Blues", "Children's Music", 
+    "Christian/Gospel", "Classical", "Comedy", "Country", "Dance", "Electronic", 
+    "Fitness & Workout", "Folk", "French Pop", "German Folk", "German Pop", 
+    "Hip Hop/Rap", "Holiday", "J-Pop", "Jazz", "K-Pop", "Latin", "Latin Urban", 
+    "Metal", "New Age", "Pop", "Punk", "R&B/Soul", "Reggae", "Rock", 
+    "Singer/Songwriter", "Soundtrack", "Spoken Word", "Vocal", "World"
+];
+
 // Helper function to simulate analysis and generate a name
 function generateName(): string {
     const names = [
@@ -74,8 +83,18 @@ serve(async (req) => {
     
     // --- SIMULATED ANALYSIS RESULTS ---
     const isPiano = true; // Assume success for simulation
-    const primaryGenre = 'Classical';
-    const secondaryGenre = 'New Age';
+    
+    // Randomly select primary genre
+    const primaryGenreIndex = Math.floor(Math.random() * GENRES.length);
+    const primaryGenre = GENRES[primaryGenreIndex];
+    
+    // Randomly select secondary genre (must be different from primary)
+    let secondaryGenreIndex = Math.floor(Math.random() * GENRES.length);
+    while (secondaryGenreIndex === primaryGenreIndex) {
+        secondaryGenreIndex = Math.floor(Math.random() * GENRES.length);
+    }
+    const secondaryGenre = GENRES[secondaryGenreIndex];
+
     const analysisData = { 
         simulated_key: 'C Major', 
         simulated_tempo: 120,
