@@ -134,9 +134,12 @@ async function classifyGenresWithGemini(analysisData: any, isPiano: boolean, isI
         }
 
         const data = await response.json();
-        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         
         if (generatedText) {
+            // Robust parsing: Remove markdown code blocks if present
+            generatedText = generatedText.replace(/^```json\s*|```\s*$/g, '').trim();
+
             try {
                 const result = JSON.parse(generatedText);
                 if (result.primary && result.secondary) {
