@@ -10,12 +10,11 @@ const corsHeaders = {
 
 // Placeholder function to simulate generating an image URL
 function generatePlaceholderImageUrl(name: string): string {
-    // In a real application, this would call an external AI service (e.g., DALL-E)
-    // and return the URL of the generated image stored in a bucket.
-    
-    // Using a high-resolution placeholder image that meets the 1600x1600 requirement.
+    // Using a high-resolution placeholder image (1600x1600) that is abstract/geometric 
+    // to avoid generating specific objects like heels.
     const seed = name.replace(/\s/g, '');
-    return `https://picsum.photos/seed/${seed}/1600/1600`;
+    // Using a different placeholder service for more abstract results
+    return `https://source.unsplash.com/random/1600x1600/?abstract,music,art,${seed}`;
 }
 
 serve(async (req) => {

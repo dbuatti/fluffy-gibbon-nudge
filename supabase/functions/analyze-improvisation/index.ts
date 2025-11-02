@@ -27,8 +27,6 @@ function generateName(): string {
 async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string) {
     console.log(`Invoking generate-artwork for ID: ${improvisationId}`);
     
-    // Note: In a real deployment, you might need to use the full URL for cross-function calls.
-    // For simplicity in this environment, we assume direct invocation works.
     const { data, error } = await supabaseClient.functions.invoke('generate-artwork', {
         body: {
             improvisationId: improvisationId,
@@ -38,7 +36,6 @@ async function triggerArtworkGeneration(supabaseClient: any, improvisationId: st
 
     if (error) {
         console.error('Error invoking generate-artwork:', error);
-        // We don't fail the main analysis if artwork generation fails, just log it.
     } else {
         console.log('Artwork generation triggered successfully:', data);
     }
@@ -51,8 +48,6 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with the Service Role Key for privileged database access
-    // This is necessary for the function to update records regardless of RLS policies.
     // @ts-ignore
     const supabase = createClient(
       // @ts-ignore
@@ -76,14 +71,28 @@ serve(async (req) => {
     await new Promise(resolve => setTimeout(resolve, 5000)); 
 
     const generatedName = generateName();
+    
+    // --- SIMULATED ANALYSIS RESULTS ---
+    const isPiano = true; // Assume success for simulation
+    const primaryGenre = 'Classical';
+    const secondaryGenre = 'New Age';
+    const analysisData = { 
+        simulated_key: 'C Major', 
+        simulated_tempo: 120,
+        instrument_confidence: 0.98,
+        mood: 'Melancholy'
+    };
 
-    // Update the database record with the generated name
+    // Update the database record with the generated name and analysis data
     const { error: updateError } = await supabase
       .from('improvisations')
       .update({ 
         status: 'completed', 
         generated_name: generatedName,
-        analysis_data: { simulated_key: 'C Major', simulated_tempo: 120 } // Placeholder analysis data
+        is_piano: isPiano,
+        primary_genre: primaryGenre,
+        secondary_genre: secondaryGenre,
+        analysis_data: analysisData
       })
       .eq('id', improvisationId);
 
@@ -98,7 +107,6 @@ serve(async (req) => {
     console.log(`Analysis completed for ID: ${improvisationId}. Name: ${generatedName}`);
     
     // --- Trigger Artwork Generation (asynchronously) ---
-    // We don't await this, so the client gets a fast response, and image generation runs in the background.
     triggerArtworkGeneration(supabase, improvisationId, generatedName);
 
 

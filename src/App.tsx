@@ -6,7 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import Signup from "./pages/Signup"; // Import the new Signup page
+import Signup from "./pages/Signup";
+import ImprovisationDetails from "./pages/ImprovisationDetails"; // Import new details page
 import { SessionContextProvider } from "./integrations/supabase/session-context";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -25,6 +26,7 @@ const App = () => (
             
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
+              <Route path="/improvisation/:id" element={<ImprovisationDetails />} /> {/* New route */}
             </Route>
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

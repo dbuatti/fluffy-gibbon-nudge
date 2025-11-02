@@ -8,6 +8,7 @@ import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon } from 'lucide-r
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Link } from 'react-router-dom'; // Import Link
 
 interface Improvisation {
   id: string;
@@ -76,7 +77,11 @@ const ImprovisationList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {improvisations.map((imp) => (
-                <TableRow key={imp.id}>
+                <TableRow 
+                  key={imp.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => window.location.href = `/improvisation/${imp.id}`} // Use window.location for simple navigation
+                >
                   <TableCell>
                     <Avatar className="h-10 w-10 rounded-md">
                       <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
