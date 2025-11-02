@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette, Info } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette, Info, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -606,31 +606,57 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
-          {/* Composition Status Card (Simplified) */}
+          {/* NEW: Core Metadata Card (Exposed for quick editing) */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">Composition Status</CardTitle>
+              <CardTitle className="text-xl flex items-center">
+                <Music className="h-5 w-5 mr-2" /> Core Metadata
+              </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4">
-                    <div className="flex items-center">
-                        <span className="font-semibold w-24">Status:</span> 
-                        <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
-                    </div>
-                    <div className="flex items-center">
-                        <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A'}</span>
-                    </div>
+            <CardContent className="space-y-4">
+                <div className="space-y-2 border-b pb-4">
+                    <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Composition Type</Label>
+                    <RadioGroup 
+                        defaultValue={String(imp.is_improvisation)} 
+                        onValueChange={handleUpdateIsImprovisation}
+                        disabled={updateMutation.isPending}
+                        className="flex space-x-4 ml-4"
+                    >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="main-improv" />
+                          <Label htmlFor="main-improv">Improvisation</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="main-composition" />
+                          <Label htmlFor="main-composition">Composition</Label>
+                        </div>
+                    </RadioGroup>
                 </div>
-                <div className="space-y-4">
-                    <div className="flex items-center">
-                        <Send className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">Ready:</span> 
-                        <Badge variant={isReadyForRelease ? 'default' : 'outline'} className="ml-2 bg-green-500 hover:bg-green-500 text-white">
-                            {isReadyForRelease ? <CheckCircle className="h-3 w-3 mr-1" /> : 'Pending'}
-                        </Badge>
+                
+                <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">Primary Genre:</span>
+                        <div className="flex-grow">
+                            <GenreSelect
+                                value={imp.primary_genre}
+                                label="Primary Genre"
+                                onSave={handleUpdatePrimaryGenre}
+                                placeholder="Select or type genre"
+                                disabled={updateMutation.isPending}
+                            />
+                        </div>
                     </div>
-                    <div className="flex items-center">
-                        <span className="font-semibold w-24">Created:</span> <span className="ml-2 text-sm">{imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy') : 'N/A'}</span>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">Secondary Genre:</span>
+                        <div className="flex-grow">
+                            <GenreSelect
+                                value={imp.secondary_genre}
+                                label="Secondary Genre"
+                                onSave={handleUpdateSecondaryGenre}
+                                placeholder="Select or type genre"
+                                disabled={updateMutation.isPending}
+                            />
+                        </div>
                     </div>
                 </div>
             </CardContent>
