@@ -59,12 +59,15 @@ interface Improvisation {
   notes: NoteTab[] | null; // New field
   is_ready_for_release: boolean | null; // New field
   user_tags: string[] | null; // New field
+  is_instrumental: boolean | null; // NEW FIELD
+  is_original_song: boolean | null; // NEW FIELD
+  has_explicit_lyrics: boolean | null; // NEW FIELD
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('*, is_ready_for_release, user_tags') // Select new columns
+    .select('*, is_ready_for_release, user_tags, is_instrumental, is_original_song, has_explicit_lyrics') // Select new columns
     .eq('id', id)
     .single();
 
@@ -403,6 +406,10 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
   const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
+  // NEW HANDLERS
+  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
+  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
+  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
   
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
@@ -555,6 +562,46 @@ const ImprovisationDetails: React.FC = () => {
                             disabled={updateMutation.isPending}
                         />
                     </div>
+                    
+                    {/* NEW: Is Instrumental */}
+                    <div className="flex items-center justify-between pr-4">
+                        <div className="flex items-center">
+                            <Music className="h-5 w-5 mr-2" />
+                            <span className="font-semibold">Is Instrumental:</span> 
+                        </div>
+                        <Switch
+                            checked={!!imp.is_instrumental}
+                            onCheckedChange={handleUpdateIsInstrumental}
+                            disabled={updateMutation.isPending}
+                        />
+                    </div>
+                    
+                    {/* NEW: Is Original Song */}
+                    <div className="flex items-center justify-between pr-4">
+                        <div className="flex items-center">
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            <span className="font-semibold">Is Original Song:</span> 
+                        </div>
+                        <Switch
+                            checked={!!imp.is_original_song}
+                            onCheckedChange={handleUpdateIsOriginalSong}
+                            disabled={updateMutation.isPending}
+                        />
+                    </div>
+                    
+                    {/* NEW: Explicit Lyrics */}
+                    <div className="flex items-center justify-between pr-4">
+                        <div className="flex items-center">
+                            <XCircle className="h-5 w-5 mr-2" />
+                            <span className="font-semibold">Explicit Lyrics:</span> 
+                        </div>
+                        <Switch
+                            checked={!!imp.has_explicit_lyrics}
+                            onCheckedChange={handleUpdateHasExplicitLyrics}
+                            disabled={updateMutation.isPending}
+                        />
+                    </div>
+
                     <div className="flex items-center">
                         <Send className="h-5 w-5 mr-2" />
                         <span className="font-semibold">Ready:</span> 
@@ -667,6 +714,20 @@ const ImprovisationDetails: React.FC = () => {
               primaryGenre={imp.primary_genre}
               isCompleted={isCompleted}
           />
+          
+          {/* External Tools Card (Kept here, removed from Analysis tab) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>External Tools & Organization</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
+                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
+                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+                </div>
+            </CardContent>
+          </Card>
 
         </TabsContent>
 
@@ -770,19 +831,7 @@ const ImprovisationDetails: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* External Tools Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribution Quick Links</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
-                    <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
-                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
-                </div>
-            </CardContent>
-          </Card>
+          {/* REMOVED: External Tools Card (Moved to Assets & Downloads) */}
 
           {isCompleted && (
             <Tabs defaultValue="distrokid" className="w-full">
