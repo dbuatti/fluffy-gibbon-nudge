@@ -232,16 +232,21 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
-  // --- Progress Logic ---
+  // --- Progress Logic (Micro-Triggers Implemented) ---
   let progressValue = 0;
   let progressMessage = "Capture your idea first.";
   let primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null = null;
 
   if (imp) {
-    // Step 1: Idea Captured (10%)
+    // Base Step: Idea Captured (10%)
     progressValue = 10;
     progressMessage = "Idea captured. Now record and upload the audio file.";
     
+    // Micro-Progress: Set Type (5%)
+    if (imp.is_improvisation !== null) {
+        progressValue += 5;
+    }
+
     // Action 1: Upload Audio
     if (!hasAudioFile) {
         primaryAction = {
@@ -254,14 +259,14 @@ const ImprovisationDetails: React.FC = () => {
         };
     }
 
-    // Step 2: Audio Uploaded (30%)
+    // Step 2: Audio Uploaded (30% total)
     if (hasAudioFile) {
-      progressValue = 30;
+      progressValue = 30; // Reset base to 30% for file upload
       progressMessage = "Audio uploaded. Analysis is running...";
       primaryAction = null; // No action needed while analyzing
     }
 
-    // Step 3: Analysis Completed (60%)
+    // Step 3: Analysis Completed (60% total)
     const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
     if (isCompleted) {
       progressValue = 60;
@@ -279,20 +284,20 @@ const ImprovisationDetails: React.FC = () => {
           };
       }
     }
-
-    // Step 4: Notes Added (80%)
+    
+    // Micro-Progress: Notes Added (20%)
     if (isCompleted && hasNotes) {
-      progressValue = 80;
-      progressMessage = "Notes added. Ready for distribution prep!";
-      
-      // Action 3: Generate Artwork
-      if (!imp.artwork_url) {
-          primaryAction = {
-              label: "Generate Artwork (20% Progress Boost)",
-              onClick: handleRegenerateArtwork, // Use existing function
-              variant: "outline"
-          };
-      }
+        progressValue = 80;
+        progressMessage = "Notes added. Ready for distribution prep!";
+        
+        // Action 3: Generate Artwork
+        if (!imp.artwork_url) {
+            primaryAction = {
+                label: "Generate Artwork (20% Progress Boost)",
+                onClick: handleRegenerateArtwork, // Use existing function
+                variant: "outline"
+            };
+        }
     }
 
     // Step 5: Artwork Generated (100%)

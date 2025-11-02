@@ -42,16 +42,20 @@ const fetchImprovisations = async (): Promise<Improvisation[]> => {
 
 const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
   if (!hasFile && status === 'uploaded') {
-    return <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"><Music className="w-3 h-3 mr-1" /> Idea Captured</Badge>;
+    // Idea Captured 💡 (Blue/Primary)
+    return <Badge className="bg-blue-500 hover:bg-blue-500 text-white dark:bg-blue-700 dark:hover:bg-blue-700">💡 Idea Captured</Badge>;
   }
   
   switch (status) {
     case 'analyzing':
-      return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
+      // In Progress ⚙️ (Yellow/Secondary)
+      return <Badge variant="secondary" className="bg-yellow-400 text-gray-900 dark:bg-yellow-600 dark:text-gray-900"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
     case 'completed':
-      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>;
+      // Ready to Submit ✅ (Green/Success)
+      return <Badge className="bg-green-600 hover:bg-green-600 text-white dark:bg-green-700 dark:hover:bg-green-700">✅ Ready to Submit</Badge>;
     case 'failed':
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Failed</Badge>;
+      // Failed ❌ (Red/Destructive)
+      return <Badge variant="destructive">❌ Failed</Badge>;
     default:
       return <Badge variant="outline">Uploaded</Badge>;
   }
@@ -62,9 +66,9 @@ const getNotesStatus = (notes: NoteTab[] | null) => {
   const hasContent = notes?.some(n => n.content && n.content.trim().length > 0);
   
   if (hasContent) {
-    return <Badge variant="default" className="bg-blue-500 hover:bg-blue-500 dark:bg-blue-700 dark:hover:bg-blue-700"><NotebookText className="w-3 h-3 mr-1" /> Notes Added</Badge>;
+    return <Badge variant="default" className="bg-purple-500 hover:bg-purple-500 dark:bg-purple-700 dark:hover:bg-purple-700">✍️ Notes Added</Badge>;
   }
-  return <Badge variant="outline" className="text-muted-foreground border-dashed"><NotebookText className="w-3 h-3 mr-1" /> Needs Notes</Badge>;
+  return <Badge variant="outline" className="text-muted-foreground border-dashed">📝 Needs Notes</Badge>;
 };
 
 const ImprovisationList: React.FC = () => {
