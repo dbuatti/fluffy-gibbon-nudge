@@ -21,6 +21,7 @@ interface Improvisation {
   secondary_genre: string | null;
   analysis_data: { [key: string]: any } | null;
   created_at: string;
+  storage_path: string; // Need storage path to trigger analysis function
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
@@ -38,6 +39,7 @@ const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [isRegenerating, setIsRegenerating] = React.useState(false);
+  const [isRescanning, setIsRescanning] = React.useState(false);
 
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
@@ -110,7 +112,57 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
+  const handleRescanAnalysis = async () => {
+    if (!imp || !imp.storage_path) {
+      showError("Cannot rescan: File path is missing.");
+      return;
+    }
+
+    setIsRescanning(true);
+    showSuccess("Analysis rescan started...");
+
+    try {
+      // 1. Reset status in DB immediately to show 'analyzing'
+      const { error: resetError } = await supabase
+        .from('improvisations')
+        .update({ 
+          status: 'analyzing',
+          generated_name: null,
+          artwork_url: null,
+          primary_genre: null,
+          secondary_genre: null,
+          analysis_data: null,
+        })
+        .eq('id', imp.id);
+
+      if (resetError) throw resetError;
+
+      // 2. Trigger the analysis Edge Function
+      const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
+        body: {
+          improvisationId: imp.id,
+          storagePath: imp.storage_path,
+        },
+      });
+
+      if (functionError) {
+        throw functionError;
+      }
+      
+      // Force refetch to show the 'analyzing' status immediately
+      queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+
+    } catch (error) {
+      console.error('Rescan failed:', error);
+      showError(`Failed to rescan analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRescanning(false);
+    }
+  };
+
   const isCompleted = imp.status === 'completed';
+  const isAnalyzing = imp.status === 'analyzing';
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
@@ -148,7 +200,7 @@ const ImprovisationDetails: React.FC = () => {
                     onClick={handleRegenerateArtwork} 
                     variant="outline" 
                     className="w-full"
-                    disabled={isRegenerating}
+                    disabled={isRegenerating || isAnalyzing}
                   >
                     {isRegenerating ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -158,6 +210,19 @@ const ImprovisationDetails: React.FC = () => {
                     {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
                   </Button>
                 )}
+                <Button 
+                  onClick={handleRescanAnalysis} 
+                  variant="secondary" 
+                  className="w-full"
+                  disabled={isRescanning || isAnalyzing}
+                >
+                  {isRescanning || isAnalyzing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                </Button>
             </div>
           </div>
 
