@@ -31,7 +31,7 @@ const PIANO_GENRES = [
 
 const OTHER_GENRES = [
     "Afrobeat", "Afropop", "Big Band", "Children's Music", "Christian/Gospel", "Comedy", 
-    "Country", "Dance", "Electronic", "Fitness & Workout", "French Pop", "German Folk", 
+    "Country", "Dance", "Electronic", "Fitness & Workout", "Folk", "French Pop", "German Folk", 
     "German Pop", "Hip Hop/Rap", "Holiday", "J-Pop", "K-Pop", "Latin", "Latin Urban", 
     "Metal", "Punk", "Reggae", "Rock", "Spoken Word", "World"
 ];
@@ -90,8 +90,15 @@ serve(async (req) => {
     // --- SIMULATE ANALYSIS PROCESS (5 seconds delay) ---
     await new Promise(resolve => setTimeout(resolve, 5000)); 
 
-    // 80% chance it's a piano piece, 20% chance it's not
-    const isPiano = Math.random() < 0.8; 
+    let isPiano;
+    if (isImprovisation) {
+        // If user says it's an improvisation, strongly bias towards it being a piano piece (95% chance)
+        isPiano = Math.random() < 0.95;
+    } else {
+        // If user says it's a composition, use the standard 80% chance
+        isPiano = Math.random() < 0.8; 
+    }
+    
     const generatedName = generateName(isPiano);
     
     // --- SIMULATED ANALYSIS RESULTS ---
