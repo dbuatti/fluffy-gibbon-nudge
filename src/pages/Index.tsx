@@ -3,7 +3,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import ImprovisationList from "@/components/ImprovisationList";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Music, Clock, Sparkles, Flame, CalendarCheck } from "lucide-react";
+import { ExternalLink, Music, Clock, Sparkles, Flame, CalendarCheck, Zap } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
@@ -116,12 +116,15 @@ const Index = () => {
       
       <main className="max-w-5xl mx-auto space-y-10">
         
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <CompositionPipeline /> {/* Pipeline on the left/top */}
-          <CaptureIdeaDialog onIdeaCaptured={handleRefetch} /> 
+        {/* ACTION ZONE: Capture Idea & Pipeline */}
+        <div className="space-y-6">
+            <div className="flex justify-center">
+                <CaptureIdeaDialog onIdeaCaptured={handleRefetch} /> 
+            </div>
+            <CompositionPipeline />
         </div>
 
-        {/* Streak Tracker Card */}
+        {/* STREAK TRACKER (Motivation) */}
         <Card className="p-4 border-2 border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50">
             <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold flex items-center text-yellow-700 dark:text-yellow-300">
@@ -134,15 +137,16 @@ const Index = () => {
             </p>
         </Card>
 
+        {/* QUICK LINKS (Reduced Cognitive Load) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* New Gemini Card */}
+          
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Sparkles className="w-5 h-5 mr-2 text-purple-500" /> Gemini AI
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
               </CardTitle>
-              <CardDescription>
-                Quick access to your AI assistant for brainstorming, research, or creative writing.
+              <CardDescription className="text-sm">
+                Quick access to your AI assistant for brainstorming or creative writing.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -155,36 +159,36 @@ const Index = () => {
           </Card>
           
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
                 <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
               </CardTitle>
-              <CardDescription>
-                Prepare your song metadata for streaming platforms like Spotify and Apple Music.
+              <CardDescription className="text-sm">
+                Prepare metadata for streaming platforms like Spotify and Apple Music.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <a href={DISTROKID_URL} target="_blank" rel="noopener noreferrer">
                 <Button variant="default" className="w-full">
-                  Go to DistroKid Submission <ExternalLink className="w-4 h-4 ml-2" />
+                  Go to DistroKid <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
               </a>
             </CardContent>
           </Card>
 
           <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
                 <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer
               </CardTitle>
-              <CardDescription>
-                Prepare your track details for meditation and wellness platforms.
+              <CardDescription className="text-sm">
+                Prepare track details for meditation and wellness platforms.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <a href={INSIGHT_TIMER_URL} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" className="w-full">
-                  Go to Insight Timer Track Upload <ExternalLink className="w-4 h-4 ml-2" />
+                  Go to Insight Timer <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
               </a>
             </CardContent>

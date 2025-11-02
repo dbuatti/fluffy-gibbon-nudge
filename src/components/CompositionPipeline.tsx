@@ -2,8 +2,8 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Upload, Clock, CheckCircle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, Upload, Clock, CheckCircle, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface StatusCount {
   status: string;
@@ -38,25 +38,34 @@ const CompositionPipeline: React.FC = () => {
 
   const pipelineStages = [
     { 
-      status: 'Uploaded', 
+      status: 'uploaded', 
+      label: 'Idea Captured',
       count: totalUploaded, 
       icon: Upload, 
       color: 'text-blue-500',
-      description: 'Awaiting initial processing.'
+      description: 'Awaiting audio file upload.',
+      bg: 'bg-blue-500/10',
+      border: 'border-blue-500',
     },
     { 
-      status: 'Analyzing', 
+      status: 'analyzing', 
+      label: 'Analyzing',
       count: totalAnalyzing, 
-      icon: Loader2, 
+      icon: Clock, 
       color: 'text-yellow-500',
-      description: 'AI is generating name, genre, and artwork prompt.'
+      description: 'AI is generating metadata.',
+      bg: 'bg-yellow-500/10',
+      border: 'border-yellow-500',
     },
     { 
-      status: 'Completed', 
+      status: 'completed', 
+      label: 'Ready',
       count: totalCompleted, 
       icon: CheckCircle, 
       color: 'text-green-500',
-      description: 'Ready for review and distribution preparation.'
+      description: 'Ready for distribution prep.',
+      bg: 'bg-green-500/10',
+      border: 'border-green-500',
     },
   ];
 
@@ -69,27 +78,38 @@ const CompositionPipeline: React.FC = () => {
   }
 
   return (
-    <Card className="shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
+    <Card className="shadow-xl w-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {pipelineStages.map((stage) => {
+        <div className="flex flex-col md:flex-row items-stretch justify-between gap-4">
+          {pipelineStages.map((stage, index) => {
             const Icon = stage.icon;
             const isActive = stage.count > 0;
+            const isAnalyzingStage = stage.status === 'analyzing';
+            
             return (
-              <div 
-                key={stage.status} 
-                className={`p-4 rounded-lg border transition-all ${isActive ? 'border-primary/50 bg-primary/5 dark:bg-primary/10' : 'border-gray-200 dark:border-gray-700'}`}
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-lg">{stage.status}</h3>
-                  <Icon className={`h-6 w-6 ${stage.color} ${stage.status === 'Analyzing' ? 'animate-spin' : ''}`} />
+              <React.Fragment key={stage.status}>
+                <div 
+                  className={cn(
+                    "flex-1 p-3 rounded-lg border transition-all flex items-center space-x-3",
+                    stage.bg,
+                    isActive ? stage.border : 'border-gray-200 dark:border-gray-700'
+                  )}
+                >
+                  <Icon className={cn("h-6 w-6 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
+                  <div>
+                    <h3 className="font-semibold text-sm">{stage.label}</h3>
+                    <p className="text-2xl font-extrabold leading-none">{stage.count}</p>
+                  </div>
                 </div>
-                <p className="text-4xl font-extrabold mt-2">{stage.count}</p>
-                <p className="text-xs text-muted-foreground mt-1">{stage.description}</p>
-              </div>
+                {index < pipelineStages.length - 1 && (
+                  <div className="hidden md:flex items-center justify-center">
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
         </div>
