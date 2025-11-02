@@ -221,25 +221,32 @@ const ImprovisationDetails: React.FC = () => {
                   ) : (
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
-                  {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                  {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
                 </Button>
             </div>
           </div>
 
           <div className="w-full md:w-2/3 space-y-4">
-            <p>
-              <span className="font-semibold">File:</span> {imp.file_name}
-            </p>
-            <p>
+            {/* Changed <p> to <div> */}
+            <div className="flex items-center">
+              <span className="font-semibold">File:</span> <span className="ml-2">{imp.file_name}</span>
+            </div>
+            
+            {/* Changed <p> to <div> */}
+            <div className="flex items-center">
               <span className="font-semibold">Status:</span> 
               <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
-            </p>
-            <p>
-              <span className="font-semibold">Generated Name:</span> {imp.generated_name || 'N/A'}
-            </p>
-            <p>
-              <span className="font-semibold">Upload Date:</span> {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
-            </p>
+            </div>
+            
+            {/* Changed <p> to <div> */}
+            <div className="flex items-center">
+              <span className="font-semibold">Generated Name:</span> <span className="ml-2">{imp.generated_name || 'N/A'}</span>
+            </div>
+            
+            {/* Changed <p> to <div> */}
+            <div className="flex items-center">
+              <span className="font-semibold">Upload Date:</span> <span className="ml-2">{imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}</span>
+            </div>
             
             <Separator />
 
@@ -254,12 +261,14 @@ const ImprovisationDetails: React.FC = () => {
                         {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
                     </Badge>
                 </div>
-                <p>
-                    <span className="font-semibold">Primary Genre:</span> {imp.primary_genre || 'N/A'}
-                </p>
-                <p>
-                    <span className="font-semibold">Secondary Genre:</span> {imp.secondary_genre || 'N/A'}
-                </p>
+                {/* Changed <p> to <div> */}
+                <div className="flex items-center">
+                    <span className="font-semibold">Primary Genre:</span> <span className="ml-2">{imp.primary_genre || 'N/A'}</span>
+                </div>
+                {/* Changed <p> to <div> */}
+                <div className="flex items-center">
+                    <span className="font-semibold">Secondary Genre:</span> <span className="ml-2">{imp.secondary_genre || 'N/A'}</span>
+                </div>
             </div>
 
             {imp.analysis_data && (
