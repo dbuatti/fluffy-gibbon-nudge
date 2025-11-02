@@ -30,6 +30,7 @@ import CompositionMetadataDialog from '@/components/CompositionMetadataDialog';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input'; // Import Input
 import { useAIAugmentation } from '@/hooks/useAIAugmentation'; // Import new hook
+import PreFlightChecklist from '@/components/PreFlightChecklist'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -69,6 +70,7 @@ interface Improvisation {
   is_instrumental: boolean | null; // NEW FIELD
   is_original_song: boolean | null; // NEW FIELD
   has_explicit_lyrics: boolean | null; // NEW FIELD
+  is_metadata_confirmed: boolean | null; // NEW FIELD
   
   // NEW INSIGHT TIMER FIELDS
   insight_content_type: string | null;
@@ -86,7 +88,7 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
   // Explicitly list all columns including the new Insight Timer fields
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
     .eq('id', id)
     .single();
 
@@ -146,6 +148,13 @@ const ImprovisationDetails: React.FC = () => {
   
   // Get public URL for the audio file
   const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
+
+  // --- CALCULATE READINESS STATUS FOR DISTROKID TAB ---
+  const hasInsightTimerCategorization = (imp?.insight_benefits?.length || 0) > 0 && !!imp?.insight_practices && (imp?.insight_themes?.length || 0) > 0;
+  
+  // A composition is blocked if any critical asset or confirmation is missing.
+  const isBlocked = !hasAudioFile || !imp?.artwork_url || !hasInsightTimerCategorization || !imp?.is_metadata_confirmed;
+  // --- END CALCULATE READINESS STATUS ---
 
   // --- HANDLER DEFINITIONS ---
 
@@ -280,8 +289,7 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
   const handleUpdateInsightAudienceAge = (value: string[]) => updateMutation.mutateAsync({ insight_audience_age: value });
   const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
-  // Note: Benefits, Practices, Themes are handled directly in InsightTimerFormFields using useUpdateImprovisation
-
+  
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
     const currentData = imp.analysis_data || {};
@@ -303,6 +311,10 @@ const ImprovisationDetails: React.FC = () => {
 
     return updateMutation.mutateAsync({ analysis_data: newAnalysisData });
   };
+  
+  // Handler for metadata confirmation
+  const handleUpdateIsMetadataConfirmed = (checked: boolean) => updateMutation.mutateAsync({ is_metadata_confirmed: checked });
+
 
   // --- Progress Logic (Gamification) ---
   let progressValue = 0;
@@ -775,6 +787,22 @@ const ImprovisationDetails: React.FC = () => {
         {/* --- ANALYSIS & DISTRIBUTION TAB --- */}
         <TabsContent value="analysis-distro" className="space-y-8 mt-6">
           
+          {/* NEW: Pre-Flight Checklist */}
+          {imp && (
+            <PreFlightChecklist 
+                imp={{
+                    id: imp.id,
+                    storage_path: imp.storage_path,
+                    artwork_url: imp.artwork_url,
+                    is_metadata_confirmed: imp.is_metadata_confirmed,
+                    insight_benefits: imp.insight_benefits,
+                    insight_practices: imp.insight_practices,
+                    insight_themes: imp.insight_themes,
+                }}
+                isAnalyzing={isAnalyzing}
+            />
+          )}
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Technical Data Summary</CardTitle>
@@ -826,7 +854,7 @@ const ImprovisationDetails: React.FC = () => {
                 <TabsTrigger value="insight-timer">Insight Timer Prep</TabsTrigger>
               </TabsList>
               <TabsContent value="distrokid">
-                <DistroKidTab imp={imp} />
+                <DistroKidTab imp={imp} isReady={!isAnalyzing && !isBlocked} />
               </TabsContent>
               <TabsContent value="insight-timer">
                 <InsightTimerTab 
@@ -835,6 +863,7 @@ const ImprovisationDetails: React.FC = () => {
                     isPopulating={isPopulating}
                     handleAIPopulateMetadata={handleAIPopulateMetadata}
                     setAiGeneratedDescription={setAiGeneratedDescription}
+                    handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
                 />
               </TabsContent>
             </Tabs>

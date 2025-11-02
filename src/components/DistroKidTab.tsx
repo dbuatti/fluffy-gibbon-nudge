@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface ImprovisationData {
   id: string; // Added ID for linking
@@ -20,9 +21,10 @@ interface ImprovisationData {
 
 interface DistroKidTabProps {
   imp: ImprovisationData;
+  isReady: boolean; // New prop for overall readiness
 }
 
-const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp }) => {
+const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => {
   const isCompleted = !!imp.generated_name;
   const hasArtwork = !!imp.artwork_url;
 
@@ -129,8 +131,12 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp }) => {
             <Input id="record-label" defaultValue="DistroKid.com" />
           </div>
 
-          <Button className="w-full mt-4">
-            <Music className="w-4 h-4 mr-2" /> Simulate DistroKid Submission
+          <Button 
+            className={cn("w-full mt-4", !isReady && "bg-red-600 hover:bg-red-700")}
+            disabled={!isReady}
+          >
+            <Music className="w-4 h-4 mr-2" /> 
+            {isReady ? 'Simulate DistroKid Submission' : 'BLOCKED: Complete Pre-Flight Checklist'}
           </Button>
         </CardContent>
       </Card>

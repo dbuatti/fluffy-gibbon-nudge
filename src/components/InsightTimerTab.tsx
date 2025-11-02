@@ -8,12 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 
 interface ImprovisationData {
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
   is_improvisation: boolean | null;
+  is_metadata_confirmed: boolean | null; // New field
   
   // INSIGHT TIMER FIELDS
   insight_content_type: string | null;
@@ -33,6 +37,7 @@ interface InsightTimerTabProps {
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
+  handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>; // New handler
 }
 
 const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ 
@@ -41,10 +46,12 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     isPopulating, 
     handleAIPopulateMetadata,
     setAiGeneratedDescription,
+    handleUpdateIsMetadataConfirmed,
 }) => {
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(aiGeneratedDescription);
+  const updateMutation = useUpdateImprovisation(imp.id);
 
   // Sync local state when AI generates a new description
   useEffect(() => {
@@ -73,7 +80,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   const hasDescription = description.trim().length > 0;
   
   // If the content type is 'Music', we assume the other fields are required for full categorization.
-  const isReady = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
+  const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
 
   const renderStatusItem = (label: string, value: string | number | string[] | null, Icon: React.ElementType, isRequired: boolean = false) => {
     const displayValue = Array.isArray(value) ? (value.length > 0 ? `${value.length} selected` : 'Not Set') : (value || 'Not Set');
@@ -146,7 +153,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                 </Badge>
             </div>
 
-            {!isReady && (
+            {!isCategorizationComplete && (
                 <div className="pt-4 text-center">
                     <p className="text-sm text-red-600 dark:text-red-400 mb-2 font-semibold">
                         CRITICAL: Submission is not ready. Complete all required fields.
@@ -203,6 +210,32 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         initialPractices={imp.insight_practices}
         initialThemes={imp.insight_themes}
       />
+      
+      {/* Metadata Confirmation Toggle */}
+      <Card id="insight-timer-confirmation" className="p-4 border-2 border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/50">
+        <div className="flex items-center justify-between">
+            <div className="space-y-1">
+                <Label htmlFor="metadata-confirm" className="text-base font-bold flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2 text-yellow-700 dark:text-yellow-300" />
+                    Metadata Review Confirmation
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                    I confirm that all Insight Timer metadata fields (including the description) have been reviewed and are accurate.
+                </p>
+            </div>
+            <Switch
+                id="metadata-confirm"
+                checked={!!imp.is_metadata_confirmed}
+                onCheckedChange={handleUpdateIsMetadataConfirmed}
+                disabled={updateMutation.isPending || !isCategorizationComplete}
+            />
+        </div>
+        {!isCategorizationComplete && (
+            <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                *Confirmation is disabled until all required categorization fields are set.
+            </p>
+        )}
+      </Card>
     </div>
   );
 };
