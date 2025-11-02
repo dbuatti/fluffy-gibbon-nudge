@@ -2,9 +2,10 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
+import { useCaptureIdea } from '@/hooks/useCaptureIdea'; // Import the new hook
 
 const fetchDailyPrompt = async (): Promise<string> => {
   // Note: We use the anon key here as this is a public function call
@@ -29,9 +30,19 @@ const DailyPromptCard: React.FC = () => {
     refetchOnWindowFocus: false,
   });
   
+  const { captureIdea, isCapturing } = useCaptureIdea();
+
   const handleRefetch = () => {
     refetch();
     showError("Generating a new prompt...");
+  };
+  
+  const handleStartIdea = () => {
+    if (prompt) {
+        // Remove surrounding quotes from the prompt before using it as a title
+        const cleanTitle = prompt.replace(/^"|"$/g, '').trim();
+        captureIdea({ title: cleanTitle, isImprovisation: true });
+    }
   };
 
   return (
@@ -44,7 +55,7 @@ const DailyPromptCard: React.FC = () => {
             variant="ghost" 
             size="icon" 
             onClick={handleRefetch} 
-            disabled={isLoading}
+            disabled={isLoading || isCapturing}
             title="Generate a new prompt"
         >
             {isLoading ? (
@@ -54,7 +65,7 @@ const DailyPromptCard: React.FC = () => {
             )}
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {isLoading ? (
           <div className="flex items-center justify-center h-12">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -66,6 +77,19 @@ const DailyPromptCard: React.FC = () => {
             "{prompt}"
           </p>
         )}
+        
+        <Button 
+            onClick={handleStartIdea} 
+            disabled={isLoading || isCapturing || !prompt}
+            className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+        >
+            {isCapturing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+                <Music className="h-4 w-4 mr-2" />
+            )}
+            Start Idea Based on Prompt
+        </Button>
       </CardContent>
     </Card>
   );
