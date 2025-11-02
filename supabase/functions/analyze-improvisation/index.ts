@@ -64,7 +64,6 @@ async function generateNameWithGemini(analysisData: any, isImprovisation: boolea
             },
             body: JSON.stringify({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                // FIX: Renamed 'config' to 'generationConfig'
                 generationConfig: { 
                     temperature: 0.9,
                 }
@@ -87,6 +86,50 @@ async function generateNameWithGemini(analysisData: any, isImprovisation: boolea
         console.error("Error calling Gemini API:", error);
         return "AI Name Generation Failed (Network Error)";
     }
+}
+
+// Function to intelligently select genres based on simulated mood and tempo
+function selectIntelligentGenres(isPiano: boolean, mood: string, tempo: number): { primary: string, secondary: string } {
+    const availableGenres = isPiano ? PIANO_GENRES : OTHER_GENRES;
+    let primaryGenre = 'Alternative';
+    let secondaryGenre = 'Folk';
+
+    // Simple mapping logic based on simulated features
+    if (isPiano) {
+        if (mood === 'Melancholy' && tempo < 130) {
+            primaryGenre = 'Classical';
+            secondaryGenre = 'New Age';
+        } else if (mood === 'Energetic' && tempo >= 130) {
+            primaryGenre = 'Jazz';
+            secondaryGenre = 'Pop';
+        } else if (mood === 'Neutral') {
+            primaryGenre = 'Singer/Songwriter';
+            secondaryGenre = 'Folk';
+        }
+    } else {
+        if (mood === 'Energetic' && tempo >= 130) {
+            primaryGenre = 'Dance';
+            secondaryGenre = 'Electronic';
+        } else if (mood === 'Melancholy') {
+            primaryGenre = 'R&B/Soul';
+            secondaryGenre = 'Blues';
+        }
+    }
+
+    // Ensure selected genres are actually in the available list (fallback to random if not found)
+    if (!availableGenres.includes(primaryGenre)) {
+        primaryGenre = availableGenres[Math.floor(Math.random() * availableGenres.length)];
+    }
+    
+    // Select secondary genre randomly from the remaining list, ensuring it's not the primary
+    let secondaryOptions = availableGenres.filter(g => g !== primaryGenre);
+    if (secondaryOptions.length > 0) {
+        secondaryGenre = secondaryOptions[Math.floor(Math.random() * secondaryOptions.length)];
+    } else {
+        secondaryGenre = primaryGenre; // Should not happen with these lists
+    }
+
+    return { primary: primaryGenre, secondary: secondaryGenre };
 }
 
 
@@ -128,25 +171,16 @@ serve(async (req) => {
     }
     
     // --- SIMULATED ANALYSIS RESULTS ---
-    
-    const availableGenres = isPiano ? PIANO_GENRES : OTHER_GENRES;
+    const simulatedTempo = isPiano ? 120 : 140;
+    const simulatedMood = isPiano ? 'Melancholy' : 'Energetic';
 
-    // Randomly select primary genre
-    const primaryGenreIndex = Math.floor(Math.random() * availableGenres.length);
-    const primaryGenre = availableGenres[primaryGenreIndex];
-    
-    // Randomly select secondary genre (must be different from primary)
-    let secondaryGenreIndex = Math.floor(Math.random() * availableGenres.length);
-    while (secondaryGenreIndex === primaryGenreIndex) {
-        secondaryGenreIndex = Math.floor(Math.random() * availableGenres.length);
-    }
-    const secondaryGenre = availableGenres[secondaryGenreIndex];
+    const { primary: primaryGenre, secondary: secondaryGenre } = selectIntelligentGenres(isPiano, simulatedMood, simulatedTempo);
 
     const analysisData = { 
         simulated_key: isPiano ? 'C Major' : 'A Minor', 
-        simulated_tempo: isPiano ? 120 : 140,
+        simulated_tempo: simulatedTempo,
         instrument_confidence: isPiano ? 0.98 : 0.25,
-        mood: isPiano ? 'Melancholy' : 'Energetic',
+        mood: simulatedMood,
         user_declared_improv: isImprovisation
     };
 
