@@ -13,12 +13,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DistroKidTab from '@/components/DistroKidTab';
 import InsightTimerTab from '@/components/InsightTimerTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import AudioUploadForIdea from '@/components/AudioUploadForIdea'; // Import new component
+import AudioUploadForIdea from '@/components/AudioUploadForIdea';
+import CompositionNotes from '@/components/CompositionNotes'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
+
+interface NoteTab {
+  id: string;
+  title: string;
+  color: string;
+  content: string;
+}
 
 interface Improvisation {
   id: string;
@@ -33,6 +41,7 @@ interface Improvisation {
   analysis_data: { [key: string]: any } | null;
   created_at: string;
   storage_path: string | null; // Now nullable
+  notes: NoteTab[] | null; // New field
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
@@ -287,6 +296,8 @@ const ImprovisationDetails: React.FC = () => {
           onUploadSuccess={handleRefetch}
         />
       )}
+
+      <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} />
 
       <Card>
         <CardHeader>
