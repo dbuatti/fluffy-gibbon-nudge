@@ -10,10 +10,10 @@ const corsHeaders = {
 
 // Placeholder function to simulate generating an image URL
 function generatePlaceholderImageUrl(name: string): string {
-    // Using a high-resolution placeholder image (3000x3000) to meet the distribution requirements.
+    // Switching to picsum.photos for better reliability. 
+    // We use the name as a seed to ensure unique images per improvisation.
     const seed = name.replace(/\s/g, '');
-    // Switching to a different placeholder service for reliability and abstract results
-    return `https://source.unsplash.com/random/3000x3000/?abstract,music,art,${seed}`;
+    return `https://picsum.photos/seed/${seed}/3000/3000`;
 }
 
 serve(async (req) => {
