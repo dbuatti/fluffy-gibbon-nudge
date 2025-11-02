@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, Clock, Users } from 'lucide-react';
+import InsightTimerDescriptionGenerator from './InsightTimerDescriptionGenerator'; // Import new component
 
 interface ImprovisationData {
+  id: string; // Added ID for generator
   generated_name: string | null;
   primary_genre: string | null;
   is_improvisation: boolean | null;
@@ -24,7 +26,10 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ imp }) => {
             Insight Timer requires content to be categorized for meditation, sleep, or other wellness practices.
           </p>
           
-          <div className="space-y-2">
+          {/* Description Generator */}
+          <InsightTimerDescriptionGenerator improvisationId={imp.id} />
+
+          <div className="space-y-2 pt-4">
             <h4 className="font-semibold flex items-center"><BookOpen className="w-4 h-4 mr-2" /> Suggested Title</h4>
             <p className="text-lg font-mono bg-muted p-2 rounded">{imp.generated_name || 'Awaiting Analysis'}</p>
           </div>
