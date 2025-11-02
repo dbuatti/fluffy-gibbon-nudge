@@ -4,22 +4,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, Music } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Improvisation {
   id: string;
   file_name: string;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
+  artwork_url: string | null; // New field
   created_at: string;
 }
 
 const fetchImprovisations = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id, file_name, status, generated_name, created_at')
+    .select('id, file_name, status, generated_name, artwork_url, created_at') // Fetch artwork_url
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -65,6 +67,7 @@ const ImprovisationList: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[60px]">Art</TableHead>
                 <TableHead>File Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Generated Name</TableHead>
@@ -74,10 +77,18 @@ const ImprovisationList: React.FC = () => {
             <TableBody>
               {improvisations.map((imp) => (
                 <TableRow key={imp.id}>
+                  <TableCell>
+                    <Avatar className="h-10 w-10 rounded-md">
+                      <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
+                      <AvatarFallback className="rounded-md">
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </TableCell>
                   <TableCell className="font-medium">{imp.file_name}</TableCell>
                   <TableCell>{getStatusBadge(imp.status)}</TableCell>
                   <TableCell>
-                    {imp.generated_name || (imp.status === 'completed' ? 'No name generated' : 'Awaiting analysis...')}
+                    {imp.generated_name || (imp.status === 'completed' ? 'Name pending...' : 'Awaiting analysis...')}
                   </TableCell>
                   <TableCell className="text-right">
                     {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}

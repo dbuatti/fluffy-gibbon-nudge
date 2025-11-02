@@ -23,6 +23,28 @@ function generateName(): string {
     return names[randomIndex];
 }
 
+// Function to invoke the artwork generation function
+async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string) {
+    console.log(`Invoking generate-artwork for ID: ${improvisationId}`);
+    
+    // Note: In a real deployment, you might need to use the full URL for cross-function calls.
+    // For simplicity in this environment, we assume direct invocation works.
+    const { data, error } = await supabaseClient.functions.invoke('generate-artwork', {
+        body: {
+            improvisationId: improvisationId,
+            generatedName: generatedName,
+        },
+    });
+
+    if (error) {
+        console.error('Error invoking generate-artwork:', error);
+        // We don't fail the main analysis if artwork generation fails, just log it.
+    } else {
+        console.log('Artwork generation triggered successfully:', data);
+    }
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -55,8 +77,8 @@ serve(async (req) => {
 
     const generatedName = generateName();
 
-    // Update the database record
-    const { error } = await supabase
+    // Update the database record with the generated name
+    const { error: updateError } = await supabase
       .from('improvisations')
       .update({ 
         status: 'completed', 
@@ -65,9 +87,8 @@ serve(async (req) => {
       })
       .eq('id', improvisationId);
 
-    if (error) {
-      console.error('Database update failed:', error);
-      // Optionally update status to 'failed' here if needed
+    if (updateError) {
+      console.error('Database update failed:', updateError);
       return new Response(JSON.stringify({ error: 'Failed to update database' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -75,6 +96,11 @@ serve(async (req) => {
     }
 
     console.log(`Analysis completed for ID: ${improvisationId}. Name: ${generatedName}`);
+    
+    // --- Trigger Artwork Generation (asynchronously) ---
+    // We don't await this, so the client gets a fast response, and image generation runs in the background.
+    triggerArtworkGeneration(supabase, improvisationId, generatedName);
+
 
     return new Response(JSON.stringify({ success: true, generatedName }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
