@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -12,13 +12,16 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DistroKidTab from '@/components/DistroKidTab';
 import InsightTimerTab from '@/components/InsightTimerTab';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import AudioUploadForIdea from '@/components/AudioUploadForIdea';
 import CompositionNotes from '@/components/CompositionNotes';
 import { Progress } from '@/components/ui/progress';
-import FilePathSuggestion from '@/components/FilePathSuggestion'; // Import new component
-import TagGenerator from '@/components/TagGenerator'; // Import new component
-import CompositionSettingsSheet from '@/components/CompositionSettingsSheet'; // Import new component
+import FilePathSuggestion from '@/components/FilePathSuggestion';
+import TagGenerator from '@/components/TagGenerator';
+import CompositionSettingsSheet from '@/components/CompositionSettingsSheet';
+import EditableField from '@/components/EditableField';
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -86,6 +89,8 @@ const ImprovisationDetails: React.FC = () => {
     enabled: !!id,
     refetchInterval: 5000, // Keep polling in case analysis or artwork is still running
   });
+
+  const updateMutation = useUpdateImprovisation(id!);
 
   // Determine if we are loading the initial data OR if the status is actively analyzing
   const isAnalyzing = imp?.status === 'analyzing';
@@ -384,6 +389,13 @@ const ImprovisationDetails: React.FC = () => {
 
   const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
 
+  // Handlers for Editable Fields
+  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
+  const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
+  const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
+  const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
+
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
       {/* NEW: Back Button */}
@@ -393,8 +405,15 @@ const ImprovisationDetails: React.FC = () => {
       
       <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
         <div className="flex-grow">
+          {/* EDITABLE TITLE */}
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {compositionName}
+            <EditableField
+                value={imp.generated_name}
+                label="Composition Title"
+                onSave={handleUpdateName}
+                className="text-3xl font-bold p-0"
+                placeholder="Click to set title"
+            />
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
@@ -459,8 +478,8 @@ const ImprovisationDetails: React.FC = () => {
             <CardHeader>
               <CardTitle className="text-xl">Composition Status</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                     <div className="flex items-center">
                         <span className="font-semibold w-24">Status:</span> 
                         <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
@@ -468,15 +487,31 @@ const ImprovisationDetails: React.FC = () => {
                     <div className="flex items-center">
                         <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A'}</span>
                     </div>
-                    <div className="flex items-center">
-                        <Piano className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">Type:</span> 
-                        <Badge variant={imp.is_improvisation ? 'default' : 'secondary'} className="ml-2">
-                            {imp.is_improvisation ? 'Improvisation' : 'Composition'}
-                        </Badge>
+                    
+                    {/* EDITABLE: Is Improvisation */}
+                    <div className="space-y-2 pt-2">
+                        <div className="flex items-center">
+                            <Piano className="h-5 w-5 mr-2" />
+                            <span className="font-semibold">Type:</span> 
+                        </div>
+                        <RadioGroup 
+                            defaultValue={String(imp.is_improvisation)} 
+                            onValueChange={handleUpdateIsImprovisation}
+                            disabled={updateMutation.isPending}
+                            className="flex space-x-4 ml-4"
+                        >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="true" id="improv" />
+                              <Label htmlFor="improv">Spontaneous Improvisation</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="false" id="composition" />
+                              <Label htmlFor="composition">Fixed Composition</Label>
+                            </div>
+                        </RadioGroup>
                     </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-4">
                     <div className="flex items-center">
                         <Piano className="h-5 w-5 mr-2" />
                         <span className="font-semibold">Is Piano:</span> 
@@ -621,13 +656,29 @@ const ImprovisationDetails: React.FC = () => {
               <CardTitle>AI Analysis Results</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <h3 className="text-lg font-semibold">AI Generated Metadata</h3>
-                <div className="space-y-2">
+                <h3 className="text-lg font-semibold">AI Generated Metadata (Editable)</h3>
+                <div className="space-y-3">
+                    {/* EDITABLE: Primary Genre */}
                     <div className="flex items-center">
-                        <span className="font-semibold w-32">Primary Genre:</span> <span className="ml-2">{imp.primary_genre || 'N/A'}</span>
+                        <span className="font-semibold w-32 flex-shrink-0">Primary Genre:</span> 
+                        <EditableField
+                            value={imp.primary_genre}
+                            label="Primary Genre"
+                            onSave={handleUpdatePrimaryGenre}
+                            className="ml-2 flex-grow"
+                            placeholder="Click to set primary genre"
+                        />
                     </div>
+                    {/* EDITABLE: Secondary Genre */}
                     <div className="flex items-center">
-                        <span className="font-semibold w-32">Secondary Genre:</span> <span className="ml-2">{imp.secondary_genre || 'N/A'}</span>
+                        <span className="font-semibold w-32 flex-shrink-0">Secondary Genre:</span> 
+                        <EditableField
+                            value={imp.secondary_genre}
+                            label="Secondary Genre"
+                            onSave={handleUpdateSecondaryGenre}
+                            className="ml-2 flex-grow"
+                            placeholder="Click to set secondary genre"
+                        />
                     </div>
                 </div>
 
