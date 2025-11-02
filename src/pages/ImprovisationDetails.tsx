@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input'; // Import Input
 import { useAIAugmentation } from '@/hooks/useAIAugmentation'; // Import new hook
 import PreFlightChecklist from '@/components/PreFlightChecklist'; // Import new component
+import AICreativeCoach from '@/components/AICreativeCoach'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -635,6 +636,14 @@ const ImprovisationDetails: React.FC = () => {
                 <p className="text-sm text-muted-foreground">{progressMessage}</p>
             )}
           </Card>
+
+          {/* NEW: AI Creative Coach */}
+          {imp && (
+            <AICreativeCoach 
+              improvisationId={imp.id} 
+              hasAudioFile={hasAudioFile} 
+            />
+          )}
 
           {/* NEW: Core Metadata Card (Exposed for quick editing) */}
           <Card>
