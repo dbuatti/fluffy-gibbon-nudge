@@ -101,7 +101,7 @@ const ImprovisationList: React.FC = () => {
                 <TableHead className="w-[60px]">Art</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Notes</TableHead> {/* New Column */}
+                <TableHead>Notes</TableHead>
                 <TableHead>File Name</TableHead>
                 <TableHead className="text-right">Date</TableHead>
               </TableRow>
@@ -133,7 +133,7 @@ const ImprovisationList: React.FC = () => {
                         {imp.generated_name || imp.file_name || 'Untitled Idea'}
                     </TableCell>
                     <TableCell>{getStatusBadge(imp.status, hasFile)}</TableCell>
-                    <TableCell>{getNotesStatus(imp.notes)}</TableCell> {/* New Cell */}
+                    <TableCell>{getNotesStatus(imp.notes)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {imp.file_name || 'No audio file attached'}
                     </TableCell>
