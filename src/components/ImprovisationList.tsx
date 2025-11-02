@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 interface Improvisation {
   id: string;
-  file_name: string;
+  file_name: string | null; // Now nullable
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null; // New field
@@ -29,7 +29,11 @@ const fetchImprovisations = async (): Promise<Improvisation[]> => {
   return data as Improvisation[];
 };
 
-const getStatusBadge = (status: Improvisation['status']) => {
+const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
+  if (!hasFile && status === 'uploaded') {
+    return <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"><Music className="w-3 h-3 mr-1" /> Idea Captured</Badge>;
+  }
+  
   switch (status) {
     case 'analyzing':
       return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
@@ -61,7 +65,7 @@ const ImprovisationList: React.FC = () => {
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-2xl font-bold">My Improvisations</CardTitle>
+        <CardTitle className="text-2xl font-bold">My Ideas & Compositions</CardTitle>
         <Button variant="outline" onClick={() => refetch()}>Refresh</Button>
       </CardHeader>
       <CardContent>
@@ -70,43 +74,46 @@ const ImprovisationList: React.FC = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[60px]">Art</TableHead>
-                <TableHead>File Name</TableHead>
+                <TableHead>Title</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Generated Name</TableHead>
+                <TableHead>File Name</TableHead>
                 <TableHead className="text-right">Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {improvisations.map((imp) => (
-                <TableRow 
-                  key={imp.id} 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate(`/improvisation/${imp.id}`)} // Use programmatic navigation
-                >
-                  <TableCell>
-                    <Avatar className="h-10 w-10 rounded-md">
-                      <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
-                      <AvatarFallback className="rounded-md">
-                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </TableCell>
-                  <TableCell className="font-medium">{imp.file_name}</TableCell>
-                  <TableCell>{getStatusBadge(imp.status)}</TableCell>
-                  <TableCell>
-                    {imp.generated_name || (imp.status === 'completed' ? 'Name pending...' : 'Awaiting analysis...')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {improvisations.map((imp) => {
+                const hasFile = !!imp.file_name;
+                return (
+                  <TableRow 
+                    key={imp.id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => navigate(`/improvisation/${imp.id}`)} // Use programmatic navigation
+                  >
+                    <TableCell>
+                      <Avatar className="h-10 w-10 rounded-md">
+                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
+                        <AvatarFallback className="rounded-md">
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </TableCell>
+                    <TableCell className="font-medium">{imp.generated_name || imp.file_name || 'Untitled Idea'}</TableCell>
+                    <TableCell>{getStatusBadge(imp.status, hasFile)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {imp.file_name || 'No audio file attached'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
             <Music className="w-10 h-10 mx-auto mb-4" />
-            <p>No improvisations uploaded yet. Upload a file to start the analysis!</p>
+            <p>No ideas captured yet. Use the "Capture New Idea" button above to start!</p>
           </div>
         )}
       </CardContent>

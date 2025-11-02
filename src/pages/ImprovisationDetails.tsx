@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DistroKidTab from '@/components/DistroKidTab';
 import InsightTimerTab from '@/components/InsightTimerTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import AudioUploadForIdea from '@/components/AudioUploadForIdea'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -21,7 +22,7 @@ const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
 
 interface Improvisation {
   id: string;
-  file_name: string;
+  file_name: string | null; // Now nullable
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
@@ -31,7 +32,7 @@ interface Improvisation {
   secondary_genre: string | null;
   analysis_data: { [key: string]: any } | null;
   created_at: string;
-  storage_path: string; // Need storage path to trigger analysis function
+  storage_path: string | null; // Now nullable
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
@@ -73,6 +74,7 @@ const ImprovisationDetails: React.FC = () => {
   // Determine if we are loading the initial data OR if the status is actively analyzing
   const isAnalyzing = imp?.status === 'analyzing';
   const showLoadingSpinner = isLoading || isAnalyzing;
+  const hasAudioFile = !!imp?.storage_path;
 
   if (!id) {
     return <Navigate to="/" replace />;
@@ -91,6 +93,11 @@ const ImprovisationDetails: React.FC = () => {
   if (error) {
     return <div className="text-center p-8 text-red-500">Error loading details: {error.message}</div>;
   }
+
+  const handleRefetch = () => {
+    queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
+    queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+  };
 
   const handleDownload = () => {
     if (imp?.artwork_url) {
@@ -131,7 +138,7 @@ const ImprovisationDetails: React.FC = () => {
       // Wait a moment for the backend update to complete before refetching
       await new Promise(resolve => setTimeout(resolve, 1500)); 
       
-      queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
+      handleRefetch();
       showSuccess("New artwork generated successfully!");
 
     } catch (error) {
@@ -144,7 +151,7 @@ const ImprovisationDetails: React.FC = () => {
 
   const handleRescanAnalysis = async () => {
     if (!imp || !imp.storage_path) {
-      showError("Cannot rescan: File path is missing.");
+      showError("Cannot rescan: Audio file is missing. Please upload the audio first.");
       return;
     }
 
@@ -157,7 +164,7 @@ const ImprovisationDetails: React.FC = () => {
         .from('improvisations')
         .update({ 
           status: 'analyzing',
-          generated_name: null,
+          generated_name: imp.generated_name, // Keep the user-provided name if it exists
           artwork_url: null,
           primary_genre: null,
           secondary_genre: null,
@@ -181,8 +188,7 @@ const ImprovisationDetails: React.FC = () => {
       }
       
       // Force refetch to show the 'analyzing' status immediately
-      queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
-      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+      handleRefetch();
 
     } catch (error) {
       console.error('Rescan failed:', error);
@@ -199,17 +205,18 @@ const ImprovisationDetails: React.FC = () => {
     showSuccess("Deleting composition...");
 
     try {
-      // 1. Delete file from Supabase Storage
-      const { error: storageError } = await supabase.storage
-        .from('piano_improvisations')
-        .remove([imp.storage_path]);
+      // 1. Delete file from Supabase Storage (only if a file exists)
+      if (imp.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('piano_improvisations')
+          .remove([imp.storage_path]);
 
-      if (storageError) {
-        // Log storage error but continue to delete DB record
-        console.error("Failed to delete file from storage:", storageError);
+        if (storageError) {
+          console.error("Failed to delete file from storage:", storageError);
+        }
       }
 
-      // 2. Delete record from database (this should cascade if RLS is set up correctly)
+      // 2. Delete record from database
       const { error: dbError } = await supabase
         .from('improvisations')
         .delete()
@@ -217,7 +224,7 @@ const ImprovisationDetails: React.FC = () => {
 
       if (dbError) throw dbError;
 
-      showSuccess(`Composition "${imp.file_name}" deleted successfully.`);
+      showSuccess(`Composition "${imp.generated_name || imp.file_name || 'Idea'}" deleted successfully.`);
       queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       navigate('/'); // Redirect to dashboard
 
@@ -230,14 +237,13 @@ const ImprovisationDetails: React.FC = () => {
   };
 
   const isCompleted = imp.status === 'completed';
-  // isAnalyzing is now defined outside the component body based on imp?.status
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
       <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
         <div className="flex-grow">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {imp.generated_name || imp.file_name}
+            {imp.generated_name || imp.file_name || 'Untitled Idea'}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Uploaded: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
@@ -260,7 +266,7 @@ const ImprovisationDetails: React.FC = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the composition record and the uploaded audio file from storage.
+                  This action cannot be undone. This will permanently delete the composition record and the uploaded audio file (if attached).
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -273,6 +279,14 @@ const ImprovisationDetails: React.FC = () => {
           </AlertDialog>
         </div>
       </div>
+
+      {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
+        <AudioUploadForIdea 
+          improvisationId={imp.id} 
+          isImprovisation={imp.is_improvisation}
+          onUploadSuccess={handleRefetch}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -291,7 +305,9 @@ const ImprovisationDetails: React.FC = () => {
             ) : (
               <div className="w-full aspect-square bg-muted rounded-lg flex flex-col items-center justify-center text-muted-foreground">
                 <Music className="h-12 w-12" />
-                <p className="mt-2">Artwork generating...</p>
+                <p className="mt-2">
+                  {hasAudioFile ? 'Artwork generating...' : 'Upload audio to generate artwork.'}
+                </p>
               </div>
             )}
             
@@ -316,19 +332,21 @@ const ImprovisationDetails: React.FC = () => {
                     {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
                   </Button>
                 )}
-                <Button 
-                  onClick={handleRescanAnalysis} 
-                  variant="secondary" 
-                  className="w-full"
-                  disabled={isRescanning || isAnalyzing}
-                >
-                  {isRescanning || isAnalyzing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
-                </Button>
+                {hasAudioFile && (
+                  <Button 
+                    onClick={handleRescanAnalysis} 
+                    variant="secondary" 
+                    className="w-full"
+                    disabled={isRescanning || isAnalyzing}
+                  >
+                    {isRescanning || isAnalyzing ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                  </Button>
+                )}
             </div>
           </div>
 
@@ -354,7 +372,7 @@ const ImprovisationDetails: React.FC = () => {
                     <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
                 </div>
                 <div className="flex items-center">
-                    <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name}</span>
+                    <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name || 'N/A (Audio Missing)'}</span>
                 </div>
                 <div className="flex items-center">
                     <Piano className="h-5 w-5 mr-2" />

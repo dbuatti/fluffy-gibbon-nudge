@@ -1,39 +1,26 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { showError, showSuccess } from '@/utils/toast';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 
-interface FileUploadFormProps {
+interface AudioUploadForIdeaProps {
+  improvisationId: string;
+  isImprovisation: boolean;
   onUploadSuccess: () => void;
 }
 
-export interface FileUploadFormHandle {
-  triggerFileInput: () => void;
-}
-
-const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ onUploadSuccess }, ref) => {
+const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId, isImprovisation, onUploadSuccess }) => {
   const { session } = useSession();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isImprovisation, setIsImprovisation] = useState(true); // Default to true
-
-  // Expose method to parent component via ref
-  useImperativeHandle(ref, () => ({
-    triggerFileInput() {
-      fileInputRef.current?.click();
-    }
-  }));
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    // Check for MP3 (audio/mpeg), M4A (audio/mp4), or M4A (audio/x-m4a)
     const acceptedMimeTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
     
     if (selectedFile && acceptedMimeTypes.includes(selectedFile.type)) {
@@ -66,46 +53,40 @@ const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ 
 
       if (uploadError) throw uploadError;
 
-      // 2. Insert record into the database and get the new ID
-      const { data: dbData, error: dbError } = await supabase
+      // 2. Update the existing database record with file details and set status to analyzing
+      const { error: dbError } = await supabase
         .from('improvisations')
-        .insert({
-          user_id: user.id,
+        .update({
           file_name: file.name,
           storage_path: filePath,
           status: 'analyzing',
-          is_improvisation: isImprovisation, // Save user input
         })
-        .select('id')
-        .single();
+        .eq('id', improvisationId);
 
-      if (dbError || !dbData) {
-        // If DB insertion fails, try to clean up the uploaded file
+      if (dbError) {
+        // If DB update fails, try to clean up the uploaded file
         await supabase.storage.from(bucketName).remove([filePath]);
-        throw dbError || new Error("Failed to retrieve new improvisation ID.");
+        throw dbError;
       }
       
-      const improvisationId = dbData.id;
-
       // 3. Trigger the analysis Edge Function
       const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
         body: {
           improvisationId: improvisationId,
           storagePath: filePath,
-          isImprovisation: isImprovisation, // Pass user input to backend
+          isImprovisation: isImprovisation,
         },
       });
 
       if (functionError) {
-        // If the function invocation fails, the status remains 'analyzing'
         console.error('Failed to invoke analysis function:', functionError);
         showError('File uploaded, but failed to start analysis process.');
       } else {
-        showSuccess(`File "${file.name}" uploaded successfully and analysis started!`);
+        showSuccess(`Audio file attached and analysis started!`);
       }
       
       setFile(null);
-      onUploadSuccess(); // Notify parent component to refresh list
+      onUploadSuccess(); // Notify parent component to refetch details
 
     } catch (error) {
       console.error('Upload failed:', error);
@@ -116,22 +97,23 @@ const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ 
   };
 
   return (
-    <Card className="w-full max-w-lg mx-auto">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Upload Audio</CardTitle>
+        <CardTitle className="flex items-center text-xl">
+            <Music className="h-5 w-5 mr-2" /> Attach Audio File
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Input 
-          id="audio-file" 
+          id="audio-file-attach" 
           type="file" 
           accept=".mp3, .m4a" 
           onChange={handleFileChange} 
           disabled={isUploading}
-          ref={fileInputRef} // Attach ref to input
-          className="hidden" // Hide the default input
+          ref={fileInputRef}
+          className="hidden"
         />
         
-        {/* Custom file input button */}
         {!file && (
           <Button 
             onClick={() => fileInputRef.current?.click()} 
@@ -142,16 +124,6 @@ const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ 
             <Upload className="mr-2 h-4 w-4" /> Select MP3 or M4A File
           </Button>
         )}
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="is-improv"
-            checked={isImprovisation}
-            onCheckedChange={(checked) => setIsImprovisation(!!checked)}
-            disabled={isUploading}
-          />
-          <Label htmlFor="is-improv">This is a spontaneous improvisation (not a fixed composition).</Label>
-        </div>
 
         {file && (
           <div className="space-y-4">
@@ -166,7 +138,7 @@ const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ 
               {isUploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Analyzing...
+                  Uploading & Analyzing...
                 </>
               ) : (
                 <>
@@ -180,8 +152,6 @@ const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ 
       </CardContent>
     </Card>
   );
-});
+};
 
-FileUploadForm.displayName = 'FileUploadForm';
-
-export default FileUploadForm;
+export default AudioUploadForIdea;
