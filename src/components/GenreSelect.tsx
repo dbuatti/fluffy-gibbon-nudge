@@ -127,7 +127,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     onChange={(e) => setCurrentValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Type custom genre"
-                    className="h-8 flex-grow"
+                    className="h-8 flex-grow bg-background" // Explicitly set background
                     disabled={isLoading}
                 />
                 <Button 

@@ -80,7 +80,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
           onChange={(e) => setCurrentValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="h-8 flex-grow"
+          className="h-8 flex-grow bg-background" // Explicitly set background
           disabled={isLoading}
         />
         <Button 

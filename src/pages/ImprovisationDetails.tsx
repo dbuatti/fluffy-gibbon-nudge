@@ -27,6 +27,7 @@ import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import GenreSelect from '@/components/GenreSelect';
 import AudioPlayer from '@/components/AudioPlayer';
 import CompositionMetadataDialog from '@/components/CompositionMetadataDialog'; // Import new component name
+import { cn } from '@/lib/utils'; // Ensure cn is imported
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -565,7 +566,10 @@ const ImprovisationDetails: React.FC = () => {
         <TabsContent value="creative-hub" className="space-y-8 mt-6">
           
           {/* Progress Bar (Gamification) */}
-          <Card className="p-4">
+          <Card className={cn(
+            "p-4 border-2 shadow-xl dark:shadow-3xl",
+            isReadyForRelease ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/50" : "border-primary/50 bg-primary/5 dark:bg-primary/10"
+          )}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-semibold flex items-center">
                 <Zap className="h-5 w-5 mr-2 text-yellow-500" /> Composition Readiness
@@ -709,7 +713,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
