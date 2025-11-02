@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
 import { supabase } from '@/integrations/supabase/client';
-import { isToday, isYesterday, parseISO, differenceInDays } from 'date-fns';
+import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge'; // Import Badge
 
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -32,47 +32,43 @@ const fetchImprovisationDates = async (): Promise<Improvisation[]> => {
 const useStreakTracker = (data: Improvisation[] | undefined) => {
   if (!data || data.length === 0) return { streak: 0, todayActivity: false };
 
-  const dates = data
-    .map(item => parseISO(item.created_at))
-    .map(date => date.toDateString()); // Normalize to day
+  // 1. Normalize all creation dates to YYYY-MM-DD strings for easy comparison
+  const activityDates = new Set(
+    data.map(item => format(parseISO(item.created_at), 'yyyy-MM-dd'))
+  );
   
-  const uniqueDates = Array.from(new Set(dates)).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
   let currentStreak = 0;
-  let todayActivity = false;
-  let currentDate = new Date();
-
-  // Check for today's activity
-  if (uniqueDates.some(date => isToday(new Date(date)))) {
-    todayActivity = true;
+  const todayString = format(new Date(), 'yyyy-MM-dd');
+  
+  // 2. Check for today's activity
+  const todayActivity = activityDates.has(todayString);
+  
+  let dateToCheck = new Date();
+  
+  // If there was activity today, the streak starts at 1 and we check yesterday next.
+  if (todayActivity) {
     currentStreak = 1;
-    currentDate = new Date(currentDate.setDate(currentDate.getDate() - 1)); // Start checking from yesterday
+    dateToCheck = subDays(dateToCheck, 1);
+  } 
+  // If no activity today, we check if there was activity yesterday to maintain a streak.
+  else if (activityDates.has(format(subDays(dateToCheck, 1), 'yyyy-MM-dd'))) {
+    // Streak starts at 1 if activity was yesterday, but today's goal is missed.
+    // We don't count today as part of the streak yet.
+    currentStreak = 1;
+    dateToCheck = subDays(dateToCheck, 2);
   } else {
-    currentDate = new Date(currentDate.setDate(currentDate.getDate())); // Start checking from today
+    // No activity today or yesterday, streak is 0.
+    return { streak: 0, todayActivity: false };
   }
 
-  for (let i = 0; i < uniqueDates.length; i++) {
-    const date = new Date(uniqueDates[i]);
+  // 3. Iterate backwards to calculate the full streak length
+  while (true) {
+    const dateString = format(dateToCheck, 'yyyy-MM-dd');
     
-    if (isToday(date) && !todayActivity) continue; // Skip today if already counted
-
-    if (currentStreak === 0 && !todayActivity) {
-        // If we haven't started the streak, check if the latest activity was yesterday
-        if (isYesterday(date)) {
-            currentStreak = 1;
-            currentDate = new Date(date.setDate(date.getDate() - 1));
-        }
-        continue;
-    }
-
-    // Check if the current date is exactly one day before the previous date in the streak
-    const diff = differenceInDays(currentDate, date);
-    
-    if (diff === 1) {
+    if (activityDates.has(dateString)) {
       currentStreak++;
-      currentDate = date;
-    } else if (diff > 1) {
-      // Gap found, streak broken
+      dateToCheck = subDays(dateToCheck, 1);
+    } else {
       break;
     }
   }
