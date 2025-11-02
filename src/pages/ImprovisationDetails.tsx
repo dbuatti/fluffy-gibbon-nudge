@@ -640,7 +640,7 @@ const ImprovisationDetails: React.FC = () => {
                 <div className="space-y-2 border-b pb-4">
                     <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Composition Type</Label>
                     <RadioGroup 
-                        value={String(imp.is_improvisation)} // FIX: Changed to controlled value
+                        value={String(imp.is_improvisation)} 
                         onValueChange={handleUpdateIsImprovisation}
                         disabled={updateMutation.isPending}
                         className="flex space-x-4 ml-4"
@@ -766,7 +766,6 @@ const ImprovisationDetails: React.FC = () => {
           <FilePathSuggestion 
               generatedName={imp.generated_name}
               primaryGenre={imp.primary_genre}
-              isCompleted={isCompleted}
           />
           
           {/* Debugging: Public Audio URL */}

@@ -8,12 +8,11 @@ import { showSuccess, showError } from '@/utils/toast';
 interface FilePathSuggestionProps {
   generatedName: string | null;
   primaryGenre: string | null;
-  isCompleted: boolean;
 }
 
-const FilePathSuggestion: React.FC<FilePathSuggestionProps> = ({ generatedName, primaryGenre, isCompleted }) => {
+const FilePathSuggestion: React.FC<FilePathSuggestionProps> = ({ generatedName, primaryGenre }) => {
   
-  if (!isCompleted) {
+  if (!generatedName) {
     return null;
   }
 
