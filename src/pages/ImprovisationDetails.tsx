@@ -25,7 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import GenreSelect from '@/components/GenreSelect';
-import AudioPlayer from '@/components/AudioPlayer'; // Import AudioPlayer
+import AudioPlayer from '@/components/AudioPlayer';
+import DistributionTogglesCard from '@/components/DistributionTogglesCard'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -516,10 +517,6 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
-  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
-  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
-  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
-  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
   
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
@@ -673,7 +670,7 @@ const ImprovisationDetails: React.FC = () => {
             />
           )}
 
-          {/* Composition Status Card */}
+          {/* Composition Status Card (Refactored) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">Composition Status</CardTitle>
@@ -712,58 +709,6 @@ const ImprovisationDetails: React.FC = () => {
                     </div>
                 </div>
                 <div className="space-y-4">
-                    {/* EDITABLE: Is Piano */}
-                    <div className="flex items-center justify-between pr-4">
-                        <div className="flex items-center">
-                            <Piano className="h-5 w-5 mr-2" />
-                            <span className="font-semibold">Is Piano:</span> 
-                        </div>
-                        <Switch
-                            checked={!!imp.is_piano}
-                            onCheckedChange={handleUpdateIsPiano}
-                            disabled={updateMutation.isPending}
-                        />
-                    </div>
-                    
-                    {/* NEW: Is Instrumental */}
-                    <div className="flex items-center justify-between pr-4">
-                        <div className="flex items-center">
-                            <Music className="h-5 w-5 mr-2" />
-                            <span className="font-semibold">Is Instrumental:</span> 
-                        </div>
-                        <Switch
-                            checked={!!imp.is_instrumental}
-                            onCheckedChange={handleUpdateIsInstrumental}
-                            disabled={updateMutation.isPending}
-                        />
-                    </div>
-                    
-                    {/* NEW: Is Original Song */}
-                    <div className="flex items-center justify-between pr-4">
-                        <div className="flex items-center">
-                            <CheckCircle className="h-5 w-5 mr-2" />
-                            <span className="font-semibold">Is Original Song:</span> 
-                        </div>
-                        <Switch
-                            checked={!!imp.is_original_song}
-                            onCheckedChange={handleUpdateIsOriginalSong}
-                            disabled={updateMutation.isPending}
-                        />
-                    </div>
-                    
-                    {/* NEW: Explicit Lyrics */}
-                    <div className="flex items-center justify-between pr-4">
-                        <div className="flex items-center">
-                            <XCircle className="h-5 w-5 mr-2" />
-                            <span className="font-semibold">Explicit Lyrics:</span> 
-                        </div>
-                        <Switch
-                            checked={!!imp.has_explicit_lyrics}
-                            onCheckedChange={handleUpdateHasExplicitLyrics}
-                            disabled={updateMutation.isPending}
-                        />
-                    </div>
-
                     <div className="flex items-center">
                         <Send className="h-5 w-5 mr-2" />
                         <span className="font-semibold">Ready:</span> 
@@ -777,6 +722,17 @@ const ImprovisationDetails: React.FC = () => {
                 </div>
             </CardContent>
           </Card>
+          
+          {/* NEW: Distribution Toggles Card */}
+          {imp && (
+            <DistributionTogglesCard
+                improvisationId={imp.id}
+                isPiano={imp.is_piano}
+                isInstrumental={imp.is_instrumental}
+                isOriginalSong={imp.is_original_song}
+                hasExplicitLyrics={imp.has_explicit_lyrics}
+            />
+          )}
 
           {/* 1. Audio Upload (if needed) - Prominent CTA */}
           {!hasAudioFile && imp.is_improvisation !== null && (
