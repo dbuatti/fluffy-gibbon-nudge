@@ -20,6 +20,16 @@ async function generateDescriptionWithGemini(compositionData: any): Promise<stri
     const notesContent = compositionData.notes?.map((n: any) => `${n.title}: ${n.content}`).join('; ') || 'No creative notes provided.';
     const tags = compositionData.user_tags?.join(', ') || 'No user tags.';
     const analysis = compositionData.analysis_data || {};
+    
+    // New Insight Timer fields extraction
+    const contentType = compositionData.insight_content_type || 'Music';
+    const primaryUse = compositionData.insight_primary_use || 'Relaxation';
+    const audienceLevel = compositionData.insight_audience_level || 'Everyone';
+    const benefits = compositionData.insight_benefits?.join(', ') || 'General wellness';
+    const practices = compositionData.insight_practices || 'Sound Meditation';
+    const themes = compositionData.insight_themes?.join(', ') || 'Secular Mindfulness';
+    const voice = compositionData.insight_voice || 'None (Instrumental)';
+
 
     const prompt = `You are an expert copywriter for wellness and meditation platforms like Insight Timer. Your task is to write a compelling, compliant description for a music track.
     
@@ -33,6 +43,17 @@ async function generateDescriptionWithGemini(compositionData: any): Promise<stri
     - Primary Genre: ${compositionData.primary_genre}
     - Mood: ${analysis.mood || 'Calm'}
     - Tempo: ${analysis.simulated_tempo || 'Moderate'} BPM
+    
+    Insight Timer Categorization:
+    - Content Type: ${contentType}
+    - Primary Use: ${primaryUse}
+    - Audience Level: ${audienceLevel}
+    - Benefits: ${benefits}
+    - Practices: ${practices}
+    - Themes: ${themes}
+    - Voice: ${voice}
+    
+    Creative Input:
     - User Notes (Creative Intent): ${notesContent}
     - User Tags: ${tags}
     
