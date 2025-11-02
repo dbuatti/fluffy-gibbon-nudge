@@ -36,15 +36,18 @@ const EditableField: React.FC<EditableFieldProps> = ({ value, label, onSave, cla
 
   const handleSave = async () => {
     const trimmedValue = currentValue.trim();
-    if (trimmedValue === (value || '')) {
+    const originalValue = (value || '').trim();
+    
+    // 1. Check if the value has actually changed
+    if (trimmedValue === originalValue) {
       setIsEditing(false);
-      return; // No change
+      return; // No change, exit silently
     }
     
-    if (!trimmedValue) {
-        // Optionally prevent saving empty fields or revert to original
+    // 2. Check for empty value (if original was not empty)
+    if (!trimmedValue && originalValue) {
         showError(`The ${label} cannot be empty.`);
-        setCurrentValue(value || '');
+        setCurrentValue(originalValue); // Revert to original
         setIsEditing(false);
         return;
     }
