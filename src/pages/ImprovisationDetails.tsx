@@ -427,7 +427,8 @@ const ImprovisationDetails: React.FC = () => {
           />
 
           {/* 1. Audio Upload (if needed) - Prominent CTA */}
-          {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
+          {/* SIMPLIFIED CONDITION: Show if audio is missing and we know the type of piece */}
+          {!hasAudioFile && imp.is_improvisation !== null && (
             <div id="audio-upload-cta">
                 <AudioUploadForIdea 
                   improvisationId={imp.id} 
