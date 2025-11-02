@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,6 +26,8 @@ interface Improvisation {
   artwork_url: string | null;
   created_at: string;
   notes: NoteTab[] | null;
+  storage_path: string | null;
+  is_ready_for_release: boolean | null;
 }
 
 const STALLED_THRESHOLD_HOURS = 48;
@@ -33,7 +35,7 @@ const STALLED_THRESHOLD_HOURS = 48;
 const fetchImprovisations = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id, file_name, status, generated_name, artwork_url, created_at, notes')
+    .select('id, file_name, status, generated_name, artwork_url, created_at, notes, storage_path, is_ready_for_release')
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -42,19 +44,15 @@ const fetchImprovisations = async (): Promise<Improvisation[]> => {
 
 const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
   if (!hasFile && status === 'uploaded') {
-    // Idea Captured 💡 (Blue/Primary) - Needs Audio
     return <Badge className="bg-blue-500 hover:bg-blue-500 text-white dark:bg-blue-700 dark:hover:bg-blue-700">💡 Needs Audio</Badge>;
   }
   
   switch (status) {
     case 'analyzing':
-      // In Progress ⚙️ (Yellow/Secondary)
       return <Badge variant="secondary" className="bg-yellow-400 text-gray-900 dark:bg-yellow-600 dark:text-gray-900"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
     case 'completed':
-      // Ready to Submit ✅ (Green/Success)
       return <Badge className="bg-green-600 hover:bg-green-600 text-white dark:bg-green-700 dark:hover:bg-green-700">✅ Ready</Badge>;
     case 'failed':
-      // Failed ❌ (Red/Destructive)
       return <Badge variant="destructive">❌ Failed</Badge>;
     default:
       return <Badge variant="outline">Uploaded</Badge>;
@@ -68,6 +66,34 @@ const getNotesStatus = (notes: NoteTab[] | null) => {
     return <Badge variant="default" className="bg-purple-500 hover:bg-purple-500 dark:bg-purple-700 dark:hover:bg-purple-700">✍️ Notes Added</Badge>;
   }
   return <Badge variant="outline" className="text-muted-foreground border-dashed">📝 Needs Notes</Badge>;
+};
+
+const getNextAction = (imp: Improvisation) => {
+  const hasFile = !!imp.storage_path;
+  const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
+  const hasArtwork = !!imp.artwork_url;
+  const isReady = !!imp.is_ready_for_release;
+
+  if (!hasFile) {
+    return { label: 'Upload Audio', icon: Upload, color: 'text-blue-500' };
+  }
+  if (imp.status === 'analyzing') {
+    return { label: 'AI Analyzing...', icon: Clock, color: 'text-yellow-500' };
+  }
+  if (imp.status === 'completed') {
+    if (!hasNotes) {
+      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-purple-500' };
+    }
+    if (!hasArtwork) {
+      return { label: 'Generate Artwork', icon: Palette, color: 'text-orange-500' };
+    }
+    if (!isReady) {
+      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-green-600' };
+    }
+    return { label: 'Submit to DistroKid', icon: Send, color: 'text-green-700' };
+  }
+  
+  return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground' };
 };
 
 const ImprovisationList: React.FC = () => {
@@ -99,16 +125,17 @@ const ImprovisationList: React.FC = () => {
               <TableRow>
                 <TableHead className="w-[60px]">Art</TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Notes</TableHead>
-                <TableHead className="hidden lg:table-cell">File Name</TableHead>
-                <TableHead className="text-right w-[120px]">Action</TableHead>
+                <TableHead className="hidden md:table-cell">Status</TableHead>
+                <TableHead className="hidden lg:table-cell">Notes</TableHead>
+                <TableHead className="text-right w-[200px]">Next Step</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {improvisations.map((imp) => {
                 const hasFile = !!imp.file_name;
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
+                const nextAction = getNextAction(imp);
+                const Icon = nextAction.icon;
                 
                 return (
                   <TableRow 
@@ -136,15 +163,22 @@ const ImprovisationList: React.FC = () => {
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </span>
                     </TableCell>
-                    <TableCell>{getStatusBadge(imp.status, hasFile)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{getNotesStatus(imp.notes)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground hidden lg:table-cell">
-                      {imp.file_name || 'No audio file attached'}
-                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{getStatusBadge(imp.status, hasFile)}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{getNotesStatus(imp.notes)}</TableCell>
                     <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="group-hover:bg-primary/10">
-                            View <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
+                        <Badge 
+                            variant="secondary" 
+                            className={cn(
+                                "font-semibold text-xs px-3 py-1.5 flex items-center justify-end ml-auto w-fit",
+                                nextAction.color,
+                                nextAction.label.includes('Analyzing') && 'bg-yellow-100 dark:bg-yellow-900/50',
+                                nextAction.label.includes('Upload Audio') && 'bg-blue-100 dark:bg-blue-900/50',
+                                nextAction.label.includes('Ready') && 'bg-green-100 dark:bg-green-900/50',
+                            )}
+                        >
+                            <Icon className={cn("w-3 h-3 mr-1.5", nextAction.label.includes('Analyzing') && 'animate-spin')} />
+                            {nextAction.label}
+                        </Badge>
                     </TableCell>
                   </TableRow>
                 );
