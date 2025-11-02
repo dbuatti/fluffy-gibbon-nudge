@@ -4,11 +4,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Music, Loader2 } from 'lucide-react';
+import { Music, Loader2, Settings2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSession } from '@/integrations/supabase/session-context';
 import { showError, showSuccess } from '@/utils/toast';
-import { format } from 'date-fns'; // Import format
+import { format } from 'date-fns';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useSession } from '@/integrations/supabase/session-context';
 
 interface CaptureIdeaDialogProps {
   onIdeaCaptured: () => void;
@@ -17,30 +18,33 @@ interface CaptureIdeaDialogProps {
 const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured }) => {
   const { session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [ideaName, setIdeaName] = useState('Untitled Sketch'); // Default placeholder
-  const [isImprovisation, setIsImprovisation] = useState('true'); // Stored as string for RadioGroup
+  const [ideaName, setIdeaName] = useState(''); // Start empty for quick capture
+  const [isImprovisation, setIsImprovisation] = useState('true'); // Default to improvisation
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   // Reset state when dialog opens/closes
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
-        setIdeaName('Untitled Sketch');
+        setIdeaName('');
         setIsImprovisation('true');
+        setIsAdvancedOpen(false);
     }
   };
 
   const handleCapture = async () => {
-    if (!session || !ideaName.trim()) {
-      showError("Please provide a name for your idea.");
+    if (!session) {
+      showError("You must be signed in to capture an idea.");
       return;
     }
 
     setIsLoading(true);
 
-    // 1. Generate the final title with the YYYYMMDD prefix
+    // 1. Determine the base title: use user input or a fallback
     const datePrefix = format(new Date(), 'yyyyMMdd');
-    const finalTitle = `${datePrefix} - ${ideaName.trim()}`;
+    const baseTitle = ideaName.trim() || 'Quick Capture';
+    const finalTitle = `${datePrefix} - ${baseTitle}`;
 
     try {
       const { error: dbError } = await supabase
@@ -49,7 +53,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
           user_id: session.user.id,
           file_name: null, // Placeholder idea, no file yet
           storage_path: null, // No file yet
-          status: 'uploaded', // Use 'uploaded' status for visibility, even without file
+          status: 'uploaded', // Use 'uploaded' status for visibility
           generated_name: finalTitle, // Save the prefixed title
           is_improvisation: isImprovisation === 'true',
         });
@@ -83,7 +87,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
         <DialogHeader>
           <DialogTitle>Capture New Idea</DialogTitle>
           <DialogDescription>
-            Quickly save a title for your composition idea. You can upload the audio file later.
+            What is the title of your spontaneous idea? Hit save for instant capture.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -91,37 +95,47 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
             <Label htmlFor="ideaName">Idea Title</Label>
             <Input
               id="ideaName"
-              placeholder="E.g., 'Rainy Day Sketch'"
+              placeholder="E.g., 'Rainy Day Sketch' (or leave blank for Quick Capture)"
               value={ideaName}
               onChange={(e) => setIdeaName(e.target.value)}
               disabled={isLoading}
             />
             <p className="text-xs text-muted-foreground">
-                The date ({format(new Date(), 'yyyyMMdd')}) will be automatically prepended to the title.
+                The date ({format(new Date(), 'yyyyMMdd')}) will be automatically prepended.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label>Type of Piece</Label>
-            <RadioGroup 
-              defaultValue="true" 
-              onValueChange={setIsImprovisation}
-              disabled={isLoading}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="improv" />
-                  <Label htmlFor="improv">Spontaneous Improvisation</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="composition" />
-                  <Label htmlFor="composition">Fixed Composition</Label>
-                </div>
-              </div>
-            </RadioGroup>
-          </div>
+          
+          <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen} className="space-y-2">
+            <CollapsibleTrigger asChild>
+              <Button variant="link" className="p-0 h-auto text-sm text-muted-foreground hover:text-primary">
+                <Settings2 className="w-4 h-4 mr-2" /> 
+                {isAdvancedOpen ? 'Hide Advanced Options' : 'Show Advanced Options'}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-2 border-t pt-4">
+                <Label>Type of Piece</Label>
+                <RadioGroup 
+                  defaultValue="true" 
+                  onValueChange={setIsImprovisation}
+                  disabled={isLoading}
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="improv" />
+                      <Label htmlFor="improv">Spontaneous Improvisation</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="composition" />
+                      <Label htmlFor="composition">Fixed Composition</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+            </CollapsibleContent>
+          </Collapsible>
+
         </div>
         <DialogFooter>
-          <Button onClick={handleCapture} disabled={isLoading || !ideaName.trim()}>
+          <Button onClick={handleCapture} disabled={isLoading}>
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
