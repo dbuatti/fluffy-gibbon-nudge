@@ -64,6 +64,7 @@ interface CompositionMetadataDialogProps {
     insight_voice: string | null;
   };
   isPending: boolean;
+  isCoreMetadataComplete: boolean; // NEW PROP
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
   handleUpdateAnalysisData: (key: keyof AnalysisData, newValue: string) => Promise<void>;
@@ -84,6 +85,7 @@ interface CompositionMetadataDialogProps {
 const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   imp,
   isPending,
+  isCoreMetadataComplete, // Use new prop
   handleUpdatePrimaryGenre,
   handleUpdateSecondaryGenre,
   handleUpdateAnalysisData,
@@ -195,8 +197,11 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Edit Composition Metadata" className="h-8 w-8">
+        <Button variant="ghost" size="icon" title="Edit Composition Metadata" className="h-8 w-8 relative">
           <Info className="h-5 w-5 text-primary" />
+          {isCoreMetadataComplete && (
+            <CheckCircle className="absolute -top-1 -right-1 h-4 w-4 text-green-500 bg-background rounded-full border border-background" />
+          )}
         </Button>
       </DialogTrigger>
       {/* Increased width to max-w-4xl */}

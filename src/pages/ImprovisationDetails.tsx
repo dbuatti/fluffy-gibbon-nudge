@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, Navigate, useNavigate, Link } from 'react-router-dom';
+import { useParams, Navigate, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -119,10 +119,20 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
+
+  // --- Tab State Management using URL Query Params ---
+  const query = new URLSearchParams(location.search);
+  const currentTab = query.get('tab') || 'creative-hub';
+
+  const handleTabChange = (newTab: string) => {
+    navigate(`?tab=${newTab}`, { replace: true });
+  };
+  // --- End Tab State Management ---
 
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
@@ -154,6 +164,9 @@ const ImprovisationDetails: React.FC = () => {
   
   // A composition is blocked if any critical asset or confirmation is missing.
   const isBlocked = !hasAudioFile || !imp?.artwork_url || !hasInsightTimerCategorization || !imp?.is_metadata_confirmed;
+  
+  // NEW: Core Metadata Completion Check
+  const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood;
   // --- END CALCULATE READINESS STATUS ---
 
   // --- HANDLER DEFINITIONS ---
@@ -377,9 +390,8 @@ const ImprovisationDetails: React.FC = () => {
 
     // Step 3: Core Metadata Set (60% total)
     const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
-    const hasCoreMetadata = !!imp.primary_genre && !!imp.analysis_data?.simulated_key && !!imp.analysis_data?.simulated_tempo;
     
-    if (hasAudioFile && hasCoreMetadata) {
+    if (hasAudioFile && isCoreMetadataComplete) { // Use isCoreMetadataComplete here
       progressValue = 60;
       progressMessage = "Core metadata set. Add creative notes and tags.";
       
@@ -397,7 +409,7 @@ const ImprovisationDetails: React.FC = () => {
     }
     
     // Step 4: Notes Added (70%)
-    if (hasAudioFile && hasCoreMetadata && hasNotes) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes) {
         progressValue = 70;
         progressMessage = "Notes added. Generate artwork and populate distribution fields.";
         
@@ -407,7 +419,7 @@ const ImprovisationDetails: React.FC = () => {
                 label: "Generate Artwork (10% Progress Boost)",
                 onClick: () => {
                     // Switch to Assets tab
-                    document.getElementById('assets-tab-trigger')?.click();
+                    handleTabChange('assets-downloads');
                 },
                 variant: "outline"
             };
@@ -417,7 +429,7 @@ const ImprovisationDetails: React.FC = () => {
     // Step 5: Artwork Generated (80%)
     const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
     
-    if (hasAudioFile && hasCoreMetadata && hasNotes && imp.artwork_url) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_url) {
       progressValue = 80;
       progressMessage = "Artwork generated. Use AI to populate distribution fields.";
       
@@ -432,7 +444,7 @@ const ImprovisationDetails: React.FC = () => {
     }
     
     // Step 6: AI Augmentation Complete (90%)
-    if (hasAudioFile && hasCoreMetadata && hasNotes && imp.artwork_url && hasInsightTimerPopulated) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_url && hasInsightTimerPopulated) {
         progressValue = 90;
         progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
         
@@ -454,7 +466,7 @@ const ImprovisationDetails: React.FC = () => {
           label: "Go to Distribution Prep",
           onClick: () => {
               // Switch to the Analysis tab
-              document.getElementById('analysis-distro-tab')?.click();
+              handleTabChange('analysis-distro');
           },
           variant: "default"
       };
@@ -548,6 +560,7 @@ const ImprovisationDetails: React.FC = () => {
                 <CompositionMetadataDialog
                     imp={imp}
                     isPending={updateMutation.isPending}
+                    isCoreMetadataComplete={isCoreMetadataComplete} // Pass new prop
                     handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
                     handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
                     handleUpdateAnalysisData={handleUpdateAnalysisData}
@@ -591,7 +604,7 @@ const ImprovisationDetails: React.FC = () => {
         />
       )}
 
-      <Tabs defaultValue="creative-hub" className="w-full">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
