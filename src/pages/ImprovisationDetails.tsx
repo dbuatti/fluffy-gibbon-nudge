@@ -26,8 +26,8 @@ import { Switch } from '@/components/ui/switch';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import GenreSelect from '@/components/GenreSelect';
 import AudioPlayer from '@/components/AudioPlayer';
-import CompositionMetadataDialog from '@/components/CompositionMetadataDialog'; // Import new component name
-import { cn } from '@/lib/utils'; // Ensure cn is imported
+import CompositionMetadataDialog from '@/components/CompositionMetadataDialog';
+import { cn } from '@/lib/utils';
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -67,13 +67,15 @@ interface Improvisation {
   is_instrumental: boolean | null; // NEW FIELD
   is_original_song: boolean | null; // NEW FIELD
   has_explicit_lyrics: boolean | null; // NEW FIELD
+  insight_use: string | null; // NEW FIELD
+  insight_audience: string | null; // NEW FIELD
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   // Explicitly list all columns in a compact string to avoid potential PostgREST parsing issues.
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics')
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,insight_use,insight_audience')
     .eq('id', id)
     .single();
 
@@ -316,6 +318,10 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
   const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
   
+  // NEW HANDLERS FOR INSIGHT TIMER FIELDS
+  const handleUpdateInsightUse = (value: string) => updateMutation.mutateAsync({ insight_use: value });
+  const handleUpdateInsightAudience = (value: string) => updateMutation.mutateAsync({ insight_audience: value });
+
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
     const currentData = imp.analysis_data || {};
@@ -525,6 +531,8 @@ const ImprovisationDetails: React.FC = () => {
                     handleUpdateIsInstrumental={handleUpdateIsInstrumental}
                     handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
                     handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
+                    handleUpdateInsightUse={handleUpdateInsightUse}
+                    handleUpdateInsightAudience={handleUpdateInsightAudience}
                 />
             )}
           </div>

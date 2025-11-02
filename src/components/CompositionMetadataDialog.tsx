@@ -1,15 +1,37 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, XCircle, Loader2, Send } from 'lucide-react';
+import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, XCircle, Loader2, Send, Clock, Users } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import EditableField from './EditableField';
 import GenreSelect from './GenreSelect';
+import SelectField from './SelectField'; // Import the new SelectField
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Use ScrollArea for content overflow
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// --- Constants for Select Fields ---
+const MUSICAL_KEYS = [
+    "C Major", "C# Major", "D Major", "Eb Major", "E Major", "F Major", "F# Major", "G Major", "Ab Major", "A Major", "Bb Major", "B Major",
+    "C Minor", "C# Minor", "D Minor", "Eb Minor", "E Minor", "F Minor", "F# Minor", "G Minor", "Ab Minor", "A Minor", "Bb Minor", "B Minor",
+];
+
+const MOODS = [
+    "Calm", "Energetic", "Melancholy", "Uplifting", "Mysterious", "Reflective", "Tense", "Joyful", 
+    "Dreamy", "Aggressive", "Peaceful", "Hopeful", "Ambient", "Cinematic", "Epic", "Introspective"
+];
+
+const INSIGHT_USE_OPTIONS = [
+    "Meditation", "Sleep", "Focus", "Relaxation", "Movement", "Study", "Yoga", "Sound Bath"
+];
+
+const INSIGHT_AUDIENCE_OPTIONS = [
+    "Everyone", "Beginners", "Intermediate", "Advanced", "Children", "Seniors"
+];
+// --- End Constants ---
+
 
 interface AnalysisData {
   simulated_key?: string;
@@ -32,6 +54,8 @@ interface CompositionMetadataDialogProps {
     primary_genre: string | null;
     secondary_genre: string | null;
     analysis_data: AnalysisData | null;
+    insight_use: string | null; // NEW
+    insight_audience: string | null; // NEW
   };
   isPending: boolean;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
@@ -42,6 +66,8 @@ interface CompositionMetadataDialogProps {
   handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
   handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
   handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
+  handleUpdateInsightUse: (value: string) => Promise<void>; // NEW
+  handleUpdateInsightAudience: (value: string) => Promise<void>; // NEW
 }
 
 const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
@@ -55,11 +81,13 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   handleUpdateIsInstrumental,
   handleUpdateIsOriginalSong,
   handleUpdateHasExplicitLyrics,
+  handleUpdateInsightUse,
+  handleUpdateInsightAudience,
 }) => {
   const analysis = imp.analysis_data;
   const isCompleted = imp.status === 'completed';
 
-  const renderEditableItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, key: keyof AnalysisData) => (
+  const renderEditableItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, key: keyof AnalysisData, inputType: 'text' | 'number' = 'text') => (
     <div className="flex items-center space-x-2">
       <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
@@ -70,7 +98,26 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
         className="flex-grow"
         placeholder="Click to set"
         disabled={isPending || !isCompleted}
+        // Note: EditableField doesn't natively support type="number", but we rely on the handler in ImprovisationDetails to validate tempo as a number.
       />
+    </div>
+  );
+
+  const renderSelectAnalysisItem = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], key: keyof AnalysisData) => (
+    <div className="flex items-center space-x-2">
+      <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
+      <div className="flex-grow">
+        <SelectField
+          value={value}
+          label={label}
+          options={options}
+          onSave={(v) => handleUpdateAnalysisData(key, v)}
+          placeholder={`Select ${label}`}
+          disabled={isPending || !isCompleted}
+          allowCustom={label === 'Mood'} // Allow custom mood input
+        />
+      </div>
     </div>
   );
 
@@ -85,6 +132,24 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           onSave={onSave}
           placeholder="Select or type genre"
           disabled={isPending || !isCompleted}
+        />
+      </div>
+    </div>
+  );
+  
+  const renderInsightSelectItem = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], onSave: (v: string) => Promise<void>) => (
+    <div className="flex items-center space-x-2 py-2 border-b last:border-b-0">
+      <Icon className="h-5 w-5 mr-2 text-muted-foreground flex-shrink-0" />
+      <span className="text-sm font-medium text-muted-foreground w-24 flex-shrink-0">{label}:</span>
+      <div className="flex-grow">
+        <SelectField
+          value={value}
+          label={label}
+          options={options}
+          onSave={onSave}
+          placeholder={`Select ${label}`}
+          disabled={isPending}
+          allowCustom={false}
         />
       </div>
     </div>
@@ -111,7 +176,8 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           <Info className="h-5 w-5 text-primary" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+      {/* Increased width to max-w-4xl */}
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center">
             <Info className="h-6 w-6 mr-2" /> Composition Metadata
@@ -168,18 +234,37 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
 
                 <Separator />
 
-                {/* Technical Data */}
+                {/* Technical Data (Updated to use SelectField and numerical input) */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2" /> Technical Data</h3>
                     {isCompleted ? (
                         <div className="space-y-3">
-                            {renderEditableItem(Hash, "Key", analysis?.simulated_key, 'simulated_key')}
-                            {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo')}
-                            {renderEditableItem(Palette, "Mood", analysis?.mood, 'mood')}
+                            {/* Key (SelectField) */}
+                            {renderSelectAnalysisItem(Hash, "Key", analysis?.simulated_key, MUSICAL_KEYS, 'simulated_key')}
+                            
+                            {/* Tempo (EditableField - numerical validation handled in parent) */}
+                            {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo', 'number')}
+                            
+                            {/* Mood (SelectField with custom allowed) */}
+                            {renderSelectAnalysisItem(Palette, "Mood", analysis?.mood, MOODS, 'mood')}
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground italic">Technical data available after analysis completes.</p>
                     )}
+                </div>
+
+                <Separator />
+                
+                {/* Insight Timer Metadata (NEW SECTION) */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center"><Clock className="h-5 w-5 mr-2" /> Insight Timer Metadata</h3>
+                    <p className="text-sm text-muted-foreground">
+                        These fields are required for submission to meditation platforms like Insight Timer.
+                    </p>
+                    <div className="space-y-2">
+                        {renderInsightSelectItem(Clock, "Primary Use", imp.insight_use, INSIGHT_USE_OPTIONS, handleUpdateInsightUse)}
+                        {renderInsightSelectItem(Users, "Target Audience", imp.insight_audience, INSIGHT_AUDIENCE_OPTIONS, handleUpdateInsightAudience)}
+                    </div>
                 </div>
 
                 <Separator />
