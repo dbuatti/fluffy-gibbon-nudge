@@ -4,11 +4,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon, NotebookText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
+
+interface NoteTab {
+  id: string;
+  title: string;
+  color: string;
+  content: string;
+}
 
 interface Improvisation {
   id: string;
@@ -17,12 +24,13 @@ interface Improvisation {
   generated_name: string | null;
   artwork_url: string | null; // New field
   created_at: string;
+  notes: NoteTab[] | null; // New field
 }
 
 const fetchImprovisations = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id, file_name, status, generated_name, artwork_url, created_at') // Fetch artwork_url
+    .select('id, file_name, status, generated_name, artwork_url, created_at, notes') // Fetch notes
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -44,6 +52,16 @@ const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
     default:
       return <Badge variant="outline">Uploaded</Badge>;
   }
+};
+
+const getNotesStatus = (notes: NoteTab[] | null) => {
+  // Check if the notes array exists and if at least one note zone has content
+  const hasContent = notes?.some(n => n.content && n.content.trim().length > 0);
+  
+  if (hasContent) {
+    return <Badge variant="default" className="bg-blue-500 hover:bg-blue-500 dark:bg-blue-700 dark:hover:bg-blue-700"><NotebookText className="w-3 h-3 mr-1" /> Notes Added</Badge>;
+  }
+  return <Badge variant="outline" className="text-muted-foreground border-dashed"><NotebookText className="w-3 h-3 mr-1" /> Needs Notes</Badge>;
 };
 
 const ImprovisationList: React.FC = () => {
@@ -76,6 +94,7 @@ const ImprovisationList: React.FC = () => {
                 <TableHead className="w-[60px]">Art</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Notes</TableHead> {/* New Column */}
                 <TableHead>File Name</TableHead>
                 <TableHead className="text-right">Date</TableHead>
               </TableRow>
@@ -99,6 +118,7 @@ const ImprovisationList: React.FC = () => {
                     </TableCell>
                     <TableCell className="font-medium">{imp.generated_name || imp.file_name || 'Untitled Idea'}</TableCell>
                     <TableCell>{getStatusBadge(imp.status, hasFile)}</TableCell>
+                    <TableCell>{getNotesStatus(imp.notes)}</TableCell> {/* New Cell */}
                     <TableCell className="text-sm text-muted-foreground">
                       {imp.file_name || 'No audio file attached'}
                     </TableCell>
