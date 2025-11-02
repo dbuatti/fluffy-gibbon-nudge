@@ -8,7 +8,7 @@ import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon } from 'lucide-r
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Link } from 'react-router-dom'; // Import Link
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 interface Improvisation {
   id: string;
@@ -43,6 +43,7 @@ const getStatusBadge = (status: Improvisation['status']) => {
 };
 
 const ImprovisationList: React.FC = () => {
+  const navigate = useNavigate(); // Initialize useNavigate
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
     queryFn: fetchImprovisations,
@@ -77,32 +78,28 @@ const ImprovisationList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {improvisations.map((imp) => (
-                <Link 
-                  to={`/improvisation/${imp.id}`} 
+                <TableRow 
                   key={imp.id} 
-                  className="contents" // Use contents to allow TableRow styling to apply
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate(`/improvisation/${imp.id}`)} // Use programmatic navigation
                 >
-                  <TableRow 
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  >
-                    <TableCell>
-                      <Avatar className="h-10 w-10 rounded-md">
-                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
-                        <AvatarFallback className="rounded-md">
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        </AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell className="font-medium">{imp.file_name}</TableCell>
-                    <TableCell>{getStatusBadge(imp.status)}</TableCell>
-                    <TableCell>
-                      {imp.generated_name || (imp.status === 'completed' ? 'Name pending...' : 'Awaiting analysis...')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}
-                    </TableCell>
-                  </TableRow>
-                </Link>
+                  <TableCell>
+                    <Avatar className="h-10 w-10 rounded-md">
+                      <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
+                      <AvatarFallback className="rounded-md">
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </TableCell>
+                  <TableCell className="font-medium">{imp.file_name}</TableCell>
+                  <TableCell>{getStatusBadge(imp.status)}</TableCell>
+                  <TableCell>
+                    {imp.generated_name || (imp.status === 'completed' ? 'Name pending...' : 'Awaiting analysis...')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}
+                  </TableCell>
+                </TableRow>
               ))}
             </TableBody>
           </Table>
