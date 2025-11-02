@@ -29,6 +29,7 @@ import AudioPlayer from '@/components/AudioPlayer';
 import CompositionMetadataDialog from '@/components/CompositionMetadataDialog';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input'; // Import Input
+import { useAIAugmentation } from '@/hooks/useAIAugmentation'; // Import new hook
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -118,7 +119,6 @@ const ImprovisationDetails: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isRegenerating, setIsRegenerating] = React.useState(false);
-  const [isPopulatingAI, setIsPopulatingAI] = React.useState(false); // New state for AI population
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
 
@@ -130,6 +130,7 @@ const ImprovisationDetails: React.FC = () => {
   });
 
   const updateMutation = useUpdateImprovisation(id!);
+  const { isPopulating, aiGeneratedDescription, handleAIPopulateMetadata, setAiGeneratedDescription } = useAIAugmentation(id!); // Use new hook
   
   // Handler for Editable Fields (used by useTitleGenerator)
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
@@ -200,36 +201,6 @@ const ImprovisationDetails: React.FC = () => {
       showError(`Failed to regenerate artwork: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRegenerating(false);
-    }
-  };
-
-  const handleAIPopulateMetadata = async () => {
-    if (!imp) return;
-
-    setIsPopulatingAI(true);
-    showSuccess("AI is intelligently populating distribution metadata...");
-
-    try {
-      // 1. Trigger the new AI function
-      const { error: functionError } = await supabase.functions.invoke('populate-distribution-metadata', {
-        body: {
-          improvisationId: imp.id,
-        },
-      });
-
-      if (functionError) {
-        throw functionError;
-      }
-      
-      // Force refetch to show the updated fields immediately
-      handleRefetch();
-      showSuccess("AI population complete! Review Insight Timer fields.");
-
-    } catch (error) {
-      console.error('AI Population failed:', error);
-      showError(`Failed to populate metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsPopulatingAI(false);
     }
   };
 
@@ -613,11 +584,11 @@ const ImprovisationDetails: React.FC = () => {
                     onClick={primaryAction.onClick} 
                     variant={primaryAction.variant} 
                     className="w-full h-10 text-base"
-                    disabled={isAnalyzing || isMarkingReady || isPopulatingAI}
+                    disabled={isAnalyzing || isMarkingReady || isPopulating} // Use isPopulating
                 >
-                    {isMarkingReady || isPopulatingAI ? (
+                    {isMarkingReady || isPopulating ? ( // Use isPopulating
                         <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isPopulatingAI ? 'Populating Metadata...' : 'Marking Ready...'}
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isPopulating ? 'Populating Metadata...' : 'Marking Ready...'}
                         </>
                     ) : (
                         primaryAction.label
@@ -858,7 +829,13 @@ const ImprovisationDetails: React.FC = () => {
                 <DistroKidTab imp={imp} />
               </TabsContent>
               <TabsContent value="insight-timer">
-                <InsightTimerTab imp={imp} />
+                <InsightTimerTab 
+                    imp={imp} 
+                    aiGeneratedDescription={aiGeneratedDescription}
+                    isPopulating={isPopulating}
+                    handleAIPopulateMetadata={handleAIPopulateMetadata}
+                    setAiGeneratedDescription={setAiGeneratedDescription}
+                />
               </TabsContent>
             </Tabs>
           )}

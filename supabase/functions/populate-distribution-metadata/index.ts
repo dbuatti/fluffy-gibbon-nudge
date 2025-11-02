@@ -8,7 +8,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Function to call Gemini API for intelligent field population
+// Define constants for AI guidance (copied from client-side constants)
+const INSIGHT_CONTENT_TYPES = ["Guided meditation", "Music", "Talk"];
+const INSIGHT_LANGUAGES = ["English", "BR. Português", "Deutsch", "Italiano", "Français", "Español", "Nederlands", "Pусский", "Polski", "Svenska", "Norsk", "Dansk", "Suomi", "Türkçe", "العربية", "עברית", "हिन्दी", "中文", "日本語", "한국어"];
+const INSIGHT_PRIMARY_USES = ["Meditation", "Yoga", "Tai Chi", "Walking", "Breathing / Pranayama", "Chanting", "Prayer", "Healing", "Dance", "Recreation", "Educational / Informative", "Sleep", "Focus", "Relaxation", "Movement", "Study", "Sound Bath"];
+const INSIGHT_AUDIENCE_LEVELS = ["Everyone", "Complete beginners", "Some prior experience necessary (2 months or more)", "Extensive experience necessary (12 months +)"];
+const INSIGHT_VOICES = ["Masculine", "Feminine", "None (Instrumental)"]; // Added None (Instrumental) for music tracks
+
+// Function to call Gemini API for intelligent field population and description
 async function populateFieldsWithGemini(compositionData: any): Promise<any> {
     // @ts-ignore
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -21,28 +28,31 @@ async function populateFieldsWithGemini(compositionData: any): Promise<any> {
     const tags = compositionData.user_tags?.join(', ') || 'No user tags.';
     const analysis = compositionData.analysis_data || {};
 
-    // Define the lists the AI must choose from (simplified for prompt)
-    const benefitsList = "Clarity of Mind, Focus, Relax, Self-Confidence, Managing Stress, Dealing with Anxiety, Emotional Healing, Gratitude, Love, Sleep, Yoga Nidra, Kids Meditation, etc.";
-    const practicesList = "Body Scan, Concentration Meditation, Mantra Meditation, Mindfulness Meditation, Walking meditation, Sound Meditation, Guided imagery or Visualization, etc.";
-    const themesList = "Religion, Secular, Nature, Spirituality, Neuroscience, Psychology, etc.";
-
-    const prompt = `You are an expert in wellness and meditation content categorization. Based on the user's input for this music track, select the best fit for the following Insight Timer fields.
+    const prompt = `You are an expert in wellness and meditation content categorization and copywriting for platforms like Insight Timer. Based on the user's input for this music track, select the best fit for the required metadata fields and generate a compliant description.
     
     Composition Data:
     - Title: "${compositionData.generated_name || 'Untitled'}"
     - Primary Genre: ${compositionData.primary_genre || 'Ambient'}
-    - Secondary Genre: ${compositionData.secondary_genre || 'New Age'}
     - Mood: ${analysis.mood || 'Calm'}
-    - Tempo: ${analysis.simulated_tempo || 'Moderate'} BPM
     - Creative Notes: ${notesContent}
     - User Tags: ${tags}
     
-    Instructions:
-    1. Select up to 3 Benefits from the list (e.g., ["Relax", "Focus"]).
-    2. Select exactly 1 Practice from the list (e.g., "Sound Meditation").
-    3. Select up to 3 Themes from the list (e.g., ["Nature", "Spirituality"]).
+    Instructions for Metadata Selection:
+    1. Content Type: Select one from: ${INSIGHT_CONTENT_TYPES.join(', ')}.
+    2. Language: Select one from: ${INSIGHT_LANGUAGES.join(', ')}. Default to "English" if unsure.
+    3. Primary Use: Select one from: ${INSIGHT_PRIMARY_USES.join(', ')}.
+    4. Audience Level: Select one from: ${INSIGHT_AUDIENCE_LEVELS.join(', ')}.
+    5. Voice: Select one from: ${INSIGHT_VOICES.join(', ')}. If the track is instrumental, select "None (Instrumental)".
+    6. Benefits: Select up to 3 relevant benefits (e.g., ["Relax", "Focus"]).
+    7. Practices: Select exactly 1 practice (e.g., "Sound Meditation").
+    8. Themes: Select up to 3 relevant themes (e.g., ["Nature", "Spirituality"]).
     
-    Respond ONLY with a JSON object containing the keys "insight_benefits", "insight_practices", and "insight_themes". Ensure all selected values are valid strings from the general categories provided.`;
+    Instructions for Description Generation:
+    1. The description must be 3 to 5 sentences long.
+    2. DO NOT include any promotional content, links, or mentions of other websites/platforms.
+    3. Focus on the mood, feeling, and intended use.
+    
+    Respond ONLY with a single JSON object containing the following keys: "insight_content_type", "insight_language", "insight_primary_use", "insight_audience_level", "insight_voice", "insight_benefits" (array), "insight_practices" (string), "insight_themes" (array), and "description" (string).`;
 
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
     
@@ -135,9 +145,17 @@ serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
-
-    // 3. Update the database with AI-generated fields
+    
+    // Extract description before updating the DB
+    const description = aiResults.description || "AI failed to generate a description.";
+    
+    // 3. Prepare updates for the database (excluding the description)
     const updates = {
+        insight_content_type: aiResults.insight_content_type || null,
+        insight_language: aiResults.insight_language || null,
+        insight_primary_use: aiResults.insight_primary_use || null,
+        insight_audience_level: aiResults.insight_audience_level || null,
+        insight_voice: aiResults.insight_voice || null,
         insight_benefits: aiResults.insight_benefits || [],
         insight_practices: aiResults.insight_practices || null,
         insight_themes: aiResults.insight_themes || [],
@@ -156,7 +174,8 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, updates }), {
+    // 4. Return the description and success status to the client
+    return new Response(JSON.stringify({ success: true, description, updates }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

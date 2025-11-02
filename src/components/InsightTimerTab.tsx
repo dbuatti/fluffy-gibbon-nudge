@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Users, Info, CheckCircle, XCircle, Music, Globe, Volume2 } from 'lucide-react';
-import InsightTimerDescriptionGenerator from './InsightTimerDescriptionGenerator';
+import { BookOpen, Clock, Users, Info, CheckCircle, XCircle, Music, Globe, Volume2, Sparkles, Loader2, Copy } from 'lucide-react';
 import InsightTimerFormFields from './InsightTimerFormFields';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface ImprovisationData {
   id: string;
@@ -14,7 +15,7 @@ interface ImprovisationData {
   primary_genre: string | null;
   is_improvisation: boolean | null;
   
-  // NEW FIELDS
+  // INSIGHT TIMER FIELDS
   insight_content_type: string | null;
   insight_language: string | null;
   insight_primary_use: string | null;
@@ -28,10 +29,39 @@ interface ImprovisationData {
 
 interface InsightTimerTabProps {
   imp: ImprovisationData;
+  aiGeneratedDescription: string;
+  isPopulating: boolean;
+  handleAIPopulateMetadata: () => Promise<void>;
+  setAiGeneratedDescription: (description: string) => void;
 }
 
-const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ imp }) => {
+const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ 
+    imp, 
+    aiGeneratedDescription, 
+    isPopulating, 
+    handleAIPopulateMetadata,
+    setAiGeneratedDescription,
+}) => {
   
+  // Local state for description, initialized from AI result or kept empty
+  const [description, setDescription] = useState(aiGeneratedDescription);
+
+  // Sync local state when AI generates a new description
+  useEffect(() => {
+    if (aiGeneratedDescription) {
+        setDescription(aiGeneratedDescription);
+    }
+  }, [aiGeneratedDescription]);
+
+  const handleCopy = () => {
+    if (description) {
+      navigator.clipboard.writeText(description);
+      showSuccess('Description copied to clipboard!');
+    } else {
+      showError('No description to copy.');
+    }
+  };
+
   // Check required fields for music submission (assuming Music content type)
   const isContentTypeSet = !!imp.insight_content_type;
   const isLanguageSet = !!imp.insight_language;
@@ -40,9 +70,10 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ imp }) => {
   const hasBenefits = (imp.insight_benefits?.length || 0) > 0;
   const hasPractices = !!imp.insight_practices;
   const hasThemes = (imp.insight_themes?.length || 0) > 0;
+  const hasDescription = description.trim().length > 0;
   
   // If the content type is 'Music', we assume the other fields are required for full categorization.
-  const isReady = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes;
+  const isReady = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
 
   const renderStatusItem = (label: string, value: string | number | string[] | null, Icon: React.ElementType, isRequired: boolean = false) => {
     const displayValue = Array.isArray(value) ? (value.length > 0 ? `${value.length} selected` : 'Not Set') : (value || 'Not Set');
@@ -74,6 +105,20 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ imp }) => {
             Complete the required fields below to ensure your track meets Insight Timer's submission guidelines.
           </p>
           
+          {/* AI Population Button */}
+          <Button 
+            onClick={handleAIPopulateMetadata} 
+            disabled={isPopulating} 
+            className="w-full h-10 text-base bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+          >
+            {isPopulating ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-5 w-5 mr-2" />
+            )}
+            AI Populate ALL Metadata & Description
+          </Button>
+
           {/* Required Fields Summary */}
           <div className="p-4 border rounded-lg bg-muted/50 space-y-1">
             <h4 className="font-semibold text-base mb-2">Required Core Metadata (Set via <Link to={`/improvisation/${imp.id}`}><Info className="w-4 h-4 inline-block text-primary" /></Link> button):</h4>
@@ -91,6 +136,16 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ imp }) => {
             {renderStatusItem("Practices (Select 1)", imp.insight_practices, BookOpen, true)}
             {renderStatusItem("Themes", imp.insight_themes, Info, true)}
             
+            <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+                <span className="text-sm font-medium text-muted-foreground flex items-center">
+                    <BookOpen className="w-4 h-4 mr-2" /> Description Generated
+                </span>
+                <Badge variant={hasDescription ? 'default' : 'destructive'}>
+                    {hasDescription ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                    {hasDescription ? 'Set' : 'Missing'}
+                </Badge>
+            </div>
+
             {!isReady && (
                 <div className="pt-4 text-center">
                     <p className="text-sm text-red-600 dark:text-red-400 mb-2 font-semibold">
@@ -100,8 +155,38 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ imp }) => {
             )}
           </div>
 
-          {/* Description Generator */}
-          <InsightTimerDescriptionGenerator improvisationId={imp.id} />
+          {/* Description Generator (Inline) */}
+          <Card className="mt-4">
+            <CardContent className="pt-6 space-y-4">
+                <div className="flex justify-between items-center">
+                    <h4 className="font-semibold flex items-center">
+                        <Sparkles className="w-4 h-4 mr-2 text-purple-500" /> AI Description Generator
+                    </h4>
+                    {/* Note: The generation button is now the main AI button above */}
+                </div>
+
+                <Textarea
+                    placeholder="Click 'AI Populate ALL Metadata' above to generate a compliant 3-5 sentence description based on your notes and analysis..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={5}
+                    className="min-h-[120px]"
+                />
+                
+                <Button 
+                    onClick={handleCopy} 
+                    disabled={!description} 
+                    variant="outline" 
+                    className="w-full"
+                >
+                    <Copy className="h-4 w-4 mr-2" /> Copy Description
+                </Button>
+                
+                <p className="text-xs text-muted-foreground">
+                    *Ensure the description is 3-5 sentences and contains no promotional links or mentions of other platforms, as required by Insight Timer.
+                </p>
+            </CardContent>
+          </Card>
 
           <div className="space-y-2 pt-4">
             <h4 className="font-semibold flex items-center"><BookOpen className="w-4 h-4 mr-2" /> Suggested Title</h4>
