@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette, Info, Users } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette, Info, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -28,6 +28,7 @@ import GenreSelect from '@/components/GenreSelect';
 import AudioPlayer from '@/components/AudioPlayer';
 import CompositionMetadataDialog from '@/components/CompositionMetadataDialog';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input'; // Import Input
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -466,6 +467,15 @@ const ImprovisationDetails: React.FC = () => {
   }
 
   const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
+  
+  const handleCopyUrl = () => {
+    if (audioPublicUrl) {
+      navigator.clipboard.writeText(audioPublicUrl);
+      showSuccess('Public audio URL copied to clipboard!');
+    } else {
+      showError('No public URL available.');
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
@@ -731,7 +741,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
+                        {isRegenerating ? 'Regenerate Artwork' : 'Regenerate Artwork'}
                       </Button>
                     )}
                 </div>
@@ -745,6 +755,33 @@ const ImprovisationDetails: React.FC = () => {
               primaryGenre={imp.primary_genre}
               isCompleted={isCompleted}
           />
+          
+          {/* Debugging: Public Audio URL */}
+          {audioPublicUrl && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl flex items-center">
+                  <ExternalLink className="w-5 h-5 mr-2 text-red-500" /> Audio URL (Debug)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  If the player above fails, copy this URL and check if the file loads directly in your browser.
+                </p>
+                <div className="flex space-x-2">
+                  <Input 
+                    type="text" 
+                    value={audioPublicUrl} 
+                    readOnly 
+                    className="flex-grow font-mono text-xs bg-muted"
+                  />
+                  <Button size="icon" onClick={handleCopyUrl} title="Copy Public URL">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
         </TabsContent>
 
