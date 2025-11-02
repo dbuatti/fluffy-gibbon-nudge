@@ -20,11 +20,12 @@ interface CompositionNotesProps {
   hasAudioFile: boolean;
 }
 
+// Updated color definitions for a cleaner, more defined look
 const defaultNotes: NoteTab[] = [
-  { id: 'zone1', title: 'Zone 1: Structure (A-B-A, Verse/Chorus, etc.)', color: 'bg-blue-100 dark:bg-blue-950', content: '' },
-  { id: 'zone2', title: 'Zone 2: Mood/Vibe (Emotional intent, feeling, imagery)', color: 'bg-green-100 dark:bg-green-950', content: '' },
-  { id: 'zone3', title: 'Zone 3: Technical (Key, Tempo, Instrumentation, Mix notes)', color: 'bg-yellow-100 dark:bg-yellow-950', content: '' },
-  { id: 'zone4', title: 'Zone 4: Next Steps (Single most actionable task)', color: 'bg-red-100 dark:bg-red-950', content: '' },
+  { id: 'zone1', title: 'Zone 1: Structure (A-B-A, Verse/Chorus, etc.)', color: 'border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-950/30', content: '' },
+  { id: 'zone2', title: 'Zone 2: Mood/Vibe (Emotional intent, feeling, imagery)', color: 'border-l-4 border-purple-500 bg-purple-50/50 dark:bg-purple-950/30', content: '' },
+  { id: 'zone3', title: 'Zone 3: Technical (Key, Tempo, Instrumentation, Mix notes)', color: 'border-l-4 border-yellow-500 bg-yellow-50/50 dark:bg-yellow-950/30', content: '' },
+  { id: 'zone4', title: 'Zone 4: Next Steps (Single most actionable task)', color: 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/30', content: '' },
 ];
 
 const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, initialNotes, hasAudioFile }) => {
@@ -105,10 +106,10 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
   };
   
   return (
-    <Card id="composition-notes">
+    <Card id="composition-notes" className="shadow-lg dark:shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center text-xl">
-          <NotebookText className="w-5 h-5 mr-2" /> Creative Notes Workspace
+          <NotebookText className="w-5 h-5 mr-2 text-primary" /> Creative Notes Workspace
         </CardTitle>
         {renderSaveStatus()}
       </CardHeader>
@@ -117,7 +118,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
           const isLocked = !hasAudioFile && (note.id === 'zone3' || note.id === 'zone4');
           
           return (
-            <div key={note.id} className={cn("p-4 rounded-lg border", note.color)}>
+            <div key={note.id} className={cn("p-4 rounded-lg border border-border shadow-inner-lg", note.color)}>
               <h4 className="font-semibold mb-2 text-lg">{note.title}</h4>
               
               {isLocked ? (
@@ -134,7 +135,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
                           value={note.content}
                           onChange={(e) => handleContentChange(note.id, e.target.value)}
                           maxLength={100} // Enforce short length
-                          className="bg-white/50 dark:bg-gray-900/50 border-gray-300 dark:border-gray-700"
+                          className="bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                           Focus: What is the single, most actionable task to move this idea forward?
@@ -146,7 +147,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
                       value={note.content}
                       onChange={(e) => handleContentChange(note.id, e.target.value)}
                       rows={5}
-                      className="min-h-[150px] bg-white/50 dark:bg-gray-900/50 border-gray-300 dark:border-gray-700"
+                      className="min-h-[150px] bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700"
                   />
               )}
             </div>
