@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,11 +13,23 @@ interface FileUploadFormProps {
   onUploadSuccess: () => void;
 }
 
-const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
+export interface FileUploadFormHandle {
+  triggerFileInput: () => void;
+}
+
+const FileUploadForm = forwardRef<FileUploadFormHandle, FileUploadFormProps>(({ onUploadSuccess }, ref) => {
   const { session } = useSession();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isImprovisation, setIsImprovisation] = useState(true); // Default to true
+
+  // Expose method to parent component via ref
+  useImperativeHandle(ref, () => ({
+    triggerFileInput() {
+      fileInputRef.current?.click();
+    }
+  }));
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -115,8 +127,22 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
           accept=".mp3, .m4a" 
           onChange={handleFileChange} 
           disabled={isUploading}
+          ref={fileInputRef} // Attach ref to input
+          className="hidden" // Hide the default input
         />
         
+        {/* Custom file input button */}
+        {!file && (
+          <Button 
+            onClick={() => fileInputRef.current?.click()} 
+            variant="outline" 
+            className="w-full h-12 border-dashed border-2"
+            disabled={isUploading}
+          >
+            <Upload className="mr-2 h-4 w-4" /> Select MP3 or M4A File
+          </Button>
+        )}
+
         <div className="flex items-center space-x-2">
           <Checkbox
             id="is-improv"
@@ -128,30 +154,34 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
         </div>
 
         {file && (
-          <p className="text-sm text-muted-foreground">
-            Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-          </p>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+            </p>
+            <Button 
+              onClick={handleUpload} 
+              disabled={isUploading} 
+              className="w-full"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Start Analysis
+                </>
+              )}
+            </Button>
+          </div>
         )}
-        <Button 
-          onClick={handleUpload} 
-          disabled={!file || isUploading} 
-          className="w-full"
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" />
-              Start Analysis
-            </>
-          )}
-        </Button>
       </CardContent>
     </Card>
   );
-};
+});
+
+FileUploadForm.displayName = 'FileUploadForm';
 
 export default FileUploadForm;
