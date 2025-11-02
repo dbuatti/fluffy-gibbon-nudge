@@ -68,15 +68,24 @@ interface Improvisation {
   is_instrumental: boolean | null; // NEW FIELD
   is_original_song: boolean | null; // NEW FIELD
   has_explicit_lyrics: boolean | null; // NEW FIELD
-  insight_use: string | null; // NEW FIELD
-  insight_audience: string | null; // NEW FIELD
+  
+  // NEW INSIGHT TIMER FIELDS
+  insight_content_type: string | null;
+  insight_language: string | null;
+  insight_primary_use: string | null;
+  insight_audience_level: string | null;
+  insight_audience_age: string[] | null;
+  insight_benefits: string[] | null;
+  insight_practices: string | null;
+  insight_themes: string[] | null;
+  insight_voice: string | null;
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
-  // Explicitly list all columns in a compact string to avoid potential PostgREST parsing issues.
+  // Explicitly list all columns including the new Insight Timer fields
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,insight_use,insight_audience')
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
     .eq('id', id)
     .single();
 
@@ -87,10 +96,6 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
 // Function to get the public URL for the audio file
 const getPublicAudioUrl = (storagePath: string | null): string | null => {
     if (!storagePath) return null;
-    
-    // NOTE: Supabase Storage URLs are typically public if RLS is set up correctly on the bucket, 
-    // or if the bucket is public. Assuming 'piano_improvisations' is public for simplicity here.
-    // For production, you might use `supabase.storage.from('bucket').getPublicUrl(path)`
     
     // Since we don't have access to the bucket settings, we'll use the client method:
     const { data } = supabase.storage.from('piano_improvisations').getPublicUrl(storagePath);
@@ -107,8 +112,6 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
     </Button>
   </a>
 );
-
-// Removed EditableMetadataCard as its content is moved to CompositionMetadataDialog
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -320,8 +323,13 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
   
   // NEW HANDLERS FOR INSIGHT TIMER FIELDS
-  const handleUpdateInsightUse = (value: string) => updateMutation.mutateAsync({ insight_use: value });
-  const handleUpdateInsightAudience = (value: string) => updateMutation.mutateAsync({ insight_audience: value });
+  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
+  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
+  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
+  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
+  const handleUpdateInsightAudienceAge = (value: string[]) => updateMutation.mutateAsync({ insight_audience_age: value });
+  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
+  // Note: Benefits, Practices, Themes are handled directly in InsightTimerFormFields using useUpdateImprovisation
 
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
@@ -541,8 +549,13 @@ const ImprovisationDetails: React.FC = () => {
                     handleUpdateIsInstrumental={handleUpdateIsInstrumental}
                     handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
                     handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
-                    handleUpdateInsightUse={handleUpdateInsightUse}
-                    handleUpdateInsightAudience={handleUpdateInsightAudience}
+                    // NEW HANDLERS
+                    handleUpdateInsightContentType={handleUpdateInsightContentType}
+                    handleUpdateInsightLanguage={handleUpdateInsightLanguage}
+                    handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
+                    handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
+                    handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
+                    handleUpdateInsightVoice={handleUpdateInsightVoice}
                 />
             )}
           </div>

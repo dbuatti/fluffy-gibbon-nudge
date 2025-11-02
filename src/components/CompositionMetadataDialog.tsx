@@ -1,16 +1,25 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, XCircle, Loader2, Send, Clock, Users } from 'lucide-react';
+import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, XCircle, Loader2, Send, Clock, Users, Volume2, Globe } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import EditableField from './EditableField';
 import GenreSelect from './GenreSelect';
-import SelectField from './SelectField'; // Import the new SelectField
+import SelectField from './SelectField';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    INSIGHT_CONTENT_TYPES,
+    INSIGHT_LANGUAGES,
+    INSIGHT_PRIMARY_USES,
+    INSIGHT_AUDIENCE_LEVELS,
+    INSIGHT_AUDIENCE_AGES,
+    INSIGHT_VOICES, // <-- Added missing import
+} from '@/lib/insight-constants';
 
 // --- Constants for Select Fields ---
 const MUSICAL_KEYS = [
@@ -21,14 +30,6 @@ const MUSICAL_KEYS = [
 const MOODS = [
     "Calm", "Energetic", "Melancholy", "Uplifting", "Mysterious", "Reflective", "Tense", "Joyful", 
     "Dreamy", "Aggressive", "Peaceful", "Hopeful", "Ambient", "Cinematic", "Epic", "Introspective"
-];
-
-const INSIGHT_USE_OPTIONS = [
-    "Meditation", "Sleep", "Focus", "Relaxation", "Movement", "Study", "Yoga", "Sound Bath"
-];
-
-const INSIGHT_AUDIENCE_OPTIONS = [
-    "Everyone", "Beginners", "Intermediate", "Advanced", "Children", "Seniors"
 ];
 // --- End Constants ---
 
@@ -54,8 +55,13 @@ interface CompositionMetadataDialogProps {
     primary_genre: string | null;
     secondary_genre: string | null;
     analysis_data: AnalysisData | null;
-    insight_use: string | null; // NEW
-    insight_audience: string | null; // NEW
+    // NEW INSIGHT TIMER FIELDS
+    insight_content_type: string | null;
+    insight_language: string | null;
+    insight_primary_use: string | null;
+    insight_audience_level: string | null;
+    insight_audience_age: string[] | null;
+    insight_voice: string | null;
   };
   isPending: boolean;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
@@ -66,8 +72,13 @@ interface CompositionMetadataDialogProps {
   handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
   handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
   handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
-  handleUpdateInsightUse: (value: string) => Promise<void>; // NEW
-  handleUpdateInsightAudience: (value: string) => Promise<void>; // NEW
+  // NEW HANDLERS
+  handleUpdateInsightContentType: (value: string) => Promise<void>;
+  handleUpdateInsightLanguage: (value: string) => Promise<void>;
+  handleUpdateInsightPrimaryUse: (value: string) => Promise<void>;
+  handleUpdateInsightAudienceLevel: (value: string) => Promise<void>;
+  handleUpdateInsightAudienceAge: (value: string[]) => Promise<void>;
+  handleUpdateInsightVoice: (value: string) => Promise<void>;
 }
 
 const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
@@ -81,11 +92,24 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   handleUpdateIsInstrumental,
   handleUpdateIsOriginalSong,
   handleUpdateHasExplicitLyrics,
-  handleUpdateInsightUse,
-  handleUpdateInsightAudience,
+  handleUpdateInsightContentType,
+  handleUpdateInsightLanguage,
+  handleUpdateInsightPrimaryUse,
+  handleUpdateInsightAudienceLevel,
+  handleUpdateInsightAudienceAge,
+  handleUpdateInsightVoice,
 }) => {
   const analysis = imp.analysis_data;
   const isCompleted = imp.status === 'completed';
+  const currentAudienceAges = imp.insight_audience_age || [];
+
+  const handleAudienceAgeChange = (age: string, checked: boolean) => {
+    const newAges = checked
+      ? [...currentAudienceAges, age]
+      : currentAudienceAges.filter(a => a !== age);
+      
+    handleUpdateInsightAudienceAge(newAges);
+  };
 
   const renderEditableItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, key: keyof AnalysisData, inputType: 'text' | 'number' = 'text') => (
     <div className="flex items-center space-x-2">
@@ -98,7 +122,6 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
         className="flex-grow"
         placeholder="Click to set"
         disabled={isPending || !isCompleted}
-        // Note: EditableField doesn't natively support type="number", but we rely on the handler in ImprovisationDetails to validate tempo as a number.
       />
     </div>
   );
@@ -137,7 +160,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
     </div>
   );
   
-  const renderInsightSelectItem = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], onSave: (v: string) => Promise<void>) => (
+  const renderInsightSelectItem = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], onSave: (v: string) => Promise<void>, allowCustom: boolean = false) => (
     <div className="flex items-center space-x-2 py-2 border-b last:border-b-0">
       <Icon className="h-5 w-5 mr-2 text-muted-foreground flex-shrink-0" />
       <span className="text-sm font-medium text-muted-foreground w-24 flex-shrink-0">{label}:</span>
@@ -149,7 +172,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           onSave={onSave}
           placeholder={`Select ${label}`}
           disabled={isPending}
-          allowCustom={false}
+          allowCustom={allowCustom}
         />
       </div>
     </div>
@@ -237,7 +260,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
 
                 <Separator />
 
-                {/* Technical Data (Updated to use SelectField and numerical input) */}
+                {/* Technical Data */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2" /> Technical Data</h3>
                     {isCompleted ? (
@@ -265,8 +288,41 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
                         These fields are required for submission to meditation platforms like Insight Timer.
                     </p>
                     <div className="space-y-2">
-                        {renderInsightSelectItem(Clock, "Primary Use", imp.insight_use, INSIGHT_USE_OPTIONS, handleUpdateInsightUse)}
-                        {renderInsightSelectItem(Users, "Target Audience", imp.insight_audience, INSIGHT_AUDIENCE_OPTIONS, handleUpdateInsightAudience)}
+                        {/* 1. Content Type */}
+                        {renderInsightSelectItem(Music, "Content Type", imp.insight_content_type, INSIGHT_CONTENT_TYPES, handleUpdateInsightContentType)}
+                        
+                        {/* 2. Language */}
+                        {renderInsightSelectItem(Globe, "Language", imp.insight_language, INSIGHT_LANGUAGES, handleUpdateInsightLanguage)}
+                        
+                        {/* 3. Primary Use */}
+                        {renderInsightSelectItem(Clock, "Primary Use", imp.insight_primary_use, INSIGHT_PRIMARY_USES, handleUpdateInsightPrimaryUse)}
+                        
+                        {/* 4. Audience Level */}
+                        {renderInsightSelectItem(Users, "Experience Level", imp.insight_audience_level, INSIGHT_AUDIENCE_LEVELS, handleUpdateInsightAudienceLevel)}
+                        
+                        {/* 5. Audience Age (Checkbox Group) */}
+                        <div className="py-2 border-b last:border-b-0">
+                            <Label className="font-semibold flex items-center mb-2">
+                                <Users className="h-5 w-5 mr-2 text-muted-foreground" />
+                                Age Group (Select all that apply)
+                            </Label>
+                            <div className="grid grid-cols-2 gap-2 ml-4">
+                                {INSIGHT_AUDIENCE_AGES.map(age => (
+                                    <div key={age} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={age}
+                                            checked={currentAudienceAges.includes(age)}
+                                            onCheckedChange={(checked) => handleAudienceAgeChange(age, !!checked)}
+                                            disabled={isPending}
+                                        />
+                                        <Label htmlFor={age} className="text-sm font-normal">{age}</Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        {/* 6. Voice */}
+                        {renderInsightSelectItem(Volume2, "Voice", imp.insight_voice, INSIGHT_VOICES, handleUpdateInsightVoice)}
                     </div>
                 </div>
 
