@@ -10,6 +10,7 @@ import { showError, showSuccess } from '@/utils/toast';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSession } from '@/integrations/supabase/session-context';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 
 interface CaptureIdeaDialogProps {
   onIdeaCaptured: () => void;
@@ -17,6 +18,7 @@ interface CaptureIdeaDialogProps {
 
 const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured }) => {
   const { session } = useSession();
+  const navigate = useNavigate(); // Initialize navigate
   const [isOpen, setIsOpen] = useState(false);
   const [ideaName, setIdeaName] = useState(''); // Start empty for quick capture
   const [isImprovisation, setIsImprovisation] = useState('true'); // Default to improvisation
@@ -47,7 +49,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
     const finalTitle = `${datePrefix} - ${baseTitle}`;
 
     try {
-      const { error: dbError } = await supabase
+      const { data: newImpData, error: dbError } = await supabase
         .from('improvisations')
         .insert({
           user_id: session.user.id,
@@ -56,14 +58,21 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
           status: 'uploaded', // Use 'uploaded' status for visibility
           generated_name: finalTitle, // Save the prefixed title
           is_improvisation: isImprovisation === 'true',
-        });
+        })
+        .select('id') // Request the ID of the newly created record
+        .single();
 
       if (dbError) throw dbError;
+      
+      const newImprovisationId = newImpData.id;
 
-      showSuccess(`Idea "${finalTitle}" captured! Now go record it.`);
+      showSuccess(`Idea "${finalTitle}" captured! Redirecting to details...`);
       setIdeaName('');
       setIsOpen(false);
       onIdeaCaptured();
+      
+      // 2. Navigate to the new song's details page
+      navigate(`/improvisation/${newImprovisationId}`);
 
     } catch (error) {
       console.error('Failed to capture idea:', error);
