@@ -3,6 +3,10 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { Navigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import PasswordGenerator from '@/components/PasswordGenerator';
+import { Key } from 'lucide-react';
 
 const Login = () => {
   const { session, isLoading } = useSession();
@@ -21,6 +25,7 @@ const Login = () => {
         <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
           Sign in to analyze your improvisations
         </h2>
+        
         <Auth
           supabaseClient={supabase}
           providers={[]}
@@ -38,6 +43,22 @@ const Login = () => {
           theme="light"
           redirectTo={window.location.origin + '/'}
         />
+
+        <div className="text-center pt-4">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="link" className="text-sm text-muted-foreground hover:text-primary">
+                <Key className="w-4 h-4 mr-2" /> Generate Strong Password
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Strong Password Generator</DialogTitle>
+              </DialogHeader>
+              <PasswordGenerator />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   );
