@@ -1,3 +1,4 @@
+import React from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import FileUploadForm, { FileUploadFormHandle } from "@/components/FileUploadForm";
 import ImprovisationList from "@/components/ImprovisationList";
