@@ -6,6 +6,8 @@ import { Upload, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { showError, showSuccess } from '@/utils/toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface FileUploadFormProps {
   onUploadSuccess: () => void;
@@ -15,6 +17,7 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
   const { session } = useSession();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isImprovisation, setIsImprovisation] = useState(true); // Default to true
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -59,6 +62,7 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
           file_name: file.name,
           storage_path: filePath,
           status: 'analyzing',
+          is_improvisation: isImprovisation, // Save user input
         })
         .select('id')
         .single();
@@ -76,6 +80,7 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
         body: {
           improvisationId: improvisationId,
           storagePath: filePath,
+          isImprovisation: isImprovisation, // Pass user input to backend
         },
       });
 
@@ -101,7 +106,7 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
   return (
     <Card className="w-full max-w-lg mx-auto">
       <CardHeader>
-        <CardTitle>Upload Improvisation</CardTitle>
+        <CardTitle>Upload Audio</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Input 
@@ -111,6 +116,17 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
           onChange={handleFileChange} 
           disabled={isUploading}
         />
+        
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="is-improv"
+            checked={isImprovisation}
+            onCheckedChange={(checked) => setIsImprovisation(!!checked)}
+            disabled={isUploading}
+          />
+          <Label htmlFor="is-improv">This is a spontaneous improvisation (not a fixed composition).</Label>
+        </div>
+
         {file && (
           <p className="text-sm text-muted-foreground">
             Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)

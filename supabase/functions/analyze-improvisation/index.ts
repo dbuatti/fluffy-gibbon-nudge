@@ -74,7 +74,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { improvisationId, storagePath } = await req.json();
+    const { improvisationId, storagePath, isImprovisation } = await req.json();
 
     if (!improvisationId || !storagePath) {
       return new Response(JSON.stringify({ error: 'Missing improvisationId or storagePath' }), {
@@ -83,7 +83,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Starting analysis for ID: ${improvisationId} at path: ${storagePath}`);
+    console.log(`Starting analysis for ID: ${improvisationId} at path: ${storagePath}. Is Improv: ${isImprovisation}`);
 
     // --- SIMULATE ANALYSIS PROCESS (5 seconds delay) ---
     await new Promise(resolve => setTimeout(resolve, 5000)); 
@@ -109,7 +109,8 @@ serve(async (req) => {
         simulated_key: isPiano ? 'C Major' : 'A Minor', 
         simulated_tempo: isPiano ? 120 : 140,
         instrument_confidence: isPiano ? 0.98 : 0.25,
-        mood: isPiano ? 'Melancholy' : 'Energetic'
+        mood: isPiano ? 'Melancholy' : 'Energetic',
+        user_declared_improv: isImprovisation // Include user input in analysis data
     };
 
     // Update the database record with the generated name and analysis data

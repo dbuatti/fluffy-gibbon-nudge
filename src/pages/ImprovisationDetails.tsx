@@ -17,6 +17,7 @@ interface Improvisation {
   generated_name: string | null;
   artwork_url: string | null;
   is_piano: boolean | null;
+  is_improvisation: boolean | null; // New field
   primary_genre: string | null;
   secondary_genre: string | null;
   analysis_data: { [key: string]: any } | null;
@@ -99,7 +100,8 @@ const ImprovisationDetails: React.FC = () => {
       }
       
       // Wait a moment for the backend update to complete before refetching
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // This delay helps ensure the database update is processed before the client tries to read it.
+      await new Promise(resolve => setTimeout(resolve, 1500)); 
       
       queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
       showSuccess("New artwork generated successfully!");
@@ -142,6 +144,7 @@ const ImprovisationDetails: React.FC = () => {
         body: {
           improvisationId: imp.id,
           storagePath: imp.storage_path,
+          isImprovisation: imp.is_improvisation, // Pass existing user input
         },
       });
 
@@ -221,29 +224,25 @@ const ImprovisationDetails: React.FC = () => {
                   ) : (
                     <RefreshCw className="h-4 w-4 mr-2" />
                   )}
-                  {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
+                  {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
                 </Button>
             </div>
           </div>
 
           <div className="w-full md:w-2/3 space-y-4">
-            {/* Changed <p> to <div> */}
             <div className="flex items-center">
               <span className="font-semibold">File:</span> <span className="ml-2">{imp.file_name}</span>
             </div>
             
-            {/* Changed <p> to <div> */}
             <div className="flex items-center">
               <span className="font-semibold">Status:</span> 
               <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
             </div>
             
-            {/* Changed <p> to <div> */}
             <div className="flex items-center">
               <span className="font-semibold">Generated Name:</span> <span className="ml-2">{imp.generated_name || 'N/A'}</span>
             </div>
             
-            {/* Changed <p> to <div> */}
             <div className="flex items-center">
               <span className="font-semibold">Upload Date:</span> <span className="ml-2">{imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}</span>
             </div>
@@ -255,17 +254,22 @@ const ImprovisationDetails: React.FC = () => {
             <div className="space-y-2">
                 <div className="flex items-center">
                     <Piano className="h-5 w-5 mr-2" />
+                    <span className="font-semibold">Type:</span> 
+                    <Badge variant={imp.is_improvisation ? 'default' : 'secondary'} className="ml-2">
+                        {imp.is_improvisation ? 'Improvisation' : 'Composition'}
+                    </Badge>
+                </div>
+                <div className="flex items-center">
+                    <Piano className="h-5 w-5 mr-2" />
                     <span className="font-semibold">Is Piano Piece:</span> 
                     <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
                         {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                         {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
                     </Badge>
                 </div>
-                {/* Changed <p> to <div> */}
                 <div className="flex items-center">
                     <span className="font-semibold">Primary Genre:</span> <span className="ml-2">{imp.primary_genre || 'N/A'}</span>
                 </div>
-                {/* Changed <p> to <div> */}
                 <div className="flex items-center">
                     <span className="font-semibold">Secondary Genre:</span> <span className="ml-2">{imp.secondary_genre || 'N/A'}</span>
                 </div>
