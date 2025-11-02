@@ -14,14 +14,10 @@ interface CaptureIdeaDialogProps {
   onIdeaCaptured: () => void;
 }
 
-const generateDefaultTitle = () => {
-    return format(new Date(), 'yyyyMMdd') + ' - Untitled Sketch';
-};
-
 const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured }) => {
   const { session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [ideaName, setIdeaName] = useState(generateDefaultTitle());
+  const [ideaName, setIdeaName] = useState('Untitled Sketch'); // Default placeholder
   const [isImprovisation, setIsImprovisation] = useState('true'); // Stored as string for RadioGroup
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,7 +25,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
-        setIdeaName(generateDefaultTitle());
+        setIdeaName('Untitled Sketch');
         setIsImprovisation('true');
     }
   };
@@ -42,6 +38,10 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
 
     setIsLoading(true);
 
+    // 1. Generate the final title with the YYYYMMDD prefix
+    const datePrefix = format(new Date(), 'yyyyMMdd');
+    const finalTitle = `${datePrefix} - ${ideaName.trim()}`;
+
     try {
       const { error: dbError } = await supabase
         .from('improvisations')
@@ -50,13 +50,13 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
           file_name: null, // Placeholder idea, no file yet
           storage_path: null, // No file yet
           status: 'uploaded', // Use 'uploaded' status for visibility, even without file
-          generated_name: ideaName.trim(),
+          generated_name: finalTitle, // Save the prefixed title
           is_improvisation: isImprovisation === 'true',
         });
 
       if (dbError) throw dbError;
 
-      showSuccess(`Idea "${ideaName.trim()}" captured! Now go record it.`);
+      showSuccess(`Idea "${finalTitle}" captured! Now go record it.`);
       setIdeaName('');
       setIsOpen(false);
       onIdeaCaptured();
@@ -96,6 +96,9 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
               onChange={(e) => setIdeaName(e.target.value)}
               disabled={isLoading}
             />
+            <p className="text-xs text-muted-foreground">
+                The date ({format(new Date(), 'yyyyMMdd')}) will be automatically prepended to the title.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Type of Piece</Label>
