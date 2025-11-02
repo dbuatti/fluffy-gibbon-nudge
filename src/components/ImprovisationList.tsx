@@ -118,7 +118,7 @@ const ImprovisationList: React.FC = () => {
                     </TableCell>
                     <TableCell className="font-medium">{imp.generated_name || imp.file_name || 'Untitled Idea'}</TableCell>
                     <TableCell>{getStatusBadge(imp.status, hasFile)}</TableCell>
-                    <TableCell>{getNotesStatus(imp.notes)}</TableCell> {/* New Cell */}
+                    <TableCell>{getNotesStatus(imp.notes)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {imp.file_name || 'No audio file attached'}
                     </TableCell>
