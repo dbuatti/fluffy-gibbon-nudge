@@ -8,17 +8,31 @@ import { Music, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { showError, showSuccess } from '@/utils/toast';
+import { format } from 'date-fns'; // Import format
 
 interface CaptureIdeaDialogProps {
   onIdeaCaptured: () => void;
 }
 
+const generateDefaultTitle = () => {
+    return format(new Date(), 'yyyyMMdd') + ' - Untitled Sketch';
+};
+
 const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured }) => {
   const { session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
-  const [ideaName, setIdeaName] = useState('');
+  const [ideaName, setIdeaName] = useState(generateDefaultTitle());
   const [isImprovisation, setIsImprovisation] = useState('true'); // Stored as string for RadioGroup
   const [isLoading, setIsLoading] = useState(false);
+
+  // Reset state when dialog opens/closes
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+        setIdeaName(generateDefaultTitle());
+        setIsImprovisation('true');
+    }
+  };
 
   const handleCapture = async () => {
     if (!session || !ideaName.trim()) {
@@ -56,7 +70,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button 
           variant="default" 
