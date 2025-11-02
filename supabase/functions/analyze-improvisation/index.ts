@@ -181,18 +181,21 @@ serve(async (req) => {
     await new Promise(resolve => setTimeout(resolve, 5000)); 
 
     let isPiano;
+    let simulatedTempo;
+    let simulatedMood;
+    
     if (isImprovisation) {
-        // If user says it's an improvisation, strongly bias towards it being a piano piece (95% chance)
-        isPiano = Math.random() < 0.95;
+        // Deterministic features for user-declared improvisation (likely piano, slow, melancholic)
+        isPiano = true;
+        simulatedTempo = 110;
+        simulatedMood = 'Melancholy';
     } else {
-        // If user says it's a composition, use the standard 80% chance
-        isPiano = Math.random() < 0.8; 
+        // Deterministic features for user-declared composition (likely non-piano, fast, energetic)
+        isPiano = false;
+        simulatedTempo = 145;
+        simulatedMood = 'Energetic';
     }
     
-    // --- SIMULATED ANALYSIS RESULTS ---
-    const simulatedTempo = isPiano ? 120 : 140;
-    const simulatedMood = isPiano ? 'Melancholy' : 'Energetic';
-
     // --- AI GENRE CLASSIFICATION ---
     const { primary: primaryGenre, secondary: secondaryGenre } = await classifyGenresWithGemini({
         simulated_key: isPiano ? 'C Major' : 'A Minor', 
@@ -203,7 +206,7 @@ serve(async (req) => {
     const analysisData = { 
         simulated_key: isPiano ? 'C Major' : 'A Minor', 
         simulated_tempo: simulatedTempo,
-        instrument_confidence: isPiano ? 0.98 : 0.25,
+        instrument_confidence: isPiano ? 0.99 : 0.10, // High confidence if deterministic
         mood: simulatedMood,
         user_declared_improv: isImprovisation
     };
