@@ -18,6 +18,7 @@ import CompositionNotes from '@/components/CompositionNotes';
 import { Progress } from '@/components/ui/progress';
 import FilePathSuggestion from '@/components/FilePathSuggestion'; // Import new component
 import TagGenerator from '@/components/TagGenerator'; // Import new component
+import CompositionSettingsSheet from '@/components/CompositionSettingsSheet'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -381,6 +382,7 @@ const ImprovisationDetails: React.FC = () => {
     return <div className="text-center p-8 text-red-500">Error loading details: {error.message}</div>;
   }
 
+  const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
@@ -392,7 +394,7 @@ const ImprovisationDetails: React.FC = () => {
       <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
         <div className="flex-grow">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {imp.generated_name || imp.file_name || 'Untitled Idea'}
+            {compositionName}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
@@ -400,32 +402,12 @@ const ImprovisationDetails: React.FC = () => {
         </div>
         
         <div className="flex-shrink-0">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={isDeleting}>
-                {isDeleting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4 mr-2" />
-                )}
-                Delete Composition
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the composition record and the uploaded audio file (if attached).
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                  {isDeleting ? 'Deleting...' : 'Delete Composition'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <CompositionSettingsSheet 
+            impId={imp.id}
+            impName={compositionName}
+            handleDelete={handleDelete}
+            isDeleting={isDeleting}
+          />
         </div>
       </div>
 
