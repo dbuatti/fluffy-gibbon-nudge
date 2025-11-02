@@ -432,8 +432,8 @@ const ImprovisationDetails: React.FC = () => {
       <Tabs defaultValue="creative-hub" className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
-          <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2" disabled={!hasAudioFile}>Assets & Downloads</TabsTrigger>
-          <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2" disabled={!hasAudioFile}>
+          <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
+          <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
             Analysis & Distribution {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
           </TabsTrigger>
         </TabsList>
