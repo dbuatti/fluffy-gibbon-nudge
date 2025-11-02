@@ -10,8 +10,7 @@ const corsHeaders = {
 
 // Placeholder function to simulate generating an image URL
 function generatePlaceholderImageUrl(name: string): string {
-    // Switching to picsum.photos for better reliability. 
-    // We use the name as a seed to ensure unique images per improvisation.
+    // Using picsum.photos for stability.
     const seed = name.replace(/\s/g, '');
     return `https://picsum.photos/seed/${seed}/3000/3000`;
 }
