@@ -7,6 +7,7 @@ import { ExternalLink, Music, Clock, Sparkles, Flame, CalendarCheck, Zap } from 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
+import DailyPromptCard from "@/components/DailyPromptCard"; // Import new component
 import { supabase } from '@/integrations/supabase/client';
 import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge'; // Import Badge
@@ -120,6 +121,9 @@ const Index = () => {
             </div>
             <CompositionPipeline />
         </div>
+        
+        {/* NEW: DAILY CREATIVE PROMPT */}
+        <DailyPromptCard />
 
         {/* STREAK TRACKER (Motivation) */}
         <Card className={cn(
