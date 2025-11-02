@@ -307,7 +307,38 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
-  // --- Progress Logic (Micro-Triggers Implemented) ---
+  // Handlers for Editable Fields
+  const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
+  const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
+  const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
+  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
+  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
+  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
+  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
+  
+  // Handler for nested analysis_data updates
+  const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
+    const currentData = imp.analysis_data || {};
+    let updatedValue: string | number = newValue;
+
+    // Special handling for tempo (ensure it's a number)
+    if (key === 'simulated_tempo') {
+        updatedValue = parseInt(newValue, 10);
+        if (isNaN(updatedValue)) {
+            showError("Tempo must be a valid number.");
+            return Promise.reject(new Error("Invalid tempo value"));
+        }
+    }
+
+    const newAnalysisData = {
+        ...currentData,
+        [key]: updatedValue,
+    };
+
+    return updateMutation.mutateAsync({ analysis_data: newAnalysisData });
+  };
+
+  // --- Progress Logic (Gamification) ---
   let progressValue = 0;
   let progressMessage = "Capture your idea first.";
   let primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null = null;
@@ -429,38 +460,6 @@ const ImprovisationDetails: React.FC = () => {
   }
 
   const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
-
-  // Handlers for Editable Fields
-  const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
-  const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
-  const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
-  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
-  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
-  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
-  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
-  
-  // Handler for nested analysis_data updates
-  const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
-    const currentData = imp.analysis_data || {};
-    let updatedValue: string | number = newValue;
-
-    // Special handling for tempo (ensure it's a number)
-    if (key === 'simulated_tempo') {
-        updatedValue = parseInt(newValue, 10);
-        if (isNaN(updatedValue)) {
-            showError("Tempo must be a valid number.");
-            return Promise.reject(new Error("Invalid tempo value"));
-        }
-    }
-
-    const newAnalysisData = {
-        ...currentData,
-        [key]: updatedValue,
-    };
-
-    return updateMutation.mutateAsync({ analysis_data: newAnalysisData });
-  };
-
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
