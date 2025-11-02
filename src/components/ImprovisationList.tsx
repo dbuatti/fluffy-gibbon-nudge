@@ -77,28 +77,32 @@ const ImprovisationList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {improvisations.map((imp) => (
-                <TableRow 
+                <Link 
+                  to={`/improvisation/${imp.id}`} 
                   key={imp.id} 
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => window.location.href = `/improvisation/${imp.id}`} // Use window.location for simple navigation
+                  className="contents" // Use contents to allow TableRow styling to apply
                 >
-                  <TableCell>
-                    <Avatar className="h-10 w-10 rounded-md">
-                      <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
-                      <AvatarFallback className="rounded-md">
-                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </TableCell>
-                  <TableCell className="font-medium">{imp.file_name}</TableCell>
-                  <TableCell>{getStatusBadge(imp.status)}</TableCell>
-                  <TableCell>
-                    {imp.generated_name || (imp.status === 'completed' ? 'Name pending...' : 'Awaiting analysis...')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}
-                  </TableCell>
-                </TableRow>
+                  <TableRow 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
+                    <TableCell>
+                      <Avatar className="h-10 w-10 rounded-md">
+                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
+                        <AvatarFallback className="rounded-md">
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </TableCell>
+                    <TableCell className="font-medium">{imp.file_name}</TableCell>
+                    <TableCell>{getStatusBadge(imp.status)}</TableCell>
+                    <TableCell>
+                      {imp.generated_name || (imp.status === 'completed' ? 'Name pending...' : 'Awaiting analysis...')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm')}
+                    </TableCell>
+                  </TableRow>
+                </Link>
               ))}
             </TableBody>
           </Table>
