@@ -102,6 +102,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         body: {
           improvisationId: improvisationId,
           storagePath: filePath,
+          fileName: file.name, // <-- ADDED file.name
           isImprovisation: true,
         },
       });
