@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Upload, Clock, CheckCircle, ArrowRight } from 'lucide-react';
+import { Loader2, Upload, Clock, CheckCircle, ArrowRight, Edit2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StatusCount {
@@ -41,7 +41,7 @@ const CompositionPipeline: React.FC = () => {
       status: 'uploaded', 
       label: 'Idea Captured',
       count: totalUploaded, 
-      icon: Upload, 
+      icon: Edit2, 
       color: 'text-blue-500 dark:text-blue-400',
       description: 'Awaiting audio file upload.',
       bg: 'bg-blue-500/10 dark:bg-blue-900/20',
@@ -49,23 +49,23 @@ const CompositionPipeline: React.FC = () => {
     },
     { 
       status: 'analyzing', 
-      label: 'Analyzing',
+      label: 'Processing File',
       count: totalAnalyzing, 
       icon: Clock, 
       color: 'text-yellow-500 dark:text-yellow-400',
-      description: 'AI is generating metadata.',
+      description: 'Title/Artwork generation in progress.',
       bg: 'bg-yellow-500/10 dark:bg-yellow-900/20',
       border: 'border-yellow-500',
     },
     { 
       status: 'completed', 
-      label: 'Ready',
+      label: 'Ready for Prep',
       count: totalCompleted, 
-      icon: CheckCircle, 
-      color: 'text-green-600 dark:text-green-400',
+      icon: Sparkles, 
+      color: 'text-purple-600 dark:text-purple-400',
       description: 'Ready for distribution prep.',
-      bg: 'bg-green-500/10 dark:bg-green-900/20',
-      border: 'border-green-500',
+      bg: 'bg-purple-500/10 dark:bg-purple-900/20',
+      border: 'border-purple-500',
     },
   ];
 

@@ -118,7 +118,7 @@ const ImprovisationDetails: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isRegenerating, setIsRegenerating] = React.useState(false);
-  const [isRescanning, setIsRescanning] = React.useState(false);
+  const [isPopulatingAI, setIsPopulatingAI] = React.useState(false); // New state for AI population
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
 
@@ -167,7 +167,7 @@ const ImprovisationDetails: React.FC = () => {
   
   const handleRegenerateArtwork = async () => {
     if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) {
-      showError("Cannot regenerate artwork: Analysis data (name, genre, or mood) is missing. Please rescan analysis first.");
+      showError("Cannot regenerate artwork: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
       return;
     }
 
@@ -203,38 +203,17 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
-  const handleRescanAnalysis = async () => {
-    if (!imp || !imp.storage_path) {
-      showError("Cannot rescan: Audio file is missing. Please upload the audio first.");
-      return;
-    }
+  const handleAIPopulateMetadata = async () => {
+    if (!imp) return;
 
-    setIsRescanning(true);
-    showSuccess("Analysis rescan started...");
+    setIsPopulatingAI(true);
+    showSuccess("AI is intelligently populating distribution metadata...");
 
     try {
-      // 1. Reset status in DB immediately to show 'analyzing'
-      const { error: resetError } = await supabase
-        .from('improvisations')
-        .update({ 
-          status: 'analyzing',
-          generated_name: imp.generated_name, // Keep the user-provided name if it exists
-          artwork_url: null,
-          primary_genre: null,
-          secondary_genre: null,
-          analysis_data: null,
-          is_ready_for_release: false, // Reset readiness flag
-        })
-        .eq('id', imp.id);
-
-      if (resetError) throw resetError;
-
-      // 2. Trigger the analysis Edge Function
-      const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
+      // 1. Trigger the new AI function
+      const { error: functionError } = await supabase.functions.invoke('populate-distribution-metadata', {
         body: {
           improvisationId: imp.id,
-          storagePath: imp.storage_path,
-          isImprovisation: imp.is_improvisation, // Pass existing user input
         },
       });
 
@@ -242,14 +221,15 @@ const ImprovisationDetails: React.FC = () => {
         throw functionError;
       }
       
-      // Force refetch to show the 'analyzing' status immediately
+      // Force refetch to show the updated fields immediately
       handleRefetch();
+      showSuccess("AI population complete! Review Insight Timer fields.");
 
     } catch (error) {
-      console.error('Rescan failed:', error);
-      showError(`Failed to rescan analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('AI Population failed:', error);
+      showError(`Failed to populate metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsRescanning(false);
+      setIsPopulatingAI(false);
     }
   };
 
@@ -382,21 +362,23 @@ const ImprovisationDetails: React.FC = () => {
 
     // Step 2: Audio Uploaded (30% total)
     if (hasAudioFile) {
-      progressValue = 30; // Reset base to 30% for file upload
-      progressMessage = "Audio uploaded. Analysis is running...";
-      primaryAction = null; // No action needed while analyzing
+      progressValue = 30; 
+      progressMessage = "Audio uploaded. Set core metadata and notes.";
+      primaryAction = null; 
     }
 
-    // Step 3: Analysis Completed (60% total)
+    // Step 3: Core Metadata Set (60% total)
     const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
-    if (isCompleted) {
+    const hasCoreMetadata = !!imp.primary_genre && !!imp.analysis_data?.simulated_key && !!imp.analysis_data?.simulated_tempo;
+    
+    if (hasAudioFile && hasCoreMetadata) {
       progressValue = 60;
-      progressMessage = "Analysis complete! Review metadata and notes.";
+      progressMessage = "Core metadata set. Add creative notes and tags.";
       
       // Action 2: Add Notes
       if (!hasNotes) {
           primaryAction = {
-              label: "Add Creative Notes (20% Progress Boost)",
+              label: "Add Creative Notes (10% Progress Boost)",
               onClick: () => {
                   // Scroll to the CompositionNotes component
                   document.getElementById('composition-notes')?.scrollIntoView({ behavior: 'smooth' });
@@ -406,10 +388,10 @@ const ImprovisationDetails: React.FC = () => {
       }
     }
     
-    // Micro-Progress: Notes Added (20%)
-    if (isCompleted && hasNotes) {
-        progressValue = 80;
-        progressMessage = "Notes added. Ready for distribution prep!";
+    // Step 4: Notes Added (70%)
+    if (hasAudioFile && hasCoreMetadata && hasNotes) {
+        progressValue = 70;
+        progressMessage = "Notes added. Generate artwork and populate distribution fields.";
         
         // Action 3: Generate Artwork
         if (!imp.artwork_url) {
@@ -424,22 +406,39 @@ const ImprovisationDetails: React.FC = () => {
         }
     }
 
-    // Step 4: Artwork Generated (90%)
-    if (isCompleted && hasNotes && imp.artwork_url) {
-      progressValue = 90;
-      progressMessage = "Artwork generated. Final step: Mark as Ready for Release!";
+    // Step 5: Artwork Generated (80%)
+    const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
+    
+    if (hasAudioFile && hasCoreMetadata && hasNotes && imp.artwork_url) {
+      progressValue = 80;
+      progressMessage = "Artwork generated. Use AI to populate distribution fields.";
       
-      // Action 4: Mark Ready
-      if (!isReadyForRelease) {
+      // Action 4: AI Populate Metadata
+      if (!hasInsightTimerPopulated) {
           primaryAction = {
-              label: "Mark as Ready for Release (10% Progress Boost)",
-              onClick: handleMarkReady,
+              label: "AI Populate Distribution Metadata (10% Boost)",
+              onClick: handleAIPopulateMetadata,
               variant: "default"
           };
       }
     }
+    
+    // Step 6: AI Augmentation Complete (90%)
+    if (hasAudioFile && hasCoreMetadata && hasNotes && imp.artwork_url && hasInsightTimerPopulated) {
+        progressValue = 90;
+        progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
+        
+        // Action 5: Mark Ready
+        if (!isReadyForRelease) {
+            primaryAction = {
+                label: "Mark as Ready for Release (10% Progress Boost)",
+                onClick: handleMarkReady,
+                variant: "default"
+            };
+        }
+    }
 
-    // Step 5: Ready for Release (100%)
+    // Step 7: Ready for Release (100%)
     if (isReadyForRelease) {
       progressValue = 100;
       progressMessage = "Composition is 100% ready for release! Time to submit.";
@@ -461,7 +460,7 @@ const ImprovisationDetails: React.FC = () => {
   }
 
   if (showLoadingSpinner) {
-    const loadingMessage = isAnalyzing ? "Analysis in progress..." : "Loading composition details...";
+    const loadingMessage = isAnalyzing ? "Processing file..." : "Loading composition details...";
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -588,7 +587,7 @@ const ImprovisationDetails: React.FC = () => {
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
           <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
-            Analysis & Distribution {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+            Distribution Prep {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
           </TabsTrigger>
         </TabsList>
 
@@ -614,11 +613,11 @@ const ImprovisationDetails: React.FC = () => {
                     onClick={primaryAction.onClick} 
                     variant={primaryAction.variant} 
                     className="w-full h-10 text-base"
-                    disabled={isAnalyzing || isMarkingReady}
+                    disabled={isAnalyzing || isMarkingReady || isPopulatingAI}
                 >
-                    {isMarkingReady ? (
+                    {isMarkingReady || isPopulatingAI ? (
                         <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Marking Ready...
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isPopulatingAI ? 'Populating Metadata...' : 'Marking Ready...'}
                         </>
                     ) : (
                         primaryAction.label
@@ -758,6 +757,11 @@ const ImprovisationDetails: React.FC = () => {
                       </Button>
                     )}
                 </div>
+                
+                <Separator />
+                
+                <h3 className="text-lg font-semibold">External Tools</h3>
+                <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
               </div>
             </CardContent>
           </Card>
@@ -802,68 +806,32 @@ const ImprovisationDetails: React.FC = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>AI Analysis Results</CardTitle>
-              {hasAudioFile && (
-                <Button 
-                  onClick={handleRescanAnalysis} 
-                  variant="secondary" 
-                  className="h-8 px-3 text-sm"
-                  disabled={isRescanning || isAnalyzing}
-                >
-                  {isRescanning || isAnalyzing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
-                </Button>
-              )}
+              <CardTitle>Technical Data Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {imp.analysis_data && (
-                  <>
-                    <h3 className="text-lg font-semibold">Technical Data (Read-Only Summary)</h3>
-                    <div className="space-y-3">
-                        {/* Display Key */}
-                        <div className="flex items-center">
-                            <span className="font-semibold w-32 flex-shrink-0">Key:</span> 
-                            <span className="ml-2 text-sm">{imp.analysis_data.simulated_key || 'N/A'}</span>
-                        </div>
-                        {/* Display Tempo */}
-                        <div className="flex items-center">
-                            <span className="font-semibold w-32 flex-shrink-0">Tempo (BPM):</span> 
-                            <span className="ml-2 text-sm">{imp.analysis_data.simulated_tempo || 'N/A'}</span>
-                        </div>
-                        {/* Display Mood */}
-                        <div className="flex items-center">
-                            <span className="font-semibold w-32 flex-shrink-0">Mood:</span> 
-                            <span className="ml-2 text-sm">{imp.analysis_data.mood || 'N/A'}</span>
-                        </div>
+                <h3 className="text-lg font-semibold">User-Provided Technical Data</h3>
+                <div className="space-y-3">
+                    {/* Display Key */}
+                    <div className="flex items-center">
+                        <span className="font-semibold w-32 flex-shrink-0">Key:</span> 
+                        <span className="ml-2 text-sm">{imp.analysis_data?.simulated_key || 'N/A'}</span>
                     </div>
-                    
-                    {/* Display other analysis data that is not editable */}
-                    {Object.entries(imp.analysis_data).filter(([key]) => 
-                        key !== 'simulated_key' && key !== 'simulated_tempo' && key !== 'mood'
-                    ).length > 0 && (
-                        <>
-                            <Separator />
-                            <h3 className="text-lg font-semibold">Other Analysis Data</h3>
-                            <ul className="list-disc list-inside ml-4 space-y-1 text-sm text-muted-foreground">
-                                {Object.entries(imp.analysis_data).map(([key, value]) => {
-                                    if (key !== 'simulated_key' && key !== 'simulated_tempo' && key !== 'mood') {
-                                        return (
-                                            <li key={key}>
-                                                <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span> {String(value)}
-                                            </li>
-                                        );
-                                    }
-                                    return null;
-                                })}
-                            </ul>
-                        </>
-                    )}
-                  </>
-                )}
+                    {/* Display Tempo */}
+                    <div className="flex items-center">
+                        <span className="font-semibold w-32 flex-shrink-0">Tempo (BPM):</span> 
+                        <span className="ml-2 text-sm">{imp.analysis_data?.simulated_tempo || 'N/A'}</span>
+                    </div>
+                    {/* Display Mood */}
+                    <div className="flex items-center">
+                        <span className="font-semibold w-32 flex-shrink-0">Mood:</span> 
+                        <span className="ml-2 text-sm">{imp.analysis_data?.mood || 'N/A'}</span>
+                    </div>
+                </div>
+                
+                <Separator />
+                <p className="text-sm text-muted-foreground">
+                    To edit this data, click the <Info className="h-4 w-4 inline-block text-primary" /> icon next to the title on the Creative Hub tab.
+                </p>
             </CardContent>
           </Card>
           
@@ -876,7 +844,6 @@ const ImprovisationDetails: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
                     <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
-                    <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
                 </div>
             </CardContent>
           </Card>
@@ -899,9 +866,9 @@ const ImprovisationDetails: React.FC = () => {
           {!isCompleted && (
             <Card className="p-6 text-center border-dashed border-2 border-muted-foreground/50">
                 <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-primary" />
-                <p className="text-lg font-semibold">Analysis Pending</p>
+                <p className="text-lg font-semibold">File Processing Pending</p>
                 <p className="text-sm text-muted-foreground">
-                    This section will populate once the audio file is uploaded and the AI analysis is complete.
+                    This section will populate once the audio file is uploaded and background processing (title/artwork generation) is complete.
                 </p>
             </Card>
           )}

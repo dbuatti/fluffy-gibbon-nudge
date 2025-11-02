@@ -69,12 +69,13 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
       if (uploadError) throw uploadError;
 
       // 2. Update the existing database record with file details and set status to analyzing
+      // NOTE: We still use 'analyzing' status here to trigger the title/artwork generation in the background.
       const { error: dbError } = await supabase
         .from('improvisations')
         .update({
           file_name: file.name,
           storage_path: filePath,
-          status: 'analyzing',
+          status: 'analyzing', // Use 'analyzing' to trigger background title/artwork generation
         })
         .eq('id', improvisationId);
 
@@ -84,20 +85,20 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
         throw dbError;
       }
       
-      // 3. Trigger the analysis Edge Function
+      // 3. Trigger the analysis Edge Function (now only handles title/artwork generation)
       const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
         body: {
           improvisationId: improvisationId,
           storagePath: filePath,
-          isImprovisation: isImprovisation,
+          fileName: file.name, // Pass file name for title generation
         },
       });
 
       if (functionError) {
         console.error('Failed to invoke analysis function:', functionError);
-        showError('File uploaded, but failed to start analysis process.');
+        showError('File uploaded, but failed to start background processing.');
       } else {
-        showSuccess(`Audio file attached and analysis started!`);
+        showSuccess(`Audio file attached and background processing started!`);
       }
       
       setFile(null);
@@ -153,12 +154,12 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
               {isUploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading & Analyzing...
+                  Uploading & Processing...
                 </>
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Start Analysis
+                  Upload File & Start Background Processing
                 </>
               )}
             </Button>

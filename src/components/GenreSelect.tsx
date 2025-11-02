@@ -6,16 +6,44 @@ import { Check, X, Edit2, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
-// Common genres for quick selection
+// Common genres for quick selection (Comprehensive list for DistroKid/general use)
 const COMMON_GENRES = [
+    "Afrobeat",
+    "Afropop",
+    "Alternative",
+    "Big Band",
+    "Blues",
+    "Children's Music",
+    "Christian/Gospel",
     "Classical",
-    "Ambient",
-    "Jazz",
+    "Comedy",
+    "Country",
+    "Dance",
     "Electronic",
-    "New Age",
-    "Soundtrack",
+    "Fitness & Workout",
     "Folk",
+    "French Pop",
+    "German Folk",
+    "German Pop",
+    "Hip Hop/Rap",
+    "Holiday",
+    "J-Pop",
+    "Jazz",
+    "K-Pop",
+    "Latin",
+    "Latin Urban",
+    "Metal",
+    "New Age",
     "Pop",
+    "Punk",
+    "R&B/Soul",
+    "Reggae",
+    "Rock",
+    "Singer/Songwriter",
+    "Soundtrack",
+    "Spoken Word",
+    "Vocal",
+    "World",
 ];
 
 interface GenreSelectProps {

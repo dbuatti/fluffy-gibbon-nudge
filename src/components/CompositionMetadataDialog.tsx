@@ -100,7 +100,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   handleUpdateInsightVoice,
 }) => {
   const analysis = imp.analysis_data;
-  const isCompleted = imp.status === 'completed';
+  // Removed isCompleted check here, technical data is always editable now
   const currentAudienceAges = imp.insight_audience_age || [];
 
   const handleAudienceAgeChange = (age: string, checked: boolean) => {
@@ -121,7 +121,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
         onSave={(v) => handleUpdateAnalysisData(key, v)}
         className="flex-grow"
         placeholder="Click to set"
-        disabled={isPending || !isCompleted}
+        disabled={isPending} // Always editable if not pending
       />
     </div>
   );
@@ -137,7 +137,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           options={options}
           onSave={(v) => handleUpdateAnalysisData(key, v)}
           placeholder={`Select ${label}`}
-          disabled={isPending || !isCompleted}
+          disabled={isPending} // Always editable if not pending
           allowCustom={label === 'Mood'} // Allow custom mood input
         />
       </div>
@@ -154,7 +154,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           label={label}
           onSave={onSave}
           placeholder="Select or type genre"
-          disabled={isPending || !isCompleted}
+          disabled={isPending}
         />
       </div>
     </div>
@@ -238,7 +238,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
                     <div className="space-y-2 border-b pb-4">
                         <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Composition Type</Label>
                         <RadioGroup 
-                            value={String(imp.is_improvisation)} // FIX: Changed to controlled value
+                            value={String(imp.is_improvisation)} 
                             onValueChange={handleUpdateIsImprovisation}
                             disabled={isPending}
                             className="flex space-x-4 ml-4"
@@ -263,20 +263,16 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
                 {/* Technical Data */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2" /> Technical Data</h3>
-                    {isCompleted ? (
-                        <div className="space-y-3">
-                            {/* Key (SelectField) */}
-                            {renderSelectAnalysisItem(Hash, "Key", analysis?.simulated_key, MUSICAL_KEYS, 'simulated_key')}
-                            
-                            {/* Tempo (EditableField - numerical validation handled in parent) */}
-                            {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo', 'number')}
-                            
-                            {/* Mood (SelectField with custom allowed) */}
-                            {renderSelectAnalysisItem(Palette, "Mood", analysis?.mood, MOODS, 'mood')}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground italic">Technical data available after analysis completes.</p>
-                    )}
+                    <div className="space-y-3">
+                        {/* Key (SelectField) */}
+                        {renderSelectAnalysisItem(Hash, "Key", analysis?.simulated_key, MUSICAL_KEYS, 'simulated_key')}
+                        
+                        {/* Tempo (EditableField - numerical validation handled in parent) */}
+                        {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo', 'number')}
+                        
+                        {/* Mood (SelectField with custom allowed) */}
+                        {renderSelectAnalysisItem(Palette, "Mood", analysis?.mood, MOODS, 'mood')}
+                    </div>
                 </div>
 
                 <Separator />

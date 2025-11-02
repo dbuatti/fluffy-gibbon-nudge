@@ -8,21 +8,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const PIANO_GENRES = [
-    "Classical", "Jazz", "New Age", "Folk", "Soundtrack", "Vocal", "Alternative", "Blues", "R&B/Soul", "Pop", "Singer/Songwriter"
-];
-
-const OTHER_GENRES = [
-    "Afrobeat", "Afropop", "Big Band", "Children's Music", "Christian/Gospel", "Comedy", 
-    "Country", "Dance", "Electronic", "Fitness & Workout", "Folk", "French Pop", "German Folk", 
-    "German Pop", "Hip Hop/Rap", "Holiday", "J-Pop", "K-Pop", "Latin", "Latin Urban", 
-    "Metal", "Punk", "Reggae", "Rock", "Spoken Word", "World"
-];
-
 // Function to invoke the artwork generation function
 async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string, primaryGenre: string, secondaryGenre: string, mood: string) {
     console.log(`Invoking generate-artwork for ID: ${improvisationId}`);
     
+    // NOTE: We pass the current (potentially user-set) metadata to the artwork generator.
     const { data, error } = await supabaseClient.functions.invoke('generate-artwork', {
         body: {
             improvisationId: improvisationId,
@@ -40,19 +30,16 @@ async function triggerArtworkGeneration(supabaseClient: any, improvisationId: st
     }
 }
 
-// Function to call Gemini API for name generation
-async function generateNameWithGemini(analysisData: any, isImprovisation: boolean, isPiano: boolean, primaryGenre: string, secondaryGenre: string): Promise<string> {
+// Function to call Gemini API for name generation (now based on file name/user input)
+async function generateNameWithGemini(fileName: string): Promise<string> {
     // @ts-ignore
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
         console.error("GEMINI_API_KEY is not set.");
-        return "AI Name Generation Failed (Key Missing)";
+        return fileName.replace(/\.[^/.]+$/, "").trim() || "Untitled AI Piece";
     }
 
-    const prompt = `You are an expert music analyst and poet. Based on the following analysis of an audio track, generate a single, evocative, and unique title for the piece. 
-    The piece is classified as a ${isPiano ? 'Piano' : 'Non-Piano'} ${isImprovisation ? 'Improvisation' : 'Composition'}.
-    Primary Genre: ${primaryGenre}. Secondary Genre: ${secondaryGenre}.
-    Technical Data: Tempo=${analysisData.simulated_tempo}, Mood=${analysisData.mood}. (Key: ${analysisData.simulated_key} - DO NOT include the key in the final title).
+    const prompt = `You are an expert music poet. Based on the file name "${fileName}", generate a single, evocative, and unique title for the piece. 
     
     Respond ONLY with the title, nothing else. The title should be suitable for a music release.`;
 
@@ -76,84 +63,18 @@ async function generateNameWithGemini(analysisData: any, isImprovisation: boolea
         if (!response.ok) {
             const errorBody = await response.json();
             console.error("Gemini API Error:", errorBody);
-            return `AI Name Generation Failed (HTTP ${response.status})`;
+            return fileName.replace(/\.[^/.]+$/, "").trim() || `AI Name Generation Failed (HTTP ${response.status})`;
         }
 
         const data = await response.json();
-        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Untitled AI Piece";
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || fileName.replace(/\.[^/.]+$/, "").trim() || "Untitled AI Piece";
         
         // Clean up potential quotes or extra formatting from the AI response
         return generatedText.replace(/^["']|["']$/g, '');
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        return "AI Name Generation Failed (Network Error)";
-    }
-}
-
-// Function to call Gemini API for intelligent genre classification
-async function classifyGenresWithGemini(analysisData: any, isPiano: boolean, isImprovisation: boolean): Promise<{ primary: string, secondary: string }> {
-    // @ts-ignore
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-        console.error("GEMINI_API_KEY is not set for genre classification.");
-        return { primary: "Unknown", secondary: "Unknown" };
-    }
-
-    const genreList = isPiano ? PIANO_GENRES.join(', ') : OTHER_GENRES.join(', ');
-
-    const prompt = `You are an expert music classifier. Based on the following simulated analysis data, select the single best Primary Genre and a suitable Secondary Genre from the provided list.
-    
-    Analysis: Instrument=${isPiano ? 'Piano' : 'Other'}, Type=${isImprovisation ? 'Improvisation' : 'Composition'}, Key=${analysisData.simulated_key}, Tempo=${analysisData.simulated_tempo}, Mood=${analysisData.mood}.
-    
-    Available Genres: ${genreList}
-    
-    Respond ONLY with a JSON object containing the keys "primary" and "secondary". Example: {"primary": "Classical", "secondary": "New Age"}`;
-
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-    
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': GEMINI_API_KEY,
-            },
-            body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { 
-                    temperature: 0.5,
-                }
-            }),
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.json();
-            console.error("Gemini Genre API Error:", errorBody);
-            return { primary: "AI Error", secondary: "AI Error" };
-        }
-
-        const data = await response.json();
-        let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        
-        if (generatedText) {
-            // Robust parsing: Remove markdown code blocks if present
-            generatedText = generatedText.replace(/^```json\s*|```\s*$/g, '').trim();
-
-            try {
-                const result = JSON.parse(generatedText);
-                if (result.primary && result.secondary) {
-                    return { primary: result.primary, secondary: result.secondary };
-                }
-            } catch (e) {
-                console.error("Failed to parse Gemini genre JSON:", e);
-            }
-        }
-        return { primary: "Fallback Genre", secondary: "Fallback Genre" };
-
-    } catch (error) {
-        console.error("Error calling Gemini Genre API:", error);
-        return { primary: "Network Error", secondary: "Network Error" };
+        return fileName.replace(/\.[^/.]+$/, "").trim() || "AI Name Generation Failed (Network Error)";
     }
 }
 
@@ -172,64 +93,42 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { improvisationId, storagePath, isImprovisation } = await req.json();
+    const { improvisationId, storagePath, fileName } = await req.json();
 
-    if (!improvisationId || !storagePath) {
-      return new Response(JSON.stringify({ error: 'Missing improvisationId or storagePath' }), {
+    if (!improvisationId || !storagePath || !fileName) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Starting analysis for ID: ${improvisationId} at path: ${storagePath}. Is Improv: ${isImprovisation}`);
+    console.log(`Starting file processing for ID: ${improvisationId} at path: ${storagePath}.`);
 
-    // --- SIMULATE AUDIO FEATURE EXTRACTION (5 seconds delay) ---
-    await new Promise(resolve => setTimeout(resolve, 5000)); 
+    // 1. Fetch existing record to get current metadata (like is_improvisation, genres, etc.)
+    const { data: imp, error: fetchError } = await supabase
+        .from('improvisations')
+        .select('generated_name, primary_genre, secondary_genre, analysis_data, is_improvisation')
+        .eq('id', improvisationId)
+        .single();
 
-    let isPiano;
-    let simulatedTempo;
-    let simulatedMood;
-    
-    if (isImprovisation) {
-        // Deterministic features for user-declared improvisation (likely piano, slow, melancholic)
-        isPiano = true;
-        simulatedTempo = 110;
-        simulatedMood = 'Melancholy';
-    } else {
-        // Deterministic features for user-declared composition (likely non-piano, fast, energetic)
-        isPiano = false;
-        simulatedTempo = 145;
-        simulatedMood = 'Energetic';
+    if (fetchError || !imp) {
+        console.error('Failed to fetch improvisation data:', fetchError);
+        throw new Error('Failed to fetch improvisation data.');
+    }
+
+    // 2. Generate Name (if not already set by user during quick capture)
+    let generatedName = imp.generated_name;
+    if (!generatedName || generatedName.includes('Quick Capture')) {
+        generatedName = await generateNameWithGemini(fileName);
     }
     
-    // --- AI GENRE CLASSIFICATION ---
-    const { primary: primaryGenre, secondary: secondaryGenre } = await classifyGenresWithGemini({
-        simulated_key: isPiano ? 'C Major' : 'A Minor', 
-        simulated_tempo: simulatedTempo,
-        mood: simulatedMood,
-    }, isPiano, isImprovisation);
-
-    const analysisData = { 
-        simulated_key: isPiano ? 'C Major' : 'A Minor', 
-        simulated_tempo: simulatedTempo,
-        instrument_confidence: isPiano ? 0.99 : 0.10, // High confidence if deterministic
-        mood: simulatedMood,
-        user_declared_improv: isImprovisation
-    };
-
-    // --- AI NAME GENERATION ---
-    const generatedName = await generateNameWithGemini(analysisData, isImprovisation, isPiano, primaryGenre, secondaryGenre);
-
-    // Update the database record with the generated name and analysis data
+    // 3. Update the database record with the generated name and set status to completed
+    // NOTE: We are NOT setting analysis_data, genres, or is_piano here.
     const { error: updateError } = await supabase
       .from('improvisations')
       .update({ 
         status: 'completed', 
         generated_name: generatedName,
-        is_piano: isPiano,
-        primary_genre: primaryGenre,
-        secondary_genre: secondaryGenre,
-        analysis_data: analysisData
       })
       .eq('id', improvisationId);
 
@@ -241,10 +140,12 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Analysis completed for ID: ${improvisationId}. Name: ${generatedName}`);
+    console.log(`File processing completed for ID: ${improvisationId}. Name: ${generatedName}`);
     
-    // --- Trigger Artwork Generation (asynchronously) ---
-    triggerArtworkGeneration(supabase, improvisationId, generatedName, primaryGenre, secondaryGenre, simulatedMood);
+    // 4. Trigger Artwork Generation (asynchronously) using existing/default metadata
+    // We use existing genres/moods, which might be null/default, but the function handles that.
+    const currentMood = imp.analysis_data?.mood || 'Ambient';
+    triggerArtworkGeneration(supabase, improvisationId, generatedName, imp.primary_genre || 'Ambient', imp.secondary_genre || 'Ambient', currentMood);
 
 
     return new Response(JSON.stringify({ success: true, generatedName }), {
