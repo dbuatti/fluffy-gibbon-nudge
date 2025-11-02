@@ -835,7 +835,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
