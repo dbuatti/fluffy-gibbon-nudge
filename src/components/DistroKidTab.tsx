@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Check, X, Music, DollarSign, Clock, Globe, Image as ImageIcon, ArrowRight } from 'lucide-react';
+import { Check, X, Music, DollarSign, Clock, Globe, Image as ImageIcon, ArrowRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,15 +71,16 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp }) => {
               </p>
             </>
           ) : (
-            <div className="text-center p-4 border border-dashed border-red-400 rounded-lg bg-red-50 dark:bg-red-950/50">
-              <ImageIcon className="w-6 h-6 mx-auto mb-2 text-red-500" />
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">Artwork Missing</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Please generate artwork in the Creative Hub tab before submitting.
+            <div className="text-center p-6 border-4 border-dashed border-red-500 rounded-lg bg-red-50 dark:bg-red-950/50 shadow-lg">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-600" />
+              <p className="text-lg font-bold text-red-700 dark:text-red-300">CRITICAL: Artwork Missing</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                You must generate or upload artwork before distribution.
               </p>
-              <Link to={`/improvisation/${imp.id}#artwork-actions`}>
-                <Button variant="link" className="mt-2 p-0 h-auto text-red-500 hover:text-red-600">
-                  Go to Artwork Actions <ArrowRight className="w-3 h-3 ml-1" />
+              {/* Link to the Assets tab and the specific card ID */}
+              <Link to={`/improvisation/${imp.id}?tab=assets-downloads#artwork-actions`}>
+                <Button variant="destructive" className="mt-4">
+                  Go to Artwork Actions <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
             </div>
