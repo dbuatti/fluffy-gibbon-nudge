@@ -9,7 +9,7 @@ const corsHeaders = {
 }
 
 // Function to call Gemini API for image prompt generation
-async function generateImagePromptWithGemini(generatedName: string): Promise<string> {
+async function generateImagePromptWithGemini(generatedName: string, primaryGenre: string, secondaryGenre: string, mood: string): Promise<string> {
     // @ts-ignore
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
@@ -17,7 +17,7 @@ async function generateImagePromptWithGemini(generatedName: string): Promise<str
         return generatedName; // Fallback to name if key is missing
     }
 
-    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on mood, color, texture, and lighting. The style should be cinematic, painterly, or digital art.
+    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". The primary genre is ${primaryGenre} and the mood is ${mood}. Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on color, texture, and lighting that reflects the ${mood} and ${primaryGenre} genres. The style should be cinematic, painterly, or digital art.
     
     Respond ONLY with the prompt text, nothing else.`;
 
@@ -78,10 +78,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { improvisationId, generatedName } = await req.json();
+    const { improvisationId, generatedName, primaryGenre, secondaryGenre, mood } = await req.json();
 
-    if (!improvisationId || !generatedName) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+    if (!improvisationId || !generatedName || !primaryGenre || !mood) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters for artwork generation' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -89,8 +89,8 @@ serve(async (req) => {
 
     console.log(`Starting artwork generation for ID: ${improvisationId} based on name: ${generatedName}`);
 
-    // 1. Generate a detailed, artistic prompt using Gemini
-    const imagePrompt = await generateImagePromptWithGemini(generatedName);
+    // 1. Generate a detailed, artistic prompt using Gemini, incorporating musical context
+    const imagePrompt = await generateImagePromptWithGemini(generatedName, primaryGenre, secondaryGenre || '', mood);
     console.log(`AI Generated Image Prompt: ${imagePrompt}`);
 
     // 2. Simulate image generation time

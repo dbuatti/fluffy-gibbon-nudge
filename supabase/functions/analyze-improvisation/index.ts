@@ -20,13 +20,16 @@ const OTHER_GENRES = [
 ];
 
 // Function to invoke the artwork generation function
-async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string) {
+async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string, primaryGenre: string, secondaryGenre: string, mood: string) {
     console.log(`Invoking generate-artwork for ID: ${improvisationId}`);
     
     const { data, error } = await supabaseClient.functions.invoke('generate-artwork', {
         body: {
             improvisationId: improvisationId,
             generatedName: generatedName,
+            primaryGenre: primaryGenre,
+            secondaryGenre: secondaryGenre,
+            mood: mood,
         },
     });
 
@@ -238,7 +241,7 @@ serve(async (req) => {
     console.log(`Analysis completed for ID: ${improvisationId}. Name: ${generatedName}`);
     
     // --- Trigger Artwork Generation (asynchronously) ---
-    triggerArtworkGeneration(supabase, improvisationId, generatedName);
+    triggerArtworkGeneration(supabase, improvisationId, generatedName, primaryGenre, secondaryGenre, simulatedMood);
 
 
     return new Response(JSON.stringify({ success: true, generatedName }), {
