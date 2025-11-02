@@ -18,6 +18,7 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
+    // Check for MP3 (audio/mpeg) or M4A (audio/mp4)
     if (selectedFile && (selectedFile.type === 'audio/mpeg' || selectedFile.type === 'audio/mp4')) {
       setFile(selectedFile);
     } else {
@@ -33,6 +34,7 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
 
     const user = session.user;
     const fileExtension = file.name.split('.').pop();
+    // Path format: user_id/timestamp.ext
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
     const bucketName = 'piano_improvisations';
 
@@ -47,23 +49,42 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
 
       if (uploadError) throw uploadError;
 
-      // 2. Insert record into the database
-      const { error: dbError } = await supabase
+      // 2. Insert record into the database and get the new ID
+      const { data: dbData, error: dbError } = await supabase
         .from('improvisations')
         .insert({
           user_id: user.id,
           file_name: file.name,
           storage_path: filePath,
-          status: 'analyzing', // Set status to analyzing immediately
-        });
+          status: 'analyzing',
+        })
+        .select('id')
+        .single();
 
-      if (dbError) {
-        // If DB insertion fails, try to clean up the uploaded file (optional but good practice)
+      if (dbError || !dbData) {
+        // If DB insertion fails, try to clean up the uploaded file
         await supabase.storage.from(bucketName).remove([filePath]);
-        throw dbError;
+        throw dbError || new Error("Failed to retrieve new improvisation ID.");
       }
+      
+      const improvisationId = dbData.id;
 
-      showSuccess(`File "${file.name}" uploaded successfully and analysis started!`);
+      // 3. Trigger the analysis Edge Function
+      const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
+        body: {
+          improvisationId: improvisationId,
+          storagePath: filePath,
+        },
+      });
+
+      if (functionError) {
+        // If the function invocation fails, the status remains 'analyzing'
+        console.error('Failed to invoke analysis function:', functionError);
+        showError('File uploaded, but failed to start analysis process.');
+      } else {
+        showSuccess(`File "${file.name}" uploaded successfully and analysis started!`);
+      }
+      
       setFile(null);
       onUploadSuccess(); // Notify parent component to refresh list
 
