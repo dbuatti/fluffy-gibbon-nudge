@@ -23,7 +23,8 @@ import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { useTitleGenerator } from '@/hooks/useTitleGenerator'; // Import new hook
+import { useTitleGenerator } from '@/hooks/useTitleGenerator';
+import GenreSelect from '@/components/GenreSelect'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -408,6 +409,7 @@ const ImprovisationDetails: React.FC = () => {
   const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
 
   // Handlers for Editable Fields
+  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
@@ -781,24 +783,26 @@ const ImprovisationDetails: React.FC = () => {
                     {/* EDITABLE: Primary Genre */}
                     <div className="flex items-center">
                         <span className="font-semibold w-32 flex-shrink-0">Primary Genre:</span> 
-                        <EditableField
-                            value={imp.primary_genre}
-                            label="Primary Genre"
-                            onSave={handleUpdatePrimaryGenre}
-                            className="ml-2 flex-grow"
-                            placeholder="Click to set primary genre"
-                        />
+                        <div className="ml-2 flex-grow">
+                            <GenreSelect
+                                value={imp.primary_genre}
+                                label="Primary Genre"
+                                onSave={handleUpdatePrimaryGenre}
+                                placeholder="Select or type primary genre"
+                            />
+                        </div>
                     </div>
                     {/* EDITABLE: Secondary Genre */}
                     <div className="flex items-center">
                         <span className="font-semibold w-32 flex-shrink-0">Secondary Genre:</span> 
-                        <EditableField
-                            value={imp.secondary_genre}
-                            label="Secondary Genre"
-                            onSave={handleUpdateSecondaryGenre}
-                            className="ml-2 flex-grow"
-                            placeholder="Click to set secondary genre"
-                        />
+                        <div className="ml-2 flex-grow">
+                            <GenreSelect
+                                value={imp.secondary_genre}
+                                label="Secondary Genre"
+                                onSave={handleUpdateSecondaryGenre}
+                                placeholder="Select or type secondary genre"
+                            />
+                        </div>
                     </div>
                 </div>
 
