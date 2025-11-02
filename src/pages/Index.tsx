@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import CompositionPipeline from "@/components/CompositionPipeline"; // Import pipeline
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -15,6 +16,7 @@ const Index = () => {
   const handleUploadSuccess = () => {
     // Invalidate the query cache to force ImprovisationList to refetch
     queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+    queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] }); // Invalidate pipeline count
   };
 
   return (
@@ -30,6 +32,8 @@ const Index = () => {
       
       <main className="max-w-5xl mx-auto space-y-10">
         
+        <CompositionPipeline /> {/* New Pipeline Visualization */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
