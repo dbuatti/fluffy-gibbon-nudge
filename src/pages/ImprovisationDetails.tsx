@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2 } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -13,6 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DistroKidTab from '@/components/DistroKidTab';
 import InsightTimerTab from '@/components/InsightTimerTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
+// External Links for Quick Access
+const DISTROKID_URL = "https://distrokid.com/new/";
+const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
+const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
 
 interface Improvisation {
   id: string;
@@ -39,6 +44,16 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
   if (error) throw new Error(error.message);
   return data as Improvisation;
 };
+
+const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: string }> = ({ href, icon: Icon, label }) => (
+  <a href={href} target="_blank" rel="noopener noreferrer" className="w-full">
+    <Button variant="outline" className="w-full justify-start text-sm h-8 px-3">
+      <Icon className="h-4 w-4 mr-2" />
+      {label}
+      <ExternalLink className="h-3 w-3 ml-auto" />
+    </Button>
+  </a>
+);
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -219,45 +234,54 @@ const ImprovisationDetails: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Analysis Details: {imp.generated_name || imp.file_name}
-        </h1>
+      <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+        <div className="flex-grow">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+            {imp.generated_name || imp.file_name}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Uploaded: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+          </p>
+        </div>
         
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" disabled={isDeleting}>
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              Delete
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the composition record and the uploaded audio file from storage.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                {isDeleting ? 'Deleting...' : 'Delete Composition'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex-shrink-0">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={isDeleting}>
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Delete Composition
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the composition record and the uploaded audio file from storage.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                  {isDeleting ? 'Deleting...' : 'Delete Composition'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Artwork & Status</CardTitle>
+          <CardTitle>Artwork & Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-6">
-          <div className="w-full md:w-1/3">
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Artwork Column */}
+          <div className="col-span-1 space-y-4">
             {imp.artwork_url ? (
               <img 
                 src={imp.artwork_url} 
@@ -265,13 +289,13 @@ const ImprovisationDetails: React.FC = () => {
                 className="w-full aspect-square object-cover rounded-lg shadow-lg"
               />
             ) : (
-              <div className="w-full aspect-square bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+              <div className="w-full aspect-square bg-muted rounded-lg flex flex-col items-center justify-center text-muted-foreground">
                 <Music className="h-12 w-12" />
                 <p className="mt-2">Artwork generating...</p>
               </div>
             )}
             
-            <div className="space-y-2 mt-4">
+            <div className="space-y-2">
                 {isCompleted && imp.artwork_url && (
                   <Button onClick={handleDownload} className="w-full">
                     <Download className="h-4 w-4 mr-2" /> Download Artwork (3000x3000)
@@ -308,29 +332,30 @@ const ImprovisationDetails: React.FC = () => {
             </div>
           </div>
 
-          <div className="w-full md:w-2/3 space-y-4">
-            <div className="flex items-center">
-              <span className="font-semibold">File:</span> <span className="ml-2">{imp.file_name}</span>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="font-semibold">Status:</span> 
-              <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="font-semibold">Generated Name:</span> <span className="ml-2">{imp.generated_name || 'N/A'}</span>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="font-semibold">Upload Date:</span> <span className="ml-2">{imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}</span>
-            </div>
+          {/* Quick Links Column */}
+          <div className="col-span-1 space-y-4">
+            <h3 className="text-lg font-semibold">Distribution Links</h3>
+            <QuickLinkButton href={DISTROKID_URL} icon={Music} label="DistroKid Submission" />
+            <QuickLinkButton href={INSIGHT_TIMER_URL} icon={Clock} label="Insight Timer Upload" />
             
             <Separator />
 
-            <h3 className="text-xl font-semibold mt-4">Musical Analysis</h3>
+            <h3 className="text-lg font-semibold">Asset Tools</h3>
+            <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Biteable Image Resizer" />
+          </div>
+
+          {/* Metadata Column */}
+          <div className="col-span-1 space-y-4">
+            <h3 className="text-lg font-semibold">Composition Metadata</h3>
             
             <div className="space-y-2">
+                <div className="flex items-center">
+                    <span className="font-semibold w-24">Status:</span> 
+                    <Badge className="ml-2">{imp.status.toUpperCase()}</Badge>
+                </div>
+                <div className="flex items-center">
+                    <span className="font-semibold w-24">File:</span> <span className="ml-2 truncate">{imp.file_name}</span>
+                </div>
                 <div className="flex items-center">
                     <Piano className="h-5 w-5 mr-2" />
                     <span className="font-semibold">Type:</span> 
@@ -340,7 +365,7 @@ const ImprovisationDetails: React.FC = () => {
                 </div>
                 <div className="flex items-center">
                     <Piano className="h-5 w-5 mr-2" />
-                    <span className="font-semibold">Is Piano Piece:</span> 
+                    <span className="font-semibold">Is Piano:</span> 
                     <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
                         {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                         {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
@@ -357,7 +382,7 @@ const ImprovisationDetails: React.FC = () => {
             {imp.analysis_data && (
               <>
                 <Separator />
-                <h3 className="text-xl font-semibold">Technical Data</h3>
+                <h3 className="text-lg font-semibold">Technical Data</h3>
                 <ul className="list-disc list-inside ml-4 space-y-1 text-sm text-muted-foreground">
                   {Object.entries(imp.analysis_data).map(([key, value]) => (
                     <li key={key}>
