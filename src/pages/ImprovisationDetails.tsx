@@ -9,6 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { showSuccess, showError } from '@/utils/toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import DistroKidTab from '@/components/DistroKidTab';
+import InsightTimerTab from '@/components/InsightTimerTab';
 
 interface Improvisation {
   id: string;
@@ -17,7 +20,7 @@ interface Improvisation {
   generated_name: string | null;
   artwork_url: string | null;
   is_piano: boolean | null;
-  is_improvisation: boolean | null; // New field
+  is_improvisation: boolean | null;
   primary_genre: string | null;
   secondary_genre: string | null;
   analysis_data: { [key: string]: any } | null;
@@ -291,6 +294,21 @@ const ImprovisationDetails: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {isCompleted && (
+        <Tabs defaultValue="distrokid" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="distrokid">DistroKid Prep</TabsTrigger>
+            <TabsTrigger value="insight-timer">Insight Timer Prep</TabsTrigger>
+          </TabsList>
+          <TabsContent value="distrokid">
+            <DistroKidTab imp={imp} />
+          </TabsContent>
+          <TabsContent value="insight-timer">
+            <InsightTimerTab imp={imp} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 };
