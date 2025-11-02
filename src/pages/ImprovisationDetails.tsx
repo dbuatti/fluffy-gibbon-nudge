@@ -22,6 +22,7 @@ import EditableField from '@/components/EditableField';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch'; // Import Switch
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -35,6 +36,13 @@ interface NoteTab {
   content: string;
 }
 
+interface AnalysisData {
+  simulated_key?: string;
+  simulated_tempo?: number;
+  mood?: string;
+  [key: string]: any;
+}
+
 interface Improvisation {
   id: string;
   file_name: string | null; // Now nullable
@@ -45,7 +53,7 @@ interface Improvisation {
   is_improvisation: boolean | null;
   primary_genre: string | null;
   secondary_genre: string | null;
-  analysis_data: { [key: string]: any } | null;
+  analysis_data: AnalysisData | null;
   created_at: string;
   storage_path: string | null; // Now nullable
   notes: NoteTab[] | null; // New field
@@ -394,6 +402,29 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
+  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
+  
+  // Handler for nested analysis_data updates
+  const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
+    const currentData = imp.analysis_data || {};
+    let updatedValue: string | number = newValue;
+
+    // Special handling for tempo (ensure it's a number)
+    if (key === 'simulated_tempo') {
+        updatedValue = parseInt(newValue, 10);
+        if (isNaN(updatedValue)) {
+            showError("Tempo must be a valid number.");
+            return Promise.reject(new Error("Invalid tempo value"));
+        }
+    }
+
+    const newAnalysisData = {
+        ...currentData,
+        [key]: updatedValue,
+    };
+
+    return updateMutation.mutateAsync({ analysis_data: newAnalysisData });
+  };
 
 
   return (
@@ -512,13 +543,17 @@ const ImprovisationDetails: React.FC = () => {
                     </div>
                 </div>
                 <div className="space-y-4">
-                    <div className="flex items-center">
-                        <Piano className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">Is Piano:</span> 
-                        <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
-                            {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                            {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
-                        </Badge>
+                    {/* EDITABLE: Is Piano */}
+                    <div className="flex items-center justify-between pr-4">
+                        <div className="flex items-center">
+                            <Piano className="h-5 w-5 mr-2" />
+                            <span className="font-semibold">Is Piano:</span> 
+                        </div>
+                        <Switch
+                            checked={!!imp.is_piano}
+                            onCheckedChange={handleUpdateIsPiano}
+                            disabled={updateMutation.isPending}
+                        />
                     </div>
                     <div className="flex items-center">
                         <Send className="h-5 w-5 mr-2" />
@@ -603,7 +638,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRegenerating ? 'Regenerate Artwork' : 'Regenerate Artwork'}
+                        {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
                       </Button>
                     )}
                     {hasAudioFile && (
@@ -672,20 +707,70 @@ const ImprovisationDetails: React.FC = () => {
                 {imp.analysis_data && (
                   <>
                     <Separator />
-                    <h3 className="text-lg font-semibold">Technical Data</h3>
-                    <ul className="list-disc list-inside ml-4 space-y-1 text-sm text-muted-foreground">
-                      {Object.entries(imp.analysis_data).map(([key, value]) => (
-                        <li key={key}>
-                          <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span> {String(value)}
-                        </li>
-                      ))}
-                    </ul>
+                    <h3 className="text-lg font-semibold">Technical Data (Editable)</h3>
+                    <div className="space-y-3">
+                        {/* EDITABLE: Simulated Key */}
+                        <div className="flex items-center">
+                            <span className="font-semibold w-32 flex-shrink-0">Key:</span> 
+                            <EditableField
+                                value={imp.analysis_data.simulated_key}
+                                label="Key"
+                                onSave={(v) => handleUpdateAnalysisData('simulated_key', v)}
+                                className="ml-2 flex-grow"
+                                placeholder="E.g., C Major"
+                            />
+                        </div>
+                        {/* EDITABLE: Simulated Tempo */}
+                        <div className="flex items-center">
+                            <span className="font-semibold w-32 flex-shrink-0">Tempo (BPM):</span> 
+                            <EditableField
+                                value={String(imp.analysis_data.simulated_tempo || '')}
+                                label="Tempo"
+                                onSave={(v) => handleUpdateAnalysisData('simulated_tempo', v)}
+                                className="ml-2 flex-grow"
+                                placeholder="E.g., 120"
+                            />
+                        </div>
+                        {/* EDITABLE: Mood */}
+                        <div className="flex items-center">
+                            <span className="font-semibold w-32 flex-shrink-0">Mood:</span> 
+                            <EditableField
+                                value={imp.analysis_data.mood}
+                                label="Mood"
+                                onSave={(v) => handleUpdateAnalysisData('mood', v)}
+                                className="ml-2 flex-grow"
+                                placeholder="E.g., Melancholy"
+                            />
+                        </div>
+                    </div>
+                    
+                    {/* Display other analysis data that is not editable */}
+                    {Object.entries(imp.analysis_data).filter(([key]) => 
+                        key !== 'simulated_key' && key !== 'simulated_tempo' && key !== 'mood'
+                    ).length > 0 && (
+                        <>
+                            <Separator />
+                            <h3 className="text-lg font-semibold">Other Analysis Data</h3>
+                            <ul className="list-disc list-inside ml-4 space-y-1 text-sm text-muted-foreground">
+                                {Object.entries(imp.analysis_data).map(([key, value]) => {
+                                    if (key !== 'simulated_key' && key !== 'simulated_tempo' && key !== 'mood') {
+                                        return (
+                                            <li key={key}>
+                                                <span className="font-medium capitalize">{key.replace(/_/g, ' ')}:</span> {String(value)}
+                                            </li>
+                                        );
+                                    }
+                                    return null;
+                                })}
+                            </ul>
+                        </>
+                    )}
                   </>
                 )}
             </CardContent>
           </Card>
 
-          {/* External Tools Card (MOVED HERE) */}
+          {/* External Tools Card */}
           <Card>
             <CardHeader>
               <CardTitle>Distribution Quick Links</CardTitle>
