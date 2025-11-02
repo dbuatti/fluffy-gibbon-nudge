@@ -88,60 +88,7 @@ const ImprovisationDetails: React.FC = () => {
   const hasAudioFile = !!imp?.storage_path;
   const isCompleted = imp?.status === 'completed';
 
-  // --- Progress Logic ---
-  let progressValue = 0;
-  let progressMessage = "Capture your idea first.";
-
-  if (imp) {
-    // Step 1: Idea Captured (10%)
-    progressValue = 10;
-    progressMessage = "Idea captured. Now record and upload the audio file.";
-
-    // Step 2: Audio Uploaded (30%)
-    if (hasAudioFile) {
-      progressValue = 30;
-      progressMessage = "Audio uploaded. Analysis is running...";
-    }
-
-    // Step 3: Analysis Completed (60%)
-    if (isCompleted) {
-      progressValue = 60;
-      progressMessage = "Analysis complete! Review metadata and notes.";
-    }
-
-    // Step 4: Notes Added (80%) - Simple check if any note content exists
-    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
-    if (isCompleted && hasNotes) {
-      progressValue = 80;
-      progressMessage = "Notes added. Ready for distribution prep!";
-    }
-
-    // Step 5: Artwork Generated (100%)
-    if (isCompleted && hasNotes && imp.artwork_url) {
-      progressValue = 100;
-      progressMessage = "Composition is 100% ready for release!";
-    }
-  }
-  // --- End Progress Logic ---
-
-
-  if (!id) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (showLoadingSpinner) {
-    const loadingMessage = isAnalyzing ? "Analysis in progress..." : "Loading composition details...";
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">{loadingMessage}</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div className="text-center p-8 text-red-500">Error loading details: {error.message}</div>;
-  }
+  // --- HANDLER DEFINITIONS (Moved up to resolve TS2448) ---
 
   const handleRefetch = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
@@ -285,6 +232,104 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
+  // --- Progress Logic ---
+  let progressValue = 0;
+  let progressMessage = "Capture your idea first.";
+  let primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null = null;
+
+  if (imp) {
+    // Step 1: Idea Captured (10%)
+    progressValue = 10;
+    progressMessage = "Idea captured. Now record and upload the audio file.";
+    
+    // Action 1: Upload Audio
+    if (!hasAudioFile) {
+        primaryAction = {
+            label: "Upload Audio (30% Progress Boost)",
+            onClick: () => {
+                // Scroll to the AudioUploadForIdea component
+                document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' });
+            },
+            variant: "default"
+        };
+    }
+
+    // Step 2: Audio Uploaded (30%)
+    if (hasAudioFile) {
+      progressValue = 30;
+      progressMessage = "Audio uploaded. Analysis is running...";
+      primaryAction = null; // No action needed while analyzing
+    }
+
+    // Step 3: Analysis Completed (60%)
+    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
+    if (isCompleted) {
+      progressValue = 60;
+      progressMessage = "Analysis complete! Review metadata and notes.";
+      
+      // Action 2: Add Notes
+      if (!hasNotes) {
+          primaryAction = {
+              label: "Add Creative Notes (20% Progress Boost)",
+              onClick: () => {
+                  // Scroll to the CompositionNotes component
+                  document.getElementById('composition-notes')?.scrollIntoView({ behavior: 'smooth' });
+              },
+              variant: "secondary"
+          };
+      }
+    }
+
+    // Step 4: Notes Added (80%)
+    if (isCompleted && hasNotes) {
+      progressValue = 80;
+      progressMessage = "Notes added. Ready for distribution prep!";
+      
+      // Action 3: Generate Artwork
+      if (!imp.artwork_url) {
+          primaryAction = {
+              label: "Generate Artwork (20% Progress Boost)",
+              onClick: handleRegenerateArtwork, // Use existing function
+              variant: "outline"
+          };
+      }
+    }
+
+    // Step 5: Artwork Generated (100%)
+    if (isCompleted && hasNotes && imp.artwork_url) {
+      progressValue = 100;
+      progressMessage = "Composition is 100% ready for release!";
+      primaryAction = {
+          label: "Go to Distribution Prep",
+          onClick: () => {
+              // Switch to the Analysis tab
+              document.getElementById('analysis-distro-tab')?.click();
+          },
+          variant: "default"
+      };
+    }
+  }
+  // --- End Progress Logic ---
+
+
+  if (!id) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (showLoadingSpinner) {
+    const loadingMessage = isAnalyzing ? "Analysis in progress..." : "Loading composition details...";
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">{loadingMessage}</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center p-8 text-red-500">Error loading details: {error.message}</div>;
+  }
+
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
@@ -336,7 +381,7 @@ const ImprovisationDetails: React.FC = () => {
       <Tabs defaultValue="creative-hub" className="w-full">
         <TabsList className="grid w-full grid-cols-2 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
-          <TabsTrigger value="analysis-distro" className="text-base py-2" disabled={!hasAudioFile}>
+          <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2" disabled={!hasAudioFile}>
             Analysis & Distribution {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
           </TabsTrigger>
         </TabsList>
@@ -352,8 +397,21 @@ const ImprovisationDetails: React.FC = () => {
               </h3>
               <span className="text-sm font-bold text-primary">{progressValue}%</span>
             </div>
-            <Progress value={progressValue} className="h-2 mb-2" />
-            <p className="text-sm text-muted-foreground">{progressMessage}</p>
+            <Progress value={progressValue} className="h-2 mb-4" />
+            
+            {/* Primary Action Button */}
+            {primaryAction ? (
+                <Button 
+                    onClick={primaryAction.onClick} 
+                    variant={primaryAction.variant} 
+                    className="w-full h-10 text-base"
+                    disabled={isAnalyzing}
+                >
+                    {primaryAction.label}
+                </Button>
+            ) : (
+                <p className="text-sm text-muted-foreground">{progressMessage}</p>
+            )}
           </Card>
 
           {/* NEW: File Path Suggestion (Organization Tool) */}
@@ -365,15 +423,19 @@ const ImprovisationDetails: React.FC = () => {
 
           {/* 1. Audio Upload (if needed) - Prominent CTA */}
           {!hasAudioFile && imp.status === 'uploaded' && imp.is_improvisation !== null && (
-            <AudioUploadForIdea 
-              improvisationId={imp.id} 
-              isImprovisation={imp.is_improvisation}
-              onUploadSuccess={handleRefetch}
-            />
+            <div id="audio-upload-cta">
+                <AudioUploadForIdea 
+                  improvisationId={imp.id} 
+                  isImprovisation={imp.is_improvisation}
+                  onUploadSuccess={handleRefetch}
+                />
+            </div>
           )}
 
           {/* 2. Composition Notes */}
-          <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} />
+          <div id="composition-notes">
+            <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
+          </div>
 
           {/* 3. Artwork & Quick Actions Card */}
           <Card>

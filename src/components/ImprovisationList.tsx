@@ -4,11 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon, NotebookText } from 'lucide-react';
-import { format } from 'date-fns';
+import { Clock, CheckCircle, XCircle, Music, Image as ImageIcon, NotebookText, AlertTriangle } from 'lucide-react';
+import { format, differenceInHours } from 'date-fns'; // Import differenceInHours
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { cn } from '@/lib/utils'; // Import cn for conditional styling
 
 interface NoteTab {
   id: string;
@@ -26,6 +27,8 @@ interface Improvisation {
   created_at: string;
   notes: NoteTab[] | null; // New field
 }
+
+const STALLED_THRESHOLD_HOURS = 48;
 
 const fetchImprovisations = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
@@ -102,10 +105,15 @@ const ImprovisationList: React.FC = () => {
             <TableBody>
               {improvisations.map((imp) => {
                 const hasFile = !!imp.file_name;
+                const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
+                
                 return (
                   <TableRow 
                     key={imp.id} 
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      isStalled ? 'bg-red-50/50 hover:bg-red-100/70 dark:bg-red-950/50 dark:hover:bg-red-900/70 border-l-4 border-red-500' : 'hover:bg-muted/50'
+                    )}
                     onClick={() => navigate(`/improvisation/${imp.id}`)} // Use programmatic navigation
                   >
                     <TableCell>
@@ -116,9 +124,12 @@ const ImprovisationList: React.FC = () => {
                         </AvatarFallback>
                       </Avatar>
                     </TableCell>
-                    <TableCell className="font-medium">{imp.generated_name || imp.file_name || 'Untitled Idea'}</TableCell>
+                    <TableCell className="font-medium flex items-center">
+                        {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-red-500 flex-shrink-0" />}
+                        {imp.generated_name || imp.file_name || 'Untitled Idea'}
+                    </TableCell>
                     <TableCell>{getStatusBadge(imp.status, hasFile)}</TableCell>
-                    <TableCell>{getNotesStatus(imp.notes)}</TableCell>
+                    <TableCell>{getNotesStatus(imp.notes)}</TableCell> {/* New Cell */}
                     <TableCell className="text-sm text-muted-foreground">
                       {imp.file_name || 'No audio file attached'}
                     </TableCell>
