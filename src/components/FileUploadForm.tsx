@@ -18,8 +18,10 @@ const FileUploadForm: React.FC<FileUploadFormProps> = ({ onUploadSuccess }) => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    // Check for MP3 (audio/mpeg) or M4A (audio/mp4)
-    if (selectedFile && (selectedFile.type === 'audio/mpeg' || selectedFile.type === 'audio/mp4')) {
+    // Check for MP3 (audio/mpeg), M4A (audio/mp4), or M4A (audio/x-m4a)
+    const acceptedMimeTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
+    
+    if (selectedFile && acceptedMimeTypes.includes(selectedFile.type)) {
       setFile(selectedFile);
     } else {
       setFile(null);
