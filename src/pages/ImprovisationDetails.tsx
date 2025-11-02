@@ -67,6 +67,7 @@ interface Improvisation {
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   // Explicitly list all columns to avoid Supabase 400 error when mixing '*' with complex types
+  // We ensure all columns, including JSONB fields (analysis_data, notes, user_tags), are listed correctly.
   const { data, error } = await supabase
     .from('improvisations')
     .select(`
