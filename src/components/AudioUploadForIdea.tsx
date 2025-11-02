@@ -13,6 +13,9 @@ interface AudioUploadForIdeaProps {
   onUploadSuccess: () => void;
 }
 
+// Max file size: 250 MB (250 * 1024 * 1024 bytes)
+const MAX_FILE_SIZE_BYTES = 262144000; 
+
 const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId, isImprovisation, onUploadSuccess }) => {
   const { session } = useSession();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -23,12 +26,24 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
     const selectedFile = event.target.files?.[0];
     const acceptedMimeTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
     
-    if (selectedFile && acceptedMimeTypes.includes(selectedFile.type)) {
-      setFile(selectedFile);
-    } else {
+    if (!selectedFile) {
+        setFile(null);
+        return;
+    }
+
+    if (!acceptedMimeTypes.includes(selectedFile.type)) {
       setFile(null);
       showError('Please select a valid MP3 or M4A audio file.');
+      return;
     }
+
+    if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+        setFile(null);
+        showError('File size exceeds the 250MB limit. Please compress or use a smaller file.');
+        return;
+    }
+
+    setFile(selectedFile);
   };
 
   const handleUpload = async () => {
@@ -121,14 +136,14 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
             className="w-full h-12 border-dashed border-2"
             disabled={isUploading}
           >
-            <Upload className="mr-2 h-4 w-4" /> Select MP3 or M4A File
+            <Upload className="mr-2 h-4 w-4" /> Select MP3 or M4A File (Max 250MB)
           </Button>
         )}
 
         {file && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              Selected: <span className="font-semibold text-primary">{file.name}</span> ({(file.size / 1024 / 1024).toFixed(2)} MB)
             </p>
             <Button 
               onClick={handleUpload} 
