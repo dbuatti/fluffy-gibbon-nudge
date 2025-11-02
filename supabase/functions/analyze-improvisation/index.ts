@@ -8,23 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const PIANO_NAMES = [
-    "The Melancholy Waltz",
-    "Midnight Rhapsody",
-    "Chromatic Dreamscape",
-    "A Minor Ascent",
-    "Rainy Day Blues",
-    "Impromptu in C Sharp",
-    "Echoes of Yesterday"
-];
-
-const NON_PIANO_NAMES = [
-    "Synthwave Drive",
-    "Acoustic Guitar Jam",
-    "Drum Machine Groove",
-    "Ambient Pad Flow"
-];
-
 const PIANO_GENRES = [
     "Classical", "Jazz", "New Age", "Folk", "Soundtrack", "Vocal", "Alternative", "Blues", "R&B/Soul", "Pop", "Singer/Songwriter"
 ];
@@ -35,13 +18,6 @@ const OTHER_GENRES = [
     "German Pop", "Hip Hop/Rap", "Holiday", "J-Pop", "K-Pop", "Latin", "Latin Urban", 
     "Metal", "Punk", "Reggae", "Rock", "Spoken Word", "World"
 ];
-
-// Helper function to simulate analysis and generate a name
-function generateName(isPiano: boolean): string {
-    const names = isPiano ? PIANO_NAMES : NON_PIANO_NAMES;
-    const randomIndex = Math.floor(Math.random() * names.length);
-    return names[randomIndex];
-}
 
 // Function to invoke the artwork generation function
 async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string) {
@@ -58,6 +34,57 @@ async function triggerArtworkGeneration(supabaseClient: any, improvisationId: st
         console.error('Error invoking generate-artwork:', error);
     } else {
         console.log('Artwork generation triggered successfully:', data);
+    }
+}
+
+// Function to call Gemini API for name generation
+async function generateNameWithGemini(analysisData: any, isImprovisation: boolean, isPiano: boolean, primaryGenre: string, secondaryGenre: string): Promise<string> {
+    // @ts-ignore
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+        console.error("GEMINI_API_KEY is not set.");
+        return "AI Name Generation Failed (Key Missing)";
+    }
+
+    const prompt = `You are an expert music analyst and poet. Based on the following analysis of an audio track, generate a single, evocative, and unique title for the piece. 
+    The piece is classified as a ${isPiano ? 'Piano' : 'Non-Piano'} ${isImprovisation ? 'Improvisation' : 'Composition'}.
+    Primary Genre: ${primaryGenre}. Secondary Genre: ${secondaryGenre}.
+    Technical Data: Key=${analysisData.simulated_key}, Tempo=${analysisData.simulated_tempo}, Mood=${analysisData.mood}.
+    
+    Respond ONLY with the title, nothing else. The title should be suitable for a music release.`;
+
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY,
+            },
+            body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                config: {
+                    temperature: 0.9,
+                }
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error("Gemini API Error:", errorBody);
+            return `AI Name Generation Failed (HTTP ${response.status})`;
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Untitled AI Piece";
+        
+        // Clean up potential quotes or extra formatting from the AI response
+        return generatedText.replace(/^["']|["']$/g, '');
+
+    } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        return "AI Name Generation Failed (Network Error)";
     }
 }
 
@@ -87,7 +114,7 @@ serve(async (req) => {
 
     console.log(`Starting analysis for ID: ${improvisationId} at path: ${storagePath}. Is Improv: ${isImprovisation}`);
 
-    // --- SIMULATE ANALYSIS PROCESS (5 seconds delay) ---
+    // --- SIMULATE AUDIO FEATURE EXTRACTION (5 seconds delay) ---
     await new Promise(resolve => setTimeout(resolve, 5000)); 
 
     let isPiano;
@@ -98,8 +125,6 @@ serve(async (req) => {
         // If user says it's a composition, use the standard 80% chance
         isPiano = Math.random() < 0.8; 
     }
-    
-    const generatedName = generateName(isPiano);
     
     // --- SIMULATED ANALYSIS RESULTS ---
     
@@ -121,8 +146,11 @@ serve(async (req) => {
         simulated_tempo: isPiano ? 120 : 140,
         instrument_confidence: isPiano ? 0.98 : 0.25,
         mood: isPiano ? 'Melancholy' : 'Energetic',
-        user_declared_improv: isImprovisation // Include user input in analysis data
+        user_declared_improv: isImprovisation
     };
+
+    // --- AI NAME GENERATION ---
+    const generatedName = await generateNameWithGemini(analysisData, isImprovisation, isPiano, primaryGenre, secondaryGenre);
 
     // Update the database record with the generated name and analysis data
     const { error: updateError } = await supabase
