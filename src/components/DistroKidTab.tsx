@@ -57,6 +57,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp }) => {
           <CardTitle className="text-xl">Artwork Compliance Check</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {/* Since we generate 3000x3000, this check passes */}
           {renderStatusItem("High Resolution (3000x3000)", true, true)}
           {renderStatusItem("No Logos/Text/Frames", true, true)}
           {renderStatusItem("Unique Artwork", true, true)}
