@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -87,6 +87,42 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
     </Button>
   </a>
 );
+
+const MetadataSummaryCard: React.FC<{ imp: Improvisation }> = ({ imp }) => {
+    const isCompleted = imp.status === 'completed';
+    const analysis = imp.analysis_data;
+
+    const renderItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined) => (
+        <div className="flex items-center space-x-2">
+            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm font-medium text-muted-foreground">{label}:</span>
+            <span className="text-sm font-semibold text-primary truncate">
+                {value || (isCompleted ? 'N/A' : 'Awaiting Analysis')}
+            </span>
+        </div>
+    );
+
+    if (!imp.storage_path) {
+        return null; // Only show this card once the file is uploaded
+    }
+
+    return (
+        <Card className="border-l-4 border-blue-500/50">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-xl flex items-center">
+                    <Zap className="h-5 w-5 mr-2 text-blue-500" /> AI Metadata Summary
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {renderItem(Music, "Primary Genre", imp.primary_genre)}
+                {renderItem(Hash, "Key", analysis?.simulated_key)}
+                {renderItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo)}
+                {renderItem(Palette, "Mood", analysis?.mood)}
+            </CardContent>
+        </Card>
+    );
+};
+
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -549,6 +585,9 @@ const ImprovisationDetails: React.FC = () => {
             )}
           </Card>
 
+          {/* NEW: Metadata Summary Card */}
+          {imp && <MetadataSummaryCard imp={imp} />}
+
           {/* Composition Status Card */}
           <Card>
             <CardHeader>
@@ -738,7 +777,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
