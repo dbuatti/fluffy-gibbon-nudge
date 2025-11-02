@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -44,12 +44,13 @@ interface Improvisation {
   created_at: string;
   storage_path: string | null; // Now nullable
   notes: NoteTab[] | null; // New field
+  is_ready_for_release: boolean | null; // New field
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('*')
+    .select('*, is_ready_for_release') // Select the new column
     .eq('id', id)
     .single();
 
@@ -74,6 +75,7 @@ const ImprovisationDetails: React.FC = () => {
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [isRescanning, setIsRescanning] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isMarkingReady, setIsMarkingReady] = React.useState(false);
 
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
@@ -87,8 +89,9 @@ const ImprovisationDetails: React.FC = () => {
   const showLoadingSpinner = isLoading || isAnalyzing;
   const hasAudioFile = !!imp?.storage_path;
   const isCompleted = imp?.status === 'completed';
+  const isReadyForRelease = imp?.is_ready_for_release;
 
-  // --- HANDLER DEFINITIONS (Moved up to resolve TS2448) ---
+  // --- HANDLER DEFINITIONS ---
 
   const handleRefetch = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
@@ -165,6 +168,7 @@ const ImprovisationDetails: React.FC = () => {
           primary_genre: null,
           secondary_genre: null,
           analysis_data: null,
+          is_ready_for_release: false, // Reset readiness flag
         })
         .eq('id', imp.id);
 
@@ -191,6 +195,28 @@ const ImprovisationDetails: React.FC = () => {
       showError(`Failed to rescan analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRescanning(false);
+    }
+  };
+
+  const handleMarkReady = async () => {
+    if (!imp) return;
+    setIsMarkingReady(true);
+
+    try {
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .update({ is_ready_for_release: true })
+        .eq('id', imp.id);
+
+      if (dbError) throw dbError;
+
+      showSuccess("Composition marked as Ready for Release! Time to submit.");
+      handleRefetch();
+    } catch (error) {
+      console.error('Failed to mark ready:', error);
+      showError(`Failed to mark composition ready: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsMarkingReady(false);
     }
   };
 
@@ -293,17 +319,32 @@ const ImprovisationDetails: React.FC = () => {
         // Action 3: Generate Artwork
         if (!imp.artwork_url) {
             primaryAction = {
-                label: "Generate Artwork (20% Progress Boost)",
+                label: "Generate Artwork (10% Progress Boost)",
                 onClick: handleRegenerateArtwork, // Use existing function
                 variant: "outline"
             };
         }
     }
 
-    // Step 5: Artwork Generated (100%)
+    // Step 4: Artwork Generated (90%)
     if (isCompleted && hasNotes && imp.artwork_url) {
+      progressValue = 90;
+      progressMessage = "Artwork generated. Final step: Mark as Ready for Release!";
+      
+      // Action 4: Mark Ready
+      if (!isReadyForRelease) {
+          primaryAction = {
+              label: "Mark as Ready for Release (10% Progress Boost)",
+              onClick: handleMarkReady,
+              variant: "default"
+          };
+      }
+    }
+
+    // Step 5: Ready for Release (100%)
+    if (isReadyForRelease) {
       progressValue = 100;
-      progressMessage = "Composition is 100% ready for release!";
+      progressMessage = "Composition is 100% ready for release! Time to submit.";
       primaryAction = {
           label: "Go to Distribution Prep",
           onClick: () => {
@@ -410,9 +451,15 @@ const ImprovisationDetails: React.FC = () => {
                     onClick={primaryAction.onClick} 
                     variant={primaryAction.variant} 
                     className="w-full h-10 text-base"
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || isMarkingReady}
                 >
-                    {primaryAction.label}
+                    {isMarkingReady ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Marking Ready...
+                        </>
+                    ) : (
+                        primaryAction.label
+                    )}
                 </Button>
             ) : (
                 <p className="text-sm text-muted-foreground">{progressMessage}</p>
@@ -543,6 +590,13 @@ const ImprovisationDetails: React.FC = () => {
                         <Badge variant={imp.is_piano ? 'default' : 'destructive'} className="ml-2">
                             {imp.is_piano ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
                             {imp.is_piano ? 'Confirmed' : 'Unconfirmed'}
+                        </Badge>
+                    </div>
+                    <div className="flex items-center">
+                        <Send className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">Ready:</span> 
+                        <Badge variant={isReadyForRelease ? 'default' : 'outline'} className="ml-2 bg-green-500 hover:bg-green-500 text-white">
+                            {isReadyForRelease ? <CheckCircle className="h-3 w-3 mr-1" /> : 'Pending'}
                         </Badge>
                     </div>
                 </div>
