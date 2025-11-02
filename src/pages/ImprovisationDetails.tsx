@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles, Hash, Gauge, Palette, Info, Copy } from 'lucide-react';
@@ -100,9 +100,8 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
 const getPublicAudioUrl = (storagePath: string | null): string | null => {
     if (!storagePath) return null;
     
-    // Since we don't have access to the bucket settings, we'll use the client method:
-    const { data } = supabase.storage.from('piano_improvisations').getPublicUrl(storagePath);
-    return data.publicUrl;
+    // Use the helper function from the client integration
+    return getPublicAudioUrlHelper(storagePath);
 };
 
 
