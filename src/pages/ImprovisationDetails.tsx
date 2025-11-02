@@ -1,10 +1,10 @@
 import React from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -12,6 +12,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DistroKidTab from '@/components/DistroKidTab';
 import InsightTimerTab from '@/components/InsightTimerTab';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface Improvisation {
   id: string;
@@ -41,9 +42,11 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [isRescanning, setIsRescanning] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
@@ -106,7 +109,6 @@ const ImprovisationDetails: React.FC = () => {
       }
       
       // Wait a moment for the backend update to complete before refetching
-      // This delay helps ensure the database update is processed before the client tries to read it.
       await new Promise(resolve => setTimeout(resolve, 1500)); 
       
       queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
@@ -170,14 +172,80 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!imp) return;
+
+    setIsDeleting(true);
+    showSuccess("Deleting composition...");
+
+    try {
+      // 1. Delete file from Supabase Storage
+      const { error: storageError } = await supabase.storage
+        .from('piano_improvisations')
+        .remove([imp.storage_path]);
+
+      if (storageError) {
+        // Log storage error but continue to delete DB record
+        console.error("Failed to delete file from storage:", storageError);
+      }
+
+      // 2. Delete record from database (this should cascade if RLS is set up correctly)
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .delete()
+        .eq('id', imp.id);
+
+      if (dbError) throw dbError;
+
+      showSuccess(`Composition "${imp.file_name}" deleted successfully.`);
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+      navigate('/'); // Redirect to dashboard
+
+    } catch (error) {
+      console.error('Deletion failed:', error);
+      showError(`Failed to delete composition: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const isCompleted = imp.status === 'completed';
   const isAnalyzing = imp.status === 'analyzing';
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-        Analysis Details: {imp.generated_name || imp.file_name}
-      </h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Analysis Details: {imp.generated_name || imp.file_name}
+        </h1>
+        
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" disabled={isDeleting}>
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the composition record and the uploaded audio file from storage.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                {isDeleting ? 'Deleting...' : 'Delete Composition'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
 
       <Card>
         <CardHeader>
