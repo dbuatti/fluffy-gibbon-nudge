@@ -87,7 +87,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
       <DialogTrigger asChild>
         <Button 
           variant="default" 
-          className="w-full md:w-auto text-lg h-12 px-6 shadow-md hover:shadow-lg transition-shadow bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+          className="w-full md:w-auto text-lg h-12 px-6 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
         >
           <Music className="w-5 h-5 mr-2" /> Capture New Idea
         </Button>

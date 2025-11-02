@@ -113,7 +113,7 @@ const ImprovisationList: React.FC = () => {
   }
 
   return (
-    <Card className="w-full shadow-xl">
+    <Card className="w-full shadow-xl dark:shadow-3xl">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-2xl font-bold">My Ideas & Compositions</CardTitle>
         <Button variant="outline" onClick={() => refetch()}>Refresh List</Button>
@@ -147,9 +147,9 @@ const ImprovisationList: React.FC = () => {
                     onClick={() => navigate(`/improvisation/${imp.id}`)}
                   >
                     <TableCell>
-                      <Avatar className="h-10 w-10 rounded-md">
+                      <Avatar className="h-10 w-10 rounded-md border border-border/50 shadow-sm">
                         <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
-                        <AvatarFallback className="rounded-md">
+                        <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
                           <ImageIcon className="h-5 w-5 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>

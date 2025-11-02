@@ -10,6 +10,7 @@ import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
 import { supabase } from '@/integrations/supabase/client';
 import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge'; // Import Badge
+import { cn } from '@/lib/utils';
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -100,12 +101,12 @@ const Index = () => {
     : `💡 Start your streak today by capturing an idea!`;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <header className="mb-10">
-        <h1 className="text-4xl font-extrabold text-center text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-4xl font-extrabold text-center tracking-tight text-primary dark:text-primary-foreground">
           Composition & Analysis Hub
         </h1>
-        <p className="text-center text-lg text-gray-600 dark:text-gray-400 mt-2 max-w-2xl mx-auto">
+        <p className="text-center text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">
           Capture your spontaneous ideas first, then upload the audio to generate AI-powered metadata and prepare for distribution.
         </p>
       </header>
@@ -121,14 +122,17 @@ const Index = () => {
         </div>
 
         {/* STREAK TRACKER (Motivation) */}
-        <Card className="p-4 border-2 border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50">
+        <Card className={cn(
+            "p-4 border-2 shadow-lg",
+            "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
+        )}>
             <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold flex items-center text-yellow-700 dark:text-yellow-300">
                     <Flame className="w-6 h-6 mr-2" /> Consistency Tracker
                 </h3>
-                {todayActivity && <Badge className="bg-green-500 hover:bg-green-500 text-white"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
+                {todayActivity && <Badge className="bg-green-600 hover:bg-green-600 text-white"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
             </div>
-            <p className="mt-2 text-lg font-semibold text-gray-800 dark:text-gray-200">
+            <p className="mt-2 text-lg font-semibold text-foreground">
                 {streakMessage}
             </p>
         </Card>
@@ -136,7 +140,7 @@ const Index = () => {
         {/* QUICK LINKS (Reduced Cognitive Load) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          <Card className="hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-xl transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg">
                 <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
@@ -154,7 +158,7 @@ const Index = () => {
             </CardContent>
           </Card>
           
-          <Card className="hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-xl transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg">
                 <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
@@ -172,7 +176,7 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
+          <Card className="hover:shadow-xl transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg">
                 <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer

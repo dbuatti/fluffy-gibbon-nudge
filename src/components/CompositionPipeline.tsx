@@ -42,9 +42,9 @@ const CompositionPipeline: React.FC = () => {
       label: 'Idea Captured',
       count: totalUploaded, 
       icon: Upload, 
-      color: 'text-blue-500',
+      color: 'text-blue-500 dark:text-blue-400',
       description: 'Awaiting audio file upload.',
-      bg: 'bg-blue-500/10',
+      bg: 'bg-blue-500/10 dark:bg-blue-900/20',
       border: 'border-blue-500',
     },
     { 
@@ -52,9 +52,9 @@ const CompositionPipeline: React.FC = () => {
       label: 'Analyzing',
       count: totalAnalyzing, 
       icon: Clock, 
-      color: 'text-yellow-500',
+      color: 'text-yellow-500 dark:text-yellow-400',
       description: 'AI is generating metadata.',
-      bg: 'bg-yellow-500/10',
+      bg: 'bg-yellow-500/10 dark:bg-yellow-900/20',
       border: 'border-yellow-500',
     },
     { 
@@ -62,9 +62,9 @@ const CompositionPipeline: React.FC = () => {
       label: 'Ready',
       count: totalCompleted, 
       icon: CheckCircle, 
-      color: 'text-green-500',
+      color: 'text-green-600 dark:text-green-400',
       description: 'Ready for distribution prep.',
-      bg: 'bg-green-500/10',
+      bg: 'bg-green-500/10 dark:bg-green-900/20',
       border: 'border-green-500',
     },
   ];
@@ -78,7 +78,7 @@ const CompositionPipeline: React.FC = () => {
   }
 
   return (
-    <Card className="shadow-xl w-full">
+    <Card className="shadow-xl dark:shadow-3xl w-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
       </CardHeader>
@@ -93,20 +93,21 @@ const CompositionPipeline: React.FC = () => {
               <React.Fragment key={stage.status}>
                 <div 
                   className={cn(
-                    "flex-1 p-3 rounded-lg border transition-all flex items-center space-x-3",
+                    "flex-1 p-4 rounded-xl border transition-all flex items-center space-x-4",
                     stage.bg,
-                    isActive ? stage.border : 'border-gray-200 dark:border-gray-700'
+                    isActive ? stage.border : 'border-gray-200 dark:border-gray-700',
+                    "hover:shadow-md dark:hover:shadow-lg"
                   )}
                 >
-                  <Icon className={cn("h-6 w-6 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
+                  <Icon className={cn("h-8 w-8 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
                   <div>
-                    <h3 className="font-semibold text-sm">{stage.label}</h3>
-                    <p className="text-2xl font-extrabold leading-none">{stage.count}</p>
+                    <h3 className="font-semibold text-base">{stage.label}</h3>
+                    <p className="text-3xl font-extrabold leading-none">{stage.count}</p>
                   </div>
                 </div>
                 {index < pipelineStages.length - 1 && (
                   <div className="hidden md:flex items-center justify-center">
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
                   </div>
                 )}
               </React.Fragment>
