@@ -1,13 +1,14 @@
 import React from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface Improvisation {
   id: string;
@@ -35,11 +36,14 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const [isRegenerating, setIsRegenerating] = React.useState(false);
 
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
     queryFn: () => fetchImprovisationDetails(id!),
     enabled: !!id,
+    refetchInterval: 5000, // Keep polling in case analysis or artwork is still running
   });
 
   if (!id) {
@@ -63,10 +67,46 @@ const ImprovisationDetails: React.FC = () => {
     if (imp?.artwork_url) {
       const link = document.createElement('a');
       link.href = imp.artwork_url;
-      link.download = `${imp.generated_name || 'artwork'}_${imp.id}.jpg`;
+      // Ensure the downloaded file name reflects the high resolution
+      link.download = `${imp.generated_name || 'artwork'}_3000x3000.jpg`; 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+  };
+  
+  const handleRegenerateArtwork = async () => {
+    if (!imp || !imp.generated_name) {
+      showError("Cannot regenerate artwork: Analysis name is missing.");
+      return;
+    }
+
+    setIsRegenerating(true);
+    showSuccess("Artwork regeneration started...");
+
+    try {
+      const { error: functionError } = await supabase.functions.invoke('generate-artwork', {
+        body: {
+          improvisationId: imp.id,
+          generatedName: imp.generated_name,
+        },
+      });
+
+      if (functionError) {
+        throw functionError;
+      }
+      
+      // Wait a moment for the backend update to complete before refetching
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
+      showSuccess("New artwork generated successfully!");
+
+    } catch (error) {
+      console.error('Regeneration failed:', error);
+      showError(`Failed to regenerate artwork: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -96,11 +136,29 @@ const ImprovisationDetails: React.FC = () => {
                 <p className="mt-2">Artwork generating...</p>
               </div>
             )}
-            {isCompleted && imp.artwork_url && (
-              <Button onClick={handleDownload} className="w-full mt-4">
-                <Download className="h-4 w-4 mr-2" /> Download Artwork (1600x1600)
-              </Button>
-            )}
+            
+            <div className="space-y-2 mt-4">
+                {isCompleted && imp.artwork_url && (
+                  <Button onClick={handleDownload} className="w-full">
+                    <Download className="h-4 w-4 mr-2" /> Download Artwork (3000x3000)
+                  </Button>
+                )}
+                {isCompleted && (
+                  <Button 
+                    onClick={handleRegenerateArtwork} 
+                    variant="outline" 
+                    className="w-full"
+                    disabled={isRegenerating}
+                  >
+                    {isRegenerating ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
+                  </Button>
+                )}
+            </div>
           </div>
 
           <div className="w-full md:w-2/3 space-y-4">
