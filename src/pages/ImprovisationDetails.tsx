@@ -17,6 +17,7 @@ import AudioUploadForIdea from '@/components/AudioUploadForIdea';
 import CompositionNotes from '@/components/CompositionNotes';
 import { Progress } from '@/components/ui/progress';
 import FilePathSuggestion from '@/components/FilePathSuggestion'; // Import new component
+import TagGenerator from '@/components/TagGenerator'; // Import new component
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -45,12 +46,13 @@ interface Improvisation {
   storage_path: string | null; // Now nullable
   notes: NoteTab[] | null; // New field
   is_ready_for_release: boolean | null; // New field
+  user_tags: string[] | null; // New field
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('*, is_ready_for_release') // Select the new column
+    .select('*, is_ready_for_release, user_tags') // Select new columns
     .eq('id', id)
     .single();
 
@@ -522,6 +524,9 @@ const ImprovisationDetails: React.FC = () => {
             </div>
           )}
 
+          {/* NEW: Tag Generator */}
+          <TagGenerator improvisationId={imp.id} initialTags={imp.user_tags} />
+
           {/* 2. Composition Notes */}
           <div id="composition-notes">
             <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
@@ -573,7 +578,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRegenerating ? 'Regenerating...' : 'Regenerate Artwork'}
+                        {isRegenerating ? 'Regenerating...' : 'Rescan Artwork'}
                       </Button>
                     )}
                     {hasAudioFile && (
@@ -588,7 +593,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
