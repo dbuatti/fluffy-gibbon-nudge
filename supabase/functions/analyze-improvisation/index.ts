@@ -88,48 +88,67 @@ async function generateNameWithGemini(analysisData: any, isImprovisation: boolea
     }
 }
 
-// Function to intelligently select genres based on simulated mood and tempo
-function selectIntelligentGenres(isPiano: boolean, mood: string, tempo: number): { primary: string, secondary: string } {
-    const availableGenres = isPiano ? PIANO_GENRES : OTHER_GENRES;
-    let primaryGenre = 'Alternative';
-    let secondaryGenre = 'Folk';
-
-    // Simple mapping logic based on simulated features
-    if (isPiano) {
-        if (mood === 'Melancholy' && tempo < 130) {
-            primaryGenre = 'Classical';
-            secondaryGenre = 'New Age';
-        } else if (mood === 'Energetic' && tempo >= 130) {
-            primaryGenre = 'Jazz';
-            secondaryGenre = 'Pop';
-        } else if (mood === 'Neutral') {
-            primaryGenre = 'Singer/Songwriter';
-            secondaryGenre = 'Folk';
-        }
-    } else {
-        if (mood === 'Energetic' && tempo >= 130) {
-            primaryGenre = 'Dance';
-            secondaryGenre = 'Electronic';
-        } else if (mood === 'Melancholy') {
-            primaryGenre = 'R&B/Soul';
-            secondaryGenre = 'Blues';
-        }
+// Function to call Gemini API for intelligent genre classification
+async function classifyGenresWithGemini(analysisData: any, isPiano: boolean, isImprovisation: boolean): Promise<{ primary: string, secondary: string }> {
+    // @ts-ignore
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+        console.error("GEMINI_API_KEY is not set for genre classification.");
+        return { primary: "Unknown", secondary: "Unknown" };
     }
 
-    // Ensure selected genres are actually in the available list (fallback to random if not found)
-    if (!availableGenres.includes(primaryGenre)) {
-        primaryGenre = availableGenres[Math.floor(Math.random() * availableGenres.length)];
-    }
+    const genreList = isPiano ? PIANO_GENRES.join(', ') : OTHER_GENRES.join(', ');
+
+    const prompt = `You are an expert music classifier. Based on the following simulated analysis data, select the single best Primary Genre and a suitable Secondary Genre from the provided list.
     
-    // Select secondary genre randomly from the remaining list, ensuring it's not the primary
-    let secondaryOptions = availableGenres.filter(g => g !== primaryGenre);
-    if (secondaryOptions.length > 0) {
-        secondaryGenre = secondaryOptions[Math.floor(Math.random() * secondaryOptions.length)];
-    } else {
-        secondaryGenre = primaryGenre; // Should not happen with these lists
-    }
+    Analysis: Instrument=${isPiano ? 'Piano' : 'Other'}, Type=${isImprovisation ? 'Improvisation' : 'Composition'}, Key=${analysisData.simulated_key}, Tempo=${analysisData.simulated_tempo}, Mood=${analysisData.mood}.
+    
+    Available Genres: ${genreList}
+    
+    Respond ONLY with a JSON object containing the keys "primary" and "secondary". Example: {"primary": "Classical", "secondary": "New Age"}`;
 
-    return { primary: primaryGenre, secondary: secondaryGenre };
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY,
+            },
+            body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { 
+                    temperature: 0.5,
+                }
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            console.error("Gemini Genre API Error:", errorBody);
+            return { primary: "AI Error", secondary: "AI Error" };
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        
+        if (generatedText) {
+            try {
+                const result = JSON.parse(generatedText);
+                if (result.primary && result.secondary) {
+                    return { primary: result.primary, secondary: result.secondary };
+                }
+            } catch (e) {
+                console.error("Failed to parse Gemini genre JSON:", e);
+            }
+        }
+        return { primary: "Fallback Genre", secondary: "Fallback Genre" };
+
+    } catch (error) {
+        console.error("Error calling Gemini Genre API:", error);
+        return { primary: "Network Error", secondary: "Network Error" };
+    }
 }
 
 
@@ -174,7 +193,12 @@ serve(async (req) => {
     const simulatedTempo = isPiano ? 120 : 140;
     const simulatedMood = isPiano ? 'Melancholy' : 'Energetic';
 
-    const { primary: primaryGenre, secondary: secondaryGenre } = selectIntelligentGenres(isPiano, simulatedMood, simulatedTempo);
+    // --- AI GENRE CLASSIFICATION ---
+    const { primary: primaryGenre, secondary: secondaryGenre } = await classifyGenresWithGemini({
+        simulated_key: isPiano ? 'C Major' : 'A Minor', 
+        simulated_tempo: simulatedTempo,
+        mood: simulatedMood,
+    }, isPiano, isImprovisation);
 
     const analysisData = { 
         simulated_key: isPiano ? 'C Major' : 'A Minor', 
