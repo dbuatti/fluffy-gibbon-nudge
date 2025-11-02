@@ -8,6 +8,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PIANO_NAMES = [
+    "The Melancholy Waltz",
+    "Midnight Rhapsody",
+    "Chromatic Dreamscape",
+    "A Minor Ascent",
+    "Rainy Day Blues",
+    "Impromptu in C Sharp",
+    "Echoes of Yesterday"
+];
+
+const NON_PIANO_NAMES = [
+    "Synthwave Drive",
+    "Acoustic Guitar Jam",
+    "Drum Machine Groove",
+    "Ambient Pad Flow"
+];
+
 const GENRES = [
     "Afrobeat", "Afropop", "Alternative", "Big Band", "Blues", "Children's Music", 
     "Christian/Gospel", "Classical", "Comedy", "Country", "Dance", "Electronic", 
@@ -18,16 +35,8 @@ const GENRES = [
 ];
 
 // Helper function to simulate analysis and generate a name
-function generateName(): string {
-    const names = [
-        "The Melancholy Waltz",
-        "Midnight Rhapsody",
-        "Chromatic Dreamscape",
-        "A Minor Ascent",
-        "Rainy Day Blues",
-        "Impromptu in C Sharp",
-        "Echoes of Yesterday"
-    ];
+function generateName(isPiano: boolean): string {
+    const names = isPiano ? PIANO_NAMES : NON_PIANO_NAMES;
     const randomIndex = Math.floor(Math.random() * names.length);
     return names[randomIndex];
 }
@@ -79,10 +88,11 @@ serve(async (req) => {
     // --- SIMULATE ANALYSIS PROCESS (5 seconds delay) ---
     await new Promise(resolve => setTimeout(resolve, 5000)); 
 
-    const generatedName = generateName();
+    // 80% chance it's a piano piece, 20% chance it's not
+    const isPiano = Math.random() < 0.8; 
+    const generatedName = generateName(isPiano);
     
     // --- SIMULATED ANALYSIS RESULTS ---
-    const isPiano = true; // Assume success for simulation
     
     // Randomly select primary genre
     const primaryGenreIndex = Math.floor(Math.random() * GENRES.length);
@@ -96,10 +106,10 @@ serve(async (req) => {
     const secondaryGenre = GENRES[secondaryGenreIndex];
 
     const analysisData = { 
-        simulated_key: 'C Major', 
-        simulated_tempo: 120,
-        instrument_confidence: 0.98,
-        mood: 'Melancholy'
+        simulated_key: isPiano ? 'C Major' : 'A Minor', 
+        simulated_tempo: isPiano ? 120 : 140,
+        instrument_confidence: isPiano ? 0.98 : 0.25,
+        mood: isPiano ? 'Melancholy' : 'Energetic'
     };
 
     // Update the database record with the generated name and analysis data
