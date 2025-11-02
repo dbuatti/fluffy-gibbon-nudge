@@ -226,7 +226,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
         )}
 
         {/* Hidden Audio Element */}
-        <audio ref={audioRef} src={publicUrl} preload="metadata" />
+        <audio ref={audioRef} src={publicUrl} preload="metadata" crossOrigin="anonymous" />
       </CardContent>
     </Card>
   );
