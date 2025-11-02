@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2 } from 'lucide-react';
+import { Loader2, Download, Music, CheckCircle, XCircle, Piano, RefreshCw, Trash2, ExternalLink, Clock, Image as ImageIcon, Zap, ArrowLeft, Send, Edit2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -22,7 +22,8 @@ import EditableField from '@/components/EditableField';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch'; // Import Switch
+import { Switch } from '@/components/ui/switch';
+import { useTitleGenerator } from '@/hooks/useTitleGenerator'; // Import new hook
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -102,6 +103,11 @@ const ImprovisationDetails: React.FC = () => {
   });
 
   const updateMutation = useUpdateImprovisation(id!);
+  
+  // Handler for Editable Fields (used by useTitleGenerator)
+  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
+  
+  const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(id!, handleUpdateName);
 
   // Determine if we are loading the initial data OR if the status is actively analyzing
   const isAnalyzing = imp?.status === 'analyzing';
@@ -401,12 +407,10 @@ const ImprovisationDetails: React.FC = () => {
   const compositionName = imp.generated_name || imp.file_name || 'Untitled Idea';
 
   // Handlers for Editable Fields
-  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
   const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
   const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
   const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
-  // NEW HANDLERS
   const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
   const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
   const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
@@ -443,16 +447,48 @@ const ImprovisationDetails: React.FC = () => {
       
       <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
         <div className="flex-grow">
-          {/* EDITABLE TITLE */}
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-            <EditableField
-                value={imp.generated_name}
-                label="Composition Title"
-                onSave={handleUpdateName}
-                className="text-3xl font-bold p-0"
-                placeholder="Click to set title"
-            />
-          </h1>
+          <div className="flex items-center space-x-2">
+            {/* EDITABLE TITLE */}
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+              <EditableField
+                  value={imp.generated_name}
+                  label="Composition Title"
+                  onSave={handleUpdateName}
+                  className="text-3xl font-bold p-0"
+                  placeholder="Click to set title"
+              />
+            </h1>
+            
+            {/* Title Generation Buttons */}
+            <div className="flex space-x-1">
+                <Button 
+                    onClick={handleRandomGenerate} 
+                    size="icon" 
+                    variant="ghost" 
+                    title="Generate Random Title"
+                    disabled={isGenerating || updateMutation.isPending}
+                >
+                    {isGenerating && updateMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <RefreshCw className="h-4 w-4" />
+                    )}
+                </Button>
+                <Button 
+                    onClick={handleAIGenerate} 
+                    size="icon" 
+                    variant="ghost" 
+                    title="Generate AI Title (Based on Analysis & Notes)"
+                    disabled={isGenerating || updateMutation.isPending}
+                >
+                    {isGenerating && updateMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <Sparkles className="h-4 w-4 text-purple-500" />
+                    )}
+                </Button>
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
           </p>
@@ -700,7 +736,7 @@ const ImprovisationDetails: React.FC = () => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        {isRescanning || isAnalyzing ? 'Rescanning...' : 'Rescan Analysis'}
+                        {isRescanning || isAnalyzing ? 'Rescan Analysis' : 'Rescan Analysis'}
                       </Button>
                     )}
                 </div>
@@ -830,8 +866,6 @@ const ImprovisationDetails: React.FC = () => {
                 )}
             </CardContent>
           </Card>
-
-          {/* REMOVED: External Tools Card (Moved to Assets & Downloads) */}
 
           {isCompleted && (
             <Tabs defaultValue="distrokid" className="w-full">
