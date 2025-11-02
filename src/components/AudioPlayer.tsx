@@ -98,7 +98,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ storagePath, fileName, public
         let errorMessage = "Error loading audio file.";
         // Check for specific error codes (e.g., NETWORK_ERR=2, DECODE_ERR=3, SRC_NOT_SUPPORTED=4)
         if (audio.error?.code === 4) {
-            errorMessage = "Audio format not supported or file missing. Ensure it's a valid MP3/M4A.";
+            errorMessage = "File not found, format unsupported, or Supabase Storage permissions are incorrect.";
         }
         setError(errorMessage);
       });
