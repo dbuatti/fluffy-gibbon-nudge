@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Sparkles, User } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -75,25 +75,25 @@ const getNextAction = (imp: Improvisation) => {
   const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
-    return { label: 'Upload Audio', icon: Upload, color: 'text-blue-500' };
+    return { label: 'Upload Audio', icon: Upload, color: 'text-blue-500', type: 'manual' };
   }
   if (imp.status === 'analyzing') {
-    return { label: 'AI Analyzing...', icon: Clock, color: 'text-yellow-500' };
+    return { label: 'AI Analyzing...', icon: Clock, color: 'text-yellow-500', type: 'ai' };
   }
   if (imp.status === 'completed') {
     if (!hasNotes) {
-      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-purple-500' };
+      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-purple-500', type: 'manual' };
     }
     if (!hasArtwork) {
-      return { label: 'Generate Artwork', icon: Palette, color: 'text-orange-500' };
+      return { label: 'Generate Artwork', icon: Palette, color: 'text-orange-500', type: 'ai' };
     }
     if (!isReady) {
-      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-green-600' };
+      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-green-600', type: 'manual' };
     }
-    return { label: 'Submit to DistroKid', icon: Send, color: 'text-green-700' };
+    return { label: 'Submit to DistroKid', icon: Send, color: 'text-green-700', type: 'manual' };
   }
   
-  return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground' };
+  return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
 };
 
 const ImprovisationList: React.FC = () => {
@@ -176,7 +176,11 @@ const ImprovisationList: React.FC = () => {
                                 nextAction.label.includes('Ready') && 'bg-green-100 dark:bg-green-900/50',
                             )}
                         >
-                            <Icon className={cn("w-3 h-3 mr-1.5", nextAction.label.includes('Analyzing') && 'animate-spin')} />
+                            {nextAction.type === 'ai' ? (
+                                <Sparkles className={cn("w-3 h-3 mr-1.5", nextAction.label.includes('Analyzing') && 'animate-spin')} />
+                            ) : (
+                                <User className="w-3 h-3 mr-1.5" />
+                            )}
                             {nextAction.label}
                         </Badge>
                     </TableCell>

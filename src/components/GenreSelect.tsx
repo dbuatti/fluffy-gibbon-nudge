@@ -118,7 +118,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
 
     const handleSelectChange = (newValue: string) => {
         if (newValue === "+custom") {
-            // Switch to text input mode
+            // Switch to text input mode, pre-populating with current value
             setCurrentValue(value || ''); 
             setIsCustomInput(true);
             setIsEditing(true);
