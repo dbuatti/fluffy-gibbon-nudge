@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3 } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { useSession } from '@/integrations/supabase/session-context';
+import { showSuccess, showError } from '@/utils/toast';
 
 interface NoteTab {
   id: string;
@@ -30,6 +32,27 @@ interface Improvisation {
   notes: NoteTab[] | null;
   storage_path: string | null;
   is_ready_for_release: boolean | null;
+  // Include all fields for export
+  user_id: string;
+  is_piano: boolean | null;
+  is_improvisation: boolean | null;
+  primary_genre: string | null;
+  secondary_genre: string | null;
+  analysis_data: any | null;
+  user_tags: string[] | null;
+  is_instrumental: boolean | null;
+  is_original_song: boolean | null;
+  has_explicit_lyrics: boolean | null;
+  is_metadata_confirmed: boolean | null;
+  insight_content_type: string | null;
+  insight_language: string | null;
+  insight_primary_use: string | null;
+  insight_audience_level: string | null;
+  insight_audience_age: string[] | null;
+  insight_benefits: string[] | null;
+  insight_practices: string | null;
+  insight_themes: string[] | null;
+  insight_voice: string | null;
 }
 
 const STALLED_THRESHOLD_HOURS = 48;
@@ -37,7 +60,7 @@ const STALLED_THRESHOLD_HOURS = 48;
 const fetchImprovisations = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id, file_name, status, generated_name, artwork_url, artwork_prompt, created_at, notes, storage_path, is_ready_for_release')
+    .select('*') // Select all fields for potential export
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -76,7 +99,7 @@ const getNextAction = (imp: Improvisation) => {
   const hasFile = !!imp.storage_path;
   const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
   const hasArtworkPrompt = !!imp.artwork_prompt;
-  const hasArtworkUrl = !!imp.artwork_url;
+  const hasArtworkUrl = !!imp.artwork_url; // This will be null unless manually uploaded
   const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
@@ -92,7 +115,8 @@ const getNextAction = (imp: Improvisation) => {
     if (!hasArtworkPrompt) {
       return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary', type: 'ai' };
     }
-    if (!hasArtworkUrl) {
+    // If artwork_prompt exists but artwork_url is null, it means artwork needs manual upload
+    if (hasArtworkPrompt && !hasArtworkUrl) {
       return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary', type: 'manual' };
     }
     if (!isReady) {
@@ -114,11 +138,16 @@ interface ImprovisationListProps {
 
 const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
+  const { session, isLoading: isSessionLoading } = useSession();
+  const queryClient = useQueryClient();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [isExportingBulk, setIsExportingBulk] = useState(false);
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
     queryFn: fetchImprovisations,
+    enabled: !isSessionLoading && !!session?.user?.id,
     refetchInterval: 5000,
   });
 
@@ -141,6 +170,86 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       setSelectedCompositions(allIds);
     } else {
       setSelectedCompositions(new Set());
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCompositions.size === 0 || !window.confirm(`Are you sure you want to delete ${selectedCompositions.size} compositions? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeletingBulk(true);
+    showSuccess(`Deleting ${selectedCompositions.size} compositions...`);
+
+    try {
+      for (const id of selectedCompositions) {
+        const impToDelete = improvisations?.find(imp => imp.id === id);
+        if (impToDelete) {
+          // 1. Delete audio file from Supabase Storage (if exists)
+          if (impToDelete.storage_path) {
+            const { error: storageError } = await supabase.storage
+              .from('piano_improvisations')
+              .remove([impToDelete.storage_path]);
+            if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
+          }
+          // 2. Delete artwork from Supabase Storage (if manually uploaded and artwork_url is a path)
+          //    Currently, artwork_url is just a URL, so this part is effectively skipped.
+          //    If manual artwork upload is implemented to a Supabase bucket, this logic would need to be updated.
+
+          // 3. Delete record from database
+          const { error: dbError } = await supabase
+            .from('improvisations')
+            .delete()
+            .eq('id', id);
+          if (dbError) throw dbError;
+        }
+      }
+      showSuccess(`${selectedCompositions.size} compositions deleted successfully.`);
+      setSelectedCompositions(new Set()); // Clear selection
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+      queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
+    } catch (error) {
+      console.error('Bulk deletion failed:', error);
+      showError(`Failed to delete compositions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeletingBulk(false);
+    }
+  };
+
+  const handleBulkExport = async () => {
+    if (selectedCompositions.size === 0) {
+      showError("No compositions selected for export.");
+      return;
+    }
+
+    setIsExportingBulk(true);
+    showSuccess(`Exporting ${selectedCompositions.size} compositions' metadata...`);
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('improvisations')
+        .select('*') // Fetch all details for selected compositions
+        .in('id', Array.from(selectedCompositions));
+
+      if (fetchError) throw fetchError;
+
+      const exportData = JSON.stringify(data, null, 2);
+      const blob = new Blob([exportData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `compositions_export_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showSuccess(`${selectedCompositions.size} compositions exported successfully.`);
+    } catch (error) {
+      console.error('Bulk export failed:', error);
+      showError(`Failed to export compositions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExportingBulk(false);
     }
   };
 
@@ -223,8 +332,32 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                         </label>
                     </div>
                     <div className="flex space-x-2">
-                        <Button variant="secondary" size="sm" disabled>Delete</Button>
-                        <Button variant="secondary" size="sm" disabled>Export</Button>
+                        <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            onClick={handleBulkDelete} 
+                            disabled={isDeletingBulk}
+                        >
+                            {isDeletingBulk ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-4 w-4 mr-2" />
+                            )}
+                            Delete
+                        </Button>
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={handleBulkExport} 
+                            disabled={isExportingBulk}
+                        >
+                            {isExportingBulk ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Download className="h-4 w-4 mr-2" />
+                            )}
+                            Export
+                        </Button>
                         <Button variant="secondary" size="sm" disabled>Move</Button>
                         {/* Add more bulk actions here */}
                     </div>
