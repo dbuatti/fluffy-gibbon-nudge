@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
 import DailyPromptCard from '@/components/DailyPromptCard'; // NEW: Import DailyPromptCard
 import StreakCard from '@/components/StreakCard'; // NEW: Import StreakCard
 
@@ -23,10 +24,10 @@ interface Improvisation {
   created_at: string;
 }
 
-const fetchImprovisationDates = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
+const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
-  console.log("fetchImprovisationDates: Supabase client session:", supabase.auth.currentSession); // Add this line
-  const { data, error } = await supabase
+  console.log("fetchImprovisationDates: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
+  const { data, error } = await supabaseClient
     .from('improvisations')
     .select('created_at')
     .eq('user_id', sessionUserId) // Filter by user_id
@@ -99,7 +100,7 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const { session, isLoading: isSessionLoading, supabase: supabaseClientFromContext } = useSession(); // Use useSession
+  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -109,7 +110,7 @@ const Index = () => {
 
   const { data: improvisationDates } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
-    queryFn: () => fetchImprovisationDates(supabaseClientFromContext, session!.user.id), // Pass supabase client and user ID to fetcher
+    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Use directly imported supabase
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,

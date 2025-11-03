@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
 import { showSuccess, showError } from '@/utils/toast';
 
 interface NoteTab {
@@ -56,10 +57,10 @@ interface Improvisation {
 
 const STALLED_THRESHOLD_HOURS = 24; // Define the constant here
 
-const fetchImprovisations = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
+const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
-  console.log("fetchImprovisations: Supabase client session:", supabase.auth.currentSession); // Add this line
-  const { data, error } = await supabase
+  console.log("fetchImprovisations: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
+  const { data, error } = await supabaseClient
     .from('improvisations')
     .select('*') // Select all fields for potential export
     .eq('user_id', sessionUserId) // Filter by user_id
@@ -141,7 +142,7 @@ interface ImprovisationListProps {
 
 const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading, supabase: supabaseClientFromContext } = useSession(); // Use useSession
+  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
   const queryClient = useQueryClient();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
@@ -151,7 +152,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
-    queryFn: () => fetchImprovisations(supabaseClientFromContext, session!.user.id), // Pass supabase client and user ID to fetcher
+    queryFn: () => fetchImprovisations(supabase, session!.user.id), // Use directly imported supabase
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
@@ -192,7 +193,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
         if (impToDelete) {
           // 1. Delete audio file from Supabase Storage (if exists)
           if (impToDelete.storage_path) {
-            const { error: storageError } = await supabaseClientFromContext.storage
+            const { error: storageError } = await supabase.storage // Use directly imported supabase
               .from('piano_improvisations')
               .remove([impToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
@@ -202,7 +203,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
           //    If manual artwork upload is implemented to a Supabase bucket, this logic would need to be updated.
 
           // 3. Delete record from database
-          const { error: dbError } = await supabaseClientFromContext
+          const { error: dbError } = await supabase // Use directly imported supabase
             .from('improvisations')
             .delete()
             .eq('id', id);
@@ -231,7 +232,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
     showSuccess(`Exporting ${selectedCompositions.size} compositions' metadata...`);
 
     try {
-      const { data, error: fetchError } = await supabaseClientFromContext
+      const { data, error: fetchError } = await supabase // Use directly imported supabase
         .from('improvisations')
         .select('*') // Fetch all details for selected compositions
         .in('id', Array.from(selectedCompositions));

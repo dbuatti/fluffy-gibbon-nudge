@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
 
 
 interface StatusCount {
@@ -11,12 +12,12 @@ interface StatusCount {
   count: number;
 }
 
-const fetchStatusCounts = async (supabase: any, sessionUserId: string): Promise<StatusCount[]> => {
+const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Promise<StatusCount[]> => {
   console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
-  console.log("fetchStatusCounts: Supabase client session:", supabase.auth.currentSession); // Add this line
+  console.log("fetchStatusCounts: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
-    const { count, error } = await supabase
+    const { count, error } = await supabaseClient
       .from('improvisations')
       .select('*', { count: 'exact', head: true })
       .eq('status', status)
@@ -37,12 +38,12 @@ const fetchStatusCounts = async (supabase: any, sessionUserId: string): Promise<
 };
 
 const CompositionPipeline: React.FC = () => {
-  const { session, isLoading: isSessionLoading, supabase: supabaseClientFromContext } = useSession(); // Use useSession
+  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
   console.log("CompositionPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
-    queryFn: () => fetchStatusCounts(supabaseClientFromContext, session!.user.id), // Pass supabase client and user ID to fetcher
+    queryFn: () => fetchStatusCounts(supabase, session!.user.id), // Use directly imported supabase
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
