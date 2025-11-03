@@ -112,7 +112,7 @@ const CompositionPipeline: React.FC = () => {
               <React.Fragment key={stage.status}>
                 <div 
                   className={cn(
-                    "flex-1 p-4 rounded-xl border transition-all flex items-center space-x-4 h-24",
+                    "flex-1 px-3 py-4 rounded-xl border transition-all flex items-center space-x-3 h-24", // Changed p-4 to px-3 py-4, space-x-4 to space-x-3
                     stage.bg,
                     isActive ? `border-2 border-${stage.border}` : 'border-gray-200 dark:border-gray-700',
                     "hover:shadow-md dark:hover:shadow-lg"
@@ -123,7 +123,7 @@ const CompositionPipeline: React.FC = () => {
                   </div>
                   
                   <div className="flex flex-col justify-center">
-                    <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3>
+                    <h3 className="font-semibold text-xs text-muted-foreground">{stage.label}</h3> {/* Changed text-sm to text-xs */}
                     <p className="text-3xl font-extrabold leading-none">{stage.count}</p>
                   </div>
                 </div>
