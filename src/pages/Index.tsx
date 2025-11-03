@@ -7,10 +7,10 @@ import { ExternalLink, Music, Clock, Sparkles, Flame, CalendarCheck, Zap } from 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
-import DailyPromptCard from "@/components/DailyPromptCard"; // Import new component
+import DailyPromptCard from "@/components/DailyPromptCard";
 import { supabase } from '@/integrations/supabase/client';
 import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
-import { Badge } from '@/components/ui/badge'; // Import Badge
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -55,7 +55,6 @@ const useStreakTracker = (data: Improvisation[] | undefined) => {
   // If no activity today, we check if there was activity yesterday to maintain a streak.
   else if (activityDates.has(format(subDays(dateToCheck, 1), 'yyyy-MM-dd'))) {
     // Streak starts at 1 if activity was yesterday, but today's goal is missed.
-    // We don't count today as part of the streak yet.
     currentStreak = 1;
     dateToCheck = subDays(dateToCheck, 2);
   } else {
@@ -114,99 +113,112 @@ const Index = () => {
       
       <main className="max-w-6xl mx-auto space-y-10">
         
-        {/* ACTION ZONE: Capture Idea & Pipeline */}
-        <CompositionPipeline 
-          headerAction={
-            <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
-              <Button 
-                variant="default" 
-                className="w-full md:w-auto text-sm h-9 px-4 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
-              >
-                <Music className="w-4 h-4 mr-2" /> Capture New Idea
-              </Button>
-            </CaptureIdeaDialog>
-          }
-        />
-        
-        {/* DAILY CREATIVE PROMPT */}
-        <DailyPromptCard />
-        
-        {/* STREAK TRACKER (Motivation) */}
-        <Card className={cn(
-            "p-4 border-2 shadow-card-light dark:shadow-card-dark",
-            "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
-        )}>
-            <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold flex items-center text-yellow-700 dark:text-yellow-300">
-                    <Flame className="w-6 h-6 mr-2" /> Consistency Tracker
-                </h3>
-                {todayActivity && <Badge className="bg-success hover:bg-success/90 text-success-foreground"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
+        {/* Main Grid Layout for Desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Left Column (Main Content: Pipeline & List) - Takes 2/3 width on large screens */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* Primary Action & Pipeline */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CompositionPipeline />
+                <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
+                  <Button 
+                    variant="default" 
+                    className="w-full sm:w-auto text-sm h-10 px-4 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-shrink-0"
+                  >
+                    <Music className="w-4 h-4 mr-2" /> Capture New Idea
+                  </Button>
+                </CaptureIdeaDialog>
             </div>
-            <p className="mt-2 text-lg font-semibold text-foreground flex items-center">
-                <Flame className="w-5 h-5 mr-2 text-orange-500" />
-                {streakMessage}
-            </p>
-        </Card>
-
-        {/* QUICK LINKS (Reduced Cognitive Load) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Improvisation List */}
+            <ImprovisationList />
+          </div>
           
-          <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center text-lg">
-                <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Quick access to your AI assistant for brainstorming or creative writing.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <a href={GEMINI_URL} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="w-full">
-                  Open Gemini <ExternalLink className="w-4 h-4 ml-2" />
-                </Button>
-              </a>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center text-lg">
-                <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Prepare metadata for streaming platforms like Spotify and Apple Music.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <a href={DISTROKID_URL} target="_blank" rel="noopener noreferrer">
-                <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
-                  Go to DistroKid <ExternalLink className="w-4 h-4 ml-2" />
-                </Button>
-              </a>
-            </CardContent>
-          </Card>
+          {/* Right Column (Utility: Prompt, Streak, Quick Links) - Takes 1/3 width on large screens */}
+          <div className="lg:col-span-1 space-y-6">
+            
+            {/* DAILY CREATIVE PROMPT */}
+            <DailyPromptCard />
+            
+            {/* STREAK TRACKER (Motivation) */}
+            <Card className={cn(
+                "p-4 border-2 shadow-card-light dark:shadow-card-dark",
+                "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
+            )}>
+                <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold flex items-center text-yellow-700 dark:text-yellow-300">
+                        <Flame className="w-6 h-6 mr-2" /> Consistency Tracker
+                    </h3>
+                    {todayActivity && <Badge className="bg-success hover:bg-success/90 text-success-foreground"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
+                </div>
+                <p className="mt-2 text-lg font-semibold text-foreground flex items-center">
+                    <Flame className="w-5 h-5 mr-2 text-orange-500" />
+                    {streakMessage}
+                </p>
+            </Card>
 
-          <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center text-lg">
-                <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Prepare track details for meditation and wellness platforms.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <a href={INSIGHT_TIMER_URL} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="w-full">
-                  Go to Insight Timer <ExternalLink className="w-4 h-4 ml-2" />
-                </Button>
-              </a>
-            </CardContent>
-          </Card>
+            {/* QUICK LINKS */}
+            <h3 className="text-lg font-bold text-muted-foreground pt-2">Quick Links</h3>
+            <div className="space-y-4">
+              
+              <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-lg">
+                    <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Quick access to your AI assistant for brainstorming or creative writing.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <a href={GEMINI_URL} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="w-full">
+                      Open Gemini <ExternalLink className="w-4 h-4 ml-2" />
+                    </Button>
+                  </a>
+                </CardContent>
+              </Card>
+              
+              <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-lg">
+                    <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Prepare metadata for streaming platforms like Spotify and Apple Music.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <a href={DISTROKID_URL} target="_blank" rel="noopener noreferrer">
+                    <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
+                      Go to DistroKid <ExternalLink className="w-4 h-4 ml-2" />
+                    </Button>
+                  </a>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center text-lg">
+                    <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Prepare track details for meditation and wellness platforms.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <a href={INSIGHT_TIMER_URL} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="w-full">
+                      Go to Insight Timer <ExternalLink className="w-4 h-4 ml-2" />
+                    </Button>
+                  </a>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
-
-        <ImprovisationList />
       </main>
 
       <MadeWithDyad />
