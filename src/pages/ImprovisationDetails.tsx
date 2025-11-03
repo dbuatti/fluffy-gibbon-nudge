@@ -199,7 +199,7 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
       // 1. Delete file from Supabase Storage (only if a file exists)
       if (imp.storage_path) { // Updated variable
         const { error: storageError } = await supabase.storage
-          .from('audio_improvisations') // Updated bucket name
+          .from('piano_improvisations') // Updated bucket name
           .remove([imp.storage_path]); // Updated variable
 
         if (storageError) {

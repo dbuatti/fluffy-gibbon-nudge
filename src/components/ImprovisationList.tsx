@@ -194,7 +194,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
           // 1. Delete audio file from Supabase Storage (if exists)
           if (impToDelete.storage_path) {
             const { error: storageError } = await supabase.storage
-              .from('audio_improvisations') // Updated bucket name
+              .from('piano_improvisations') // Updated bucket name
               .remove([impToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
           }
@@ -447,7 +447,6 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }} // Updated path
                         >
                             <Icon className={cn(
-                                "w-4 h-4 mr-2", 
                                 nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
                                 nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',
                                 nextAction.label.includes('Ready') && 'text-success dark:text-success-foreground',

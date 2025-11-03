@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { UploadCloud, Music, Loader2 } from 'lucide-react';
+import { UploadCloud, Music, Loader2 } from 'lucide-react'; // Corrected import path
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -66,7 +66,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const user = session.user;
     const fileExtension = file.name.split('.').pop();
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'audio_improvisations'; // Updated bucket name
+    const bucketName = 'piano_improvisations'; // Updated bucket name
     const generatedName = file.name.replace(`.${fileExtension}`, '').trim();
 
     try {

@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Loader2, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSession } from '@/integrations/supabase/session-context';
 import { showError, showSuccess } from '@/utils/toast';
+import { useSession } from '@/integrations/supabase/session-context'; // Added missing import
 
 interface AudioUploadForImprovisationProps {
   improvisationId: string; // Renamed prop
@@ -55,7 +55,7 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
     const fileExtension = file.name.split('.').pop();
     // Path format: user_id/timestamp.ext
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'audio_improvisations'; // Updated bucket name
+    const bucketName = 'piano_improvisations'; // Updated bucket name
 
     try {
       // 1. Upload file to Supabase Storage
