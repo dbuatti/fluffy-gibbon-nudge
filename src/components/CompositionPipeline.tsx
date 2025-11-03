@@ -30,7 +30,11 @@ const fetchStatusCounts = async (): Promise<StatusCount[]> => {
   return results;
 };
 
-const CompositionPipeline: React.FC = () => {
+interface CompositionPipelineProps {
+  headerAction: React.ReactNode;
+}
+
+const CompositionPipeline: React.FC<CompositionPipelineProps> = ({ headerAction }) => {
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
     queryFn: fetchStatusCounts,
@@ -99,8 +103,9 @@ const CompositionPipeline: React.FC = () => {
 
   return (
     <Card className="shadow-card-light dark:shadow-card-dark w-full">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
+        {headerAction}
       </CardHeader>
       <CardContent>
         <div className="flex flex-col md:flex-row items-stretch justify-between gap-4">
