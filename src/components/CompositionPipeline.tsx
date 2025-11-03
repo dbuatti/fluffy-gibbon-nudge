@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Upload, Clock, CheckCircle, ArrowRight, Edit2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Loader2, Clock, ArrowRight, Edit2, Sparkles, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StatusCount {
@@ -20,7 +20,6 @@ const fetchStatusCounts = async (): Promise<StatusCount[]> => {
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
-      // Return 0 on error to prevent the entire pipeline from failing
       return { status, count: 0 };
     }
     return { status, count: count || 0 };
@@ -97,7 +96,6 @@ const CompositionPipeline: React.FC<CompositionPipelineProps> = ({ headerAction 
   }
 
   if (error) {
-    // Display a more user-friendly error message if the query fails
     return <div className="text-center p-4 text-red-500">Error loading pipeline status. Please check your network connection.</div>;
   }
 
@@ -108,7 +106,7 @@ const CompositionPipeline: React.FC<CompositionPipelineProps> = ({ headerAction 
         {headerAction}
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col md:flex-row items-stretch justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
           {pipelineStages.map((stage, index) => {
             const Icon = stage.icon;
             const isActive = stage.count > 0;
@@ -118,20 +116,23 @@ const CompositionPipeline: React.FC<CompositionPipelineProps> = ({ headerAction 
               <React.Fragment key={stage.status}>
                 <div 
                   className={cn(
-                    "flex-1 p-4 rounded-xl border transition-all flex items-center space-x-4",
+                    "flex-1 p-4 rounded-xl border transition-all flex items-center space-x-4 h-24",
                     stage.bg,
-                    isActive ? stage.border : 'border-gray-200 dark:border-gray-700',
+                    isActive ? `border-2 border-${stage.border}` : 'border-gray-200 dark:border-gray-700',
                     "hover:shadow-md dark:hover:shadow-lg"
                   )}
                 >
-                  <Icon className={cn("h-8 w-8 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
-                  <div>
-                    <h3 className="font-semibold text-base">{stage.label}</h3>
+                  <div className={cn("h-10 w-10 flex items-center justify-center rounded-full", stage.bg)}>
+                    <Icon className={cn("h-6 w-6 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
+                  </div>
+                  
+                  <div className="flex flex-col justify-center">
+                    <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3>
                     <p className="text-3xl font-extrabold leading-none">{stage.count}</p>
                   </div>
                 </div>
                 {index < pipelineStages.length - 1 && (
-                  <div className="hidden md:flex items-center justify-center">
+                  <div className="hidden md:flex items-center justify-center mx-1">
                     <ArrowRight className="h-5 w-5 text-muted-foreground" />
                   </div>
                 )}

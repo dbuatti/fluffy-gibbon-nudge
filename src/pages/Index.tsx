@@ -98,8 +98,8 @@ const Index = () => {
   };
   
   const streakMessage = streak > 0 
-    ? `🔥 ${streak}-Day Streak! Keep the momentum going.`
-    : `💡 Start your streak today by capturing an idea!`;
+    ? `${streak}-Day Streak! Keep the momentum going.`
+    : `Start your streak today by capturing an idea!`;
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -128,12 +128,12 @@ const Index = () => {
           }
         />
         
-        {/* NEW: DAILY CREATIVE PROMPT */}
+        {/* DAILY CREATIVE PROMPT */}
         <DailyPromptCard />
         
         {/* STREAK TRACKER (Motivation) */}
         <Card className={cn(
-            "p-4 border-2 shadow-card-light dark:shadow-card-dark", // Use new shadow classes
+            "p-4 border-2 shadow-card-light dark:shadow-card-dark",
             "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
         )}>
             <div className="flex items-center justify-between">
@@ -142,7 +142,8 @@ const Index = () => {
                 </h3>
                 {todayActivity && <Badge className="bg-success hover:bg-success/90 text-success-foreground"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
             </div>
-            <p className="mt-2 text-lg font-semibold text-foreground">
+            <p className="mt-2 text-lg font-semibold text-foreground flex items-center">
+                <Flame className="w-5 h-5 mr-2 text-orange-500" />
                 {streakMessage}
             </p>
         </Card>

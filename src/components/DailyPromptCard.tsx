@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
-import { useCaptureIdea } from '@/hooks/useCaptureIdea'; 
 import CaptureIdeaDialog from './CaptureIdeaDialog'; // Import the dialog
+import { cn } from '@/lib/utils';
 
 const fetchDailyPrompt = async (): Promise<string> => {
   // Note: We use the anon key here as this is a public function call
@@ -31,9 +31,6 @@ const DailyPromptCard: React.FC = () => {
     refetchOnWindowFocus: false,
   });
   
-  // We no longer use useCaptureIdea directly here, but we need a way to trigger the dialog.
-  // We will wrap the button in the dialog trigger.
-  
   const handleRefetch = () => {
     refetch();
     showError("Generating a new prompt...");
@@ -43,7 +40,10 @@ const DailyPromptCard: React.FC = () => {
   const cleanTitle = prompt ? prompt.replace(/^"|"$/g, '').trim() : '';
 
   return (
-    <Card className="shadow-xl dark:shadow-3xl border-purple-500/50 border-2">
+    <Card className={cn(
+        "shadow-xl dark:shadow-3xl border-2",
+        "border-purple-500/50 bg-purple-50/50 dark:bg-purple-950/50"
+    )}>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-xl font-bold flex items-center text-purple-600 dark:text-purple-400">
           <Sparkles className="w-5 h-5 mr-2" /> Daily Creative Prompt
@@ -54,6 +54,7 @@ const DailyPromptCard: React.FC = () => {
             onClick={handleRefetch} 
             disabled={isLoading}
             title="Generate a new prompt"
+            className="text-muted-foreground hover:text-primary"
         >
             {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -70,7 +71,7 @@ const DailyPromptCard: React.FC = () => {
         ) : error ? (
           <p className="text-sm text-red-500">Error loading prompt.</p>
         ) : (
-          <p className="text-lg font-semibold italic text-foreground">
+          <p className="text-xl font-semibold italic text-foreground">
             "{prompt}"
           </p>
         )}
@@ -81,7 +82,7 @@ const DailyPromptCard: React.FC = () => {
         >
             <Button 
                 disabled={isLoading || !prompt}
-                className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+                className="w-full h-10 text-base bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
             >
                 {isLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
