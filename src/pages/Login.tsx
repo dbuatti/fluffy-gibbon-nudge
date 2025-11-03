@@ -39,7 +39,7 @@ const Login = () => {
           }}
           theme="light"
           redirectTo={window.location.origin + '/'}
-          view="sign_in" // Force sign_in view
+          // Removed view="sign_in" to allow dynamic view detection for password recovery
         />
 
         <div className="text-center pt-4">
