@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Upload, Clock, CheckCircle, ArrowRight, Edit2, Sparkles } from 'lucide-react';
+import { Loader2, Upload, Clock, CheckCircle, ArrowRight, Edit2, Sparkles, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StatusCount {
@@ -34,7 +34,8 @@ const CompositionPipeline: React.FC = () => {
   const totalCompleted = getCount('completed');
   const totalAnalyzing = getCount('analyzing');
   const totalUploaded = getCount('uploaded');
-  const totalCompositions = totalCompleted + totalAnalyzing + totalUploaded;
+  const totalFailed = getCount('failed'); // NEW: Get count for failed status
+  const totalCompositions = totalCompleted + totalAnalyzing + totalUploaded + totalFailed; // UPDATED: Include failed count
 
   const pipelineStages = [
     { 
@@ -56,6 +57,16 @@ const CompositionPipeline: React.FC = () => {
       description: 'Title/Artwork generation in progress.',
       bg: 'bg-yellow-500/10 dark:bg-yellow-900/20',
       border: 'border-yellow-500',
+    },
+    { 
+      status: 'failed', // NEW STAGE: Failed
+      label: 'Failed/Error',
+      count: totalFailed, 
+      icon: AlertTriangle, 
+      color: 'text-destructive dark:text-destructive', 
+      description: 'Processing failed. Check logs or re-upload.',
+      bg: 'bg-destructive/10 dark:bg-destructive/20', 
+      border: 'border-destructive', 
     },
     { 
       status: 'completed', 
