@@ -17,7 +17,7 @@ interface NoteTab {
 interface CompositionNotesProps {
   improvisationId: string;
   initialNotes: NoteTab[] | null;
-  hasAudioFile: boolean;
+  hasAudioFile: boolean; // This prop will no longer affect locking, but is still passed
 }
 
 // Updated color definitions for a cleaner, more defined look
@@ -134,21 +134,13 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
       </CardHeader>
       <CardContent className="space-y-6">
         {notes.map((note) => {
-          // Only lock Zone 3 (Technical) and Zone 4 (Next Steps) if audio is missing
-          const isLocked = !hasAudioFile && (note.id === 'zone3' || note.id === 'zone4');
+          // Removed the `isLocked` condition, all zones are now always editable.
           
           return (
             <div key={note.id} className={cn("p-4 rounded-lg border border-border shadow-inner-lg", note.color)}>
               <h4 className="font-semibold mb-2 text-lg">{note.title}</h4>
               
-              {isLocked ? (
-                  <div className="text-center p-10 bg-white/50 dark:bg-gray-900/50 rounded-md border-dashed border-2 border-gray-400 dark:border-gray-600">
-                      <Lock className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                          Attach the audio file first to unlock technical analysis and next steps.
-                      </p>
-                  </div>
-              ) : note.id === 'zone4' ? (
+              {note.id === 'zone4' ? (
                   <>
                       <Input
                           placeholder="The single most important next task (10-15 words)"
