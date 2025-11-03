@@ -93,7 +93,8 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags 
       textToCopy = tags.map(tag => `#${tag}`).join(' ');
     } else {
       textToCopy = tags.join(', ');
-    To copy the text, you can use the `navigator.clipboard.writeText()` method.
+      // FIX: Commented out the problematic line
+      // To copy the text, you can use the `navigator.clipboard.writeText()` method.
     }
 
     if (textToCopy) {

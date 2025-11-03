@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import CompositionList from "@/components/CompositionList"; // Renamed
+import CompositionList from "@/components/CompositionList";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
@@ -16,15 +16,20 @@ import { supabase } from '@/integrations/supabase/client';
 import DailyPromptCard from '@/components/DailyPromptCard';
 import StreakCard from '@/components/StreakCard';
 
-interface Composition { // Renamed interface
+// Define the missing URL constants
+const DISTROKID_URL = "https://distrokid.com/new/";
+const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
+const GEMINI_URL = "https://gemini.google.com/app/0569ed6eee7e8c1a";
+
+interface Composition {
   created_at: string;
 }
 
-const fetchCompositionDates = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed fetch function
+const fetchCompositionDates = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => {
   console.log("fetchCompositionDates: Attempting to fetch dates for user:", sessionUserId);
   console.log("fetchCompositionDates: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
-    .from('compositions') // Updated table name
+    .from('compositions')
     .select('created_at')
     .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
@@ -34,7 +39,7 @@ const fetchCompositionDates = async (supabaseClient: any, sessionUserId: string)
   return data as Composition[];
 };
 
-const useStreakTracker = (data: Composition[] | undefined) => { // Updated type
+const useStreakTracker = (data: Composition[] | undefined) => {
   if (!data || data.length === 0) return { streak: 0, todayActivity: false };
 
   const activityDates = new Set(
@@ -104,20 +109,20 @@ const Index = () => {
 
   console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: compositionDates } = useQuery<Composition[]>({ // Updated variable name and type
-    queryKey: ['compositionDates'], // Updated query key
-    queryFn: () => fetchCompositionDates(supabase, session!.user.id), // Updated fetch function
+  const { data: compositionDates } = useQuery<Composition[]>({
+    queryKey: ['compositionDates'],
+    queryFn: () => fetchCompositionDates(supabase, session!.user.id),
     enabled: !isSessionLoading && !!session?.user,
-    staleTime: 86400000,
+    staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,
   });
 
-  const { streak, todayActivity } = useStreakTracker(compositionDates); // Updated variable name
+  const { streak, todayActivity } = useStreakTracker(compositionDates);
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['compositions'] });
     queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
-    queryClient.invalidateQueries({ queryKey: ['compositionDates'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['compositionDates'] });
   };
   
   const streakMessage = streak > 0 
@@ -211,7 +216,7 @@ const Index = () => {
         </div>
 
         {/* Composition List */}
-        <CompositionList // Renamed component
+        <CompositionList
           viewMode={viewMode} 
           setViewMode={setViewMode}
           searchTerm={searchTerm} 
