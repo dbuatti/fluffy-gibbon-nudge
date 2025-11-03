@@ -5,7 +5,7 @@ import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integr
 import { Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { useAIAugmentation } from '@/hooks/useAIAugmentation';
 import ImprovisationHeader from '@/components/ImprovisationHeader';
 import ImprovisationProgressCard from '@/components/ImprovisationProgressCard';
@@ -27,7 +27,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Improvisation { // Renamed interface
+interface Improvisation {
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -57,13 +57,15 @@ interface Improvisation { // Renamed interface
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
-  description: string | null; // Added description field
+  description: string | null;
+  is_submitted_to_distrokid: boolean | null; // NEW
+  is_submitted_to_insight_timer: boolean | null; // NEW
 }
 
-const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => { // Renamed fetch function
+const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
-    .from('improvisations') // Updated table name
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice,description') // Added description to select
+    .from('improvisations')
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice,description,is_submitted_to_distrokid,is_submitted_to_insight_timer') // Added new fields to select
     .eq('id', id)
     .single();
 
@@ -81,7 +83,7 @@ const getPublicArtworkDisplayUrl = (artworkUrl: string | null): string | null =>
 };
 
 
-const ImprovisationDetails: React.FC = () => { // Renamed component
+const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,39 +102,39 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   };
   // --- End Tab State Management ---
 
-  const { data: imp, isLoading, error } = useQuery<Improvisation>({ // Renamed variable and type
-    queryKey: ['improvisation', id], // Updated query key
-    queryFn: () => fetchImprovisationDetails(id!), // Updated fetch function
+  const { data: imp, isLoading, error } = useQuery<Improvisation>({
+    queryKey: ['improvisation', id],
+    queryFn: () => fetchImprovisationDetails(id!),
     enabled: !!id && !isSessionLoading && !!session?.user?.id,
     refetchInterval: 5000,
   });
 
-  const updateMutation = useUpdateImprovisation(id!); // Updated hook
+  const updateMutation = useUpdateImprovisation(id!);
   const { isPopulating, aiGeneratedDescription, handleAIPopulateMetadata, setAiGeneratedDescription } = useAIAugmentation(id!);
   
   // Determine if we are loading the initial data OR if the status is actively analyzing
-  const isAnalyzing = imp?.status === 'analyzing'; // Updated variable
+  const isAnalyzing = imp?.status === 'analyzing';
   const showLoadingSpinner = isLoading || isSessionLoading || isAnalyzing;
-  const hasAudioFile = !!imp?.storage_path; // Updated variable
-  const isReadyForRelease = imp?.is_ready_for_release; // Updated variable
+  const hasAudioFile = !!imp?.storage_path;
+  const isReadyForRelease = imp?.is_ready_for_release;
   
   // Get public URL for the audio file
-  const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null); // Updated variable
+  const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
   // Get public URL for the artwork
-  const artworkDisplayUrl = getPublicArtworkDisplayUrl(imp?.artwork_url || null); // Updated variable
+  const artworkDisplayUrl = getPublicArtworkDisplayUrl(imp?.artwork_url || null);
 
   // NEW: Core Metadata Completion Check
-  const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood; // Updated variable
+  const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood;
 
   // --- HANDLER DEFINITIONS ---
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries({ queryKey: ['improvisation', id] }); // Updated query key
-    queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
+    queryClient.invalidateQueries({ queryKey: ['improvisations'] });
   };
 
   const handleRegenerateArtwork = async () => {
-    if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) { // Updated variable
+    if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) {
       showError("Cannot generate artwork prompt: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
       return;
     }
@@ -143,11 +145,11 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
     try {
       const { error: functionError } = await supabase.functions.invoke('generate-artwork', {
         body: {
-          improvisationId: imp.id, // Updated parameter name
-          generatedName: imp.generated_name, // Updated variable
-          primaryGenre: imp.primary_genre, // Updated variable
-          secondaryGenre: imp.secondary_genre, // Updated variable
-          mood: imp.analysis_data.mood, // Updated variable
+          improvisationId: imp.id,
+          generatedName: imp.generated_name,
+          primaryGenre: imp.primary_genre,
+          secondaryGenre: imp.secondary_genre,
+          mood: imp.analysis_data.mood,
         },
       });
 
@@ -169,14 +171,14 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   };
 
   const handleMarkReady = async () => {
-    if (!imp) return; // Updated variable
+    if (!imp) return;
     setIsMarkingReady(true);
 
     try {
       const { error: dbError } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .update({ is_ready_for_release: true })
-        .eq('id', imp.id); // Updated variable
+        .eq('id', imp.id);
 
       if (dbError) throw dbError;
 
@@ -191,16 +193,16 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   };
 
   const handleDelete = async () => {
-    if (!imp) return; // Updated variable
+    if (!imp) return;
 
     setIsDeleting(true);
     showSuccess("Deleting improvisation...");
 
     try {
       // 1. Delete file from Supabase Storage (only if a file exists)
-      if (imp.storage_path) { // Updated variable
+      if (imp.storage_path) {
         const { error: storageError } = await supabase.storage
-          .from('piano_improvisations') // Updated bucket name
+          .from('piano_improvisations')
           .remove([imp.storage_path]);
 
         if (storageError) {
@@ -214,14 +216,14 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
 
       // 3. Delete record from database
       const { error: dbError } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .delete()
-        .eq('id', imp.id); // Updated variable
+        .eq('id', imp.id);
 
       if (dbError) throw dbError;
 
-      showSuccess(`Improvisation "${imp.generated_name || imp.file_name || 'Idea'}" deleted successfully.`); // Updated variable
-      queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
+      showSuccess(`Improvisation "${imp.generated_name || imp.file_name || 'Idea'}" deleted successfully.`);
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       navigate('/'); // Redirect to dashboard
 
     } catch (error) {
@@ -233,17 +235,17 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   };
   
   const handleClearFile = async () => {
-    if (!imp) return; // Updated variable
+    if (!imp) return;
     
     try {
         const { error: dbError } = await supabase
-            .from('improvisations') // Updated table name
+            .from('improvisations')
             .update({
                 file_name: null,
                 storage_path: null,
                 status: 'uploaded',
             })
-            .eq('id', imp.id); // Updated variable
+            .eq('id', imp.id);
 
         if (dbError) throw dbError;
         
@@ -273,9 +275,13 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
   const handleUpdateIsMetadataConfirmed = (checked: boolean) => updateMutation.mutateAsync({ is_metadata_confirmed: checked });
   
+  // NEW HANDLERS FOR SUBMISSION STATUS
+  const handleUpdateIsSubmittedToDistroKid = (checked: boolean) => updateMutation.mutateAsync({ is_submitted_to_distrokid: checked });
+  const handleUpdateIsSubmittedToInsightTimer = (checked: boolean) => updateMutation.mutateAsync({ is_submitted_to_insight_timer: checked });
+
   // Handler for nested analysis_data updates
   const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
-    const currentData = imp!.analysis_data || {}; // Updated variable
+    const currentData = imp!.analysis_data || {};
     let updatedValue: string | number = newValue;
 
     if (key === 'simulated_tempo') {
@@ -299,13 +305,13 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   let progressMessage = "Capture your idea first.";
   let primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null = null;
 
-  if (imp) { // Updated variable
+  if (imp) {
     // Base Step: Idea Captured (10%)
     progressValue = 10;
     progressMessage = "Idea captured. Now record and upload the audio file.";
     
     // Micro-Progress: Set Type (5%)
-    if (imp.is_improvisation !== null) { // Updated variable
+    if (imp.is_improvisation !== null) {
         progressValue += 5;
     }
 
@@ -328,7 +334,7 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
     }
 
     // Step 3: Core Metadata Set (60% total)
-    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0); // Updated variable
+    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
     
     if (hasAudioFile && isCoreMetadataComplete) {
       progressValue = 60;
@@ -347,12 +353,12 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
     }
     
     // Step 4: Artwork Prompt Generated (70%)
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) { // Updated variable
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) {
         progressValue = 70;
         progressMessage = "Notes added. Generate artwork prompt and populate distribution fields.";
         
         // Action 3: Generate Artwork Prompt
-        if (!imp.artwork_prompt) { // Updated variable
+        if (!imp.artwork_prompt) {
             primaryAction = {
                 label: "Generate AI Artwork Prompt (10% Progress Boost)",
                 onClick: handleRegenerateArtwork,
@@ -362,9 +368,9 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
     }
 
     // Step 5: AI Augmentation Complete (80%)
-    const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices; // Updated variable
+    const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
     
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) { // Updated variable
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) {
       progressValue = 80;
       progressMessage = "AI artwork prompt generated. Use AI to populate distribution fields.";
       
@@ -379,7 +385,7 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
     }
     
     // Step 6: AI Augmentation Complete (90%)
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) { // Updated variable
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) {
         progressValue = 90;
         progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
         
@@ -405,6 +411,37 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
           variant: "default"
       };
     }
+    
+    // NEW: Submission Steps (after 100% ready)
+    if (isReadyForRelease) {
+        let submissionProgress = 0;
+        if (imp.is_submitted_to_distrokid) submissionProgress += 50;
+        if (imp.is_submitted_to_insight_timer) submissionProgress += 50;
+
+        if (submissionProgress > 0) {
+            progressValue = 100 + (submissionProgress / 2); // Add half of submission progress to overall
+            if (progressValue > 100) progressValue = 100; // Cap at 100 for display
+        }
+
+        if (imp.is_submitted_to_distrokid && imp.is_submitted_to_insight_timer) {
+            progressMessage = "Project fully submitted! Congratulations!";
+            primaryAction = null; // No further action needed
+        } else if (imp.is_submitted_to_distrokid || imp.is_submitted_to_insight_timer) {
+            progressMessage = "One submission complete. Finish the other!";
+            primaryAction = {
+                label: "Complete Submissions",
+                onClick: () => handleTabChange('analysis-distro'),
+                variant: "default"
+            };
+        } else {
+            progressMessage = "Ready for release. Submit to DistroKid and Insight Timer.";
+            primaryAction = {
+                label: "Go to Distribution Prep",
+                onClick: () => handleTabChange('analysis-distro'),
+                variant: "default"
+            };
+        }
+    }
   }
 
 
@@ -423,7 +460,7 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
   }
 
   // If data fetching completed but imp is null (e.g., 404 or no data found)
-  if (error || !imp) { // Updated variable
+  if (error || !imp) {
     return <div className="text-center p-8 text-red-500">Error loading details or improvisation not found: {error?.message || "No data."}</div>;
   }
 
@@ -432,7 +469,7 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
       
       {/* 1. HEADER (Title, Metadata Dialog, Settings Sheet) */}
       <ImprovisationHeader
-        imp={imp} // Updated prop name
+        imp={imp}
         isCoreMetadataComplete={isCoreMetadataComplete}
         handleDelete={handleDelete}
         isDeleting={isDeleting}
@@ -463,11 +500,11 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
         </TabsList>
         
         {/* 3. AUDIO PLAYER (MOVED BELOW TABS) */}
-        {audioPublicUrl && imp.file_name && imp.storage_path && ( // Updated variable
+        {audioPublicUrl && imp.file_name && imp.storage_path && (
           <AudioPlayer 
             publicUrl={audioPublicUrl} 
-            fileName={imp.file_name} // Updated variable
-            storagePath={imp.storage_path} // Updated variable
+            fileName={imp.file_name}
+            storagePath={imp.storage_path}
             onClearFile={handleClearFile}
           />
         )}
@@ -481,11 +518,13 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
           isMarkingReady={isMarkingReady}
           isPopulating={isPopulating}
           isReadyForRelease={isReadyForRelease}
+          isSubmittedToDistroKid={imp.is_submitted_to_distrokid} // NEW
+          isSubmittedToInsightTimer={imp.is_submitted_to_insight_timer} // NEW
         />
         
         {/* 5. Tab Content */}
         <ImprovisationTabs
-          imp={imp} // Updated prop name
+          imp={imp}
           currentTab={currentTab}
           handleTabChange={handleTabChange}
           handleRefetch={handleRefetch}
@@ -495,6 +534,8 @@ const ImprovisationDetails: React.FC = () => { // Renamed component
           handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
           handleUpdateIsImprovisation={handleUpdateIsImprovisation}
           handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
+          handleUpdateIsSubmittedToDistroKid={handleUpdateIsSubmittedToDistroKid} // NEW
+          handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer} // NEW
           isAnalyzing={isAnalyzing}
           isRegenerating={isRegenerating}
           audioPublicUrl={audioPublicUrl}

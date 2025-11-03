@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
-import ArtworkUpload from './ArtworkUpload'; // NEW: Import ArtworkUpload
+import ArtworkUpload from './ArtworkUpload';
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -43,7 +43,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Improvisation { // Renamed interface
+interface Improvisation {
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -72,11 +72,13 @@ interface Improvisation { // Renamed interface
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
-  description: string | null; // Added description field
+  description: string | null;
+  is_submitted_to_distrokid: boolean | null; // NEW
+  is_submitted_to_insight_timer: boolean | null; // NEW
 }
 
 interface ImprovisationTabsProps {
-  imp: Improvisation; // Updated prop name and type
+  imp: Improvisation;
   currentTab: string;
   handleTabChange: (newTab: string) => void;
   handleRefetch: () => void;
@@ -86,6 +88,8 @@ interface ImprovisationTabsProps {
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
   handleUpdateIsImprovisation: (value: string) => Promise<void>;
   handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
+  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>; // NEW
+  handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>; // NEW
   isAnalyzing: boolean;
   isRegenerating: boolean;
   audioPublicUrl: string | null;
@@ -107,7 +111,7 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
 );
 
 const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
-  imp, // Updated prop name
+  imp,
   currentTab,
   handleTabChange,
   handleRefetch,
@@ -117,6 +121,8 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   handleUpdateSecondaryGenre,
   handleUpdateIsImprovisation,
   handleUpdateIsMetadataConfirmed,
+  handleUpdateIsSubmittedToDistroKid, // NEW
+  handleUpdateIsSubmittedToInsightTimer, // NEW
   isAnalyzing,
   isRegenerating,
   audioPublicUrl,
@@ -175,7 +181,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
         
         {/* NEW: AI Creative Coach */}
         <AICreativeCoach 
-          improvisationId={imp.id} // Updated prop name
+          improvisationId={imp.id}
           hasAudioFile={hasAudioFile} 
         />
 
@@ -239,19 +245,19 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
         {!hasAudioFile && imp.is_improvisation !== null && (
           <div id="audio-upload-cta">
               <AudioUploadForImprovisation 
-                improvisationId={imp.id} // Updated prop name
-                isImprovisationTypeImprovisation={imp.is_improvisation} // Updated prop name
+                improvisationId={imp.id}
+                isImprovisationTypeImprovisation={imp.is_improvisation}
                 onUploadSuccess={handleRefetch}
               />
           </div>
         )}
 
         {/* NEW: Tag Generator */}
-        <TagGenerator improvisationId={imp.id} initialTags={imp.user_tags} /> {/* Updated prop name */}
+        <TagGenerator improvisationId={imp.id} initialTags={imp.user_tags} />
 
         {/* 2. Improvisation Notes */}
         <div id="improvisation-notes">
-          <ImprovisationNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} /> {/* Updated prop name */}
+          <ImprovisationNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
         </div>
       </TabsContent>
     );
@@ -355,7 +361,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             {/* Manual Artwork Upload (Now functional) */}
             <ArtworkUpload 
                 improvisationId={imp.id}
-                onUploadSuccess={handleRefetch} // Refetch to update artwork_url in parent
+                onUploadSuccess={handleRefetch}
                 currentArtworkUrl={imp.artwork_url}
             />
           </CardContent>
@@ -472,7 +478,11 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
               <TabsTrigger value="insight-timer">Insight Timer Prep</TabsTrigger>
             </TabsList>
             <TabsContent value="distrokid">
-              <DistroKidTab imp={imp} isReady={!isAnalyzing && !isBlocked} />
+              <DistroKidTab 
+                imp={imp} 
+                isReady={!isAnalyzing && !isBlocked} 
+                handleUpdateIsSubmittedToDistroKid={handleUpdateIsSubmittedToDistroKid} // NEW
+              />
             </TabsContent>
             <TabsContent value="insight-timer">
               <InsightTimerTab 
@@ -482,6 +492,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                   handleAIPopulateMetadata={handleAIPopulateMetadata}
                   setAiGeneratedDescription={setAiGeneratedDescription}
                   handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
+                  handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer} // NEW
               />
             </TabsContent>
           </Tabs>

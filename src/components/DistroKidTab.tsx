@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-interface ImprovisationData { // Renamed interface
+interface ImprovisationData {
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
@@ -20,14 +20,16 @@ interface ImprovisationData { // Renamed interface
   is_instrumental: boolean | null;
   is_original_song: boolean | null;
   has_explicit_lyrics: boolean | null;
+  is_submitted_to_distrokid: boolean | null; // NEW
 }
 
 interface DistroKidTabProps {
-  imp: ImprovisationData; // Updated prop name and type
+  imp: ImprovisationData;
   isReady: boolean;
+  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>; // NEW
 }
 
-const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => { // Updated prop name
+const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateIsSubmittedToDistroKid }) => { // NEW prop
   const isCompleted = !!imp.generated_name;
   const hasArtwork = !!imp.artwork_url;
 
@@ -83,7 +85,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => { // Upd
                 You must generate or upload artwork before distribution.
               </p>
               {/* Link to the Assets tab and the specific card ID */}
-              <Link to={`/improvisation/${imp.id}?tab=assets-downloads#artwork-actions`}> {/* Updated path */}
+              <Link to={`/improvisation/${imp.id}?tab=assets-downloads#artwork-actions`}>
                 <Button variant="destructive" className="mt-4">
                   Go to Artwork Actions <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -141,6 +143,26 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => { // Upd
             <Music className="w-4 h-4 mr-2" /> 
             {isReady ? 'Simulate DistroKid Submission' : 'BLOCKED: Complete Pre-Flight Checklist'}
           </Button>
+
+          <Separator className="my-6" />
+
+          {/* NEW: Mark as Submitted to DistroKid */}
+          <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
+            <div className="space-y-1">
+                <Label htmlFor="distrokid-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">
+                    <Check className="h-5 w-5 mr-2" /> Mark as Submitted to DistroKid
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                    Check this box once you have successfully submitted this track to DistroKid.
+                </p>
+            </div>
+            <Switch
+                id="distrokid-submitted"
+                checked={!!imp.is_submitted_to_distrokid}
+                onCheckedChange={handleUpdateIsSubmittedToDistroKid}
+                disabled={!isReady} // Only allow marking as submitted if ready for release
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -13,6 +13,8 @@ interface ImprovisationProgressCardProps {
   isMarkingReady: boolean;
   isPopulating: boolean;
   isReadyForRelease: boolean | null;
+  isSubmittedToDistroKid: boolean | null; // NEW
+  isSubmittedToInsightTimer: boolean | null; // NEW
 }
 
 const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
@@ -23,11 +25,16 @@ const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
   isMarkingReady,
   isPopulating,
   isReadyForRelease,
+  isSubmittedToDistroKid, // NEW
+  isSubmittedToInsightTimer, // NEW
 }) => {
+  const isFullySubmitted = isSubmittedToDistroKid && isSubmittedToInsightTimer;
+
   return (
     <Card className={cn(
-      "p-4 border-2 shadow-card-light dark:shadow-card-dark transition-all", // Applied standard shadow
-      isReadyForRelease ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/50" : "border-primary/50 bg-primary/5 dark:bg-primary/10"
+      "p-4 border-2 shadow-card-light dark:shadow-card-dark transition-all",
+      isFullySubmitted ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/50" : 
+      (isReadyForRelease ? "border-primary/50 bg-primary/5 dark:bg-primary/10" : "border-muted/50 bg-muted/5 dark:bg-muted/10")
     )}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold flex items-center">

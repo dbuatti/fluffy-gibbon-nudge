@@ -6,7 +6,7 @@ import EditableField from './EditableField';
 import ImprovisationMetadataDialog from './ImprovisationMetadataDialog';
 import ImprovisationSettingsSheet from './ImprovisationSettingsSheet';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
 import TitleBar from './TitleBar';
 
@@ -17,7 +17,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Improvisation { // Renamed interface
+interface Improvisation {
   id: string;
   generated_name: string | null;
   file_name: string | null;
@@ -38,10 +38,12 @@ interface Improvisation { // Renamed interface
   insight_audience_level: string | null;
   insight_audience_age: string[] | null;
   insight_voice: string | null;
+  is_submitted_to_distrokid: boolean | null; // NEW
+  is_submitted_to_insight_timer: boolean | null; // NEW
 }
 
 interface ImprovisationHeaderProps {
-  imp: Improvisation; // Updated prop name and type
+  imp: Improvisation;
   isCoreMetadataComplete: boolean;
   handleDelete: () => void;
   isDeleting: boolean;
@@ -83,7 +85,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
   handleUpdateInsightAudienceAge,
   handleUpdateInsightVoice,
 }) => {
-  const updateMutation = useUpdateImprovisation(imp.id); // Updated hook
+  const updateMutation = useUpdateImprovisation(imp.id);
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
 
@@ -134,7 +136,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         <Sparkles className="h-4 w-4 text-purple-500" />
       </Button>
       <ImprovisationMetadataDialog
-        imp={imp} // Updated prop name
+        imp={imp}
         isPending={updateMutation.isPending}
         isCoreMetadataComplete={isCoreMetadataComplete}
         handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
@@ -153,8 +155,8 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         handleUpdateInsightVoice={handleUpdateInsightVoice}
       />
       <ImprovisationSettingsSheet
-        improvisationId={imp.id} // Updated prop name
-        improvisationName={imp.generated_name || imp.file_name || 'Untitled Idea'} // Updated prop name
+        improvisationId={imp.id}
+        improvisationName={imp.generated_name || imp.file_name || 'Untitled Idea'}
         handleDelete={handleDelete}
         isDeleting={isDeleting}
       />

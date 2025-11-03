@@ -41,7 +41,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Improvisation { // Renamed interface
+interface Improvisation {
   id: string;
   generated_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -61,10 +61,12 @@ interface Improvisation { // Renamed interface
   insight_audience_level: string | null;
   insight_audience_age: string[] | null;
   insight_voice: string | null;
+  is_submitted_to_distrokid: boolean | null; // NEW
+  is_submitted_to_insight_timer: boolean | null; // NEW
 }
 
 interface ImprovisationMetadataDialogProps {
-  imp: Improvisation; // Updated prop name and type
+  imp: Improvisation;
   isPending: boolean;
   isCoreMetadataComplete: boolean;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
@@ -85,7 +87,7 @@ interface ImprovisationMetadataDialogProps {
 }
 
 const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = ({
-  imp, // Updated prop name
+  imp,
   isPending,
   isCoreMetadataComplete,
   handleUpdatePrimaryGenre,

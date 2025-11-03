@@ -21,7 +21,7 @@ interface NoteTab {
   content: string;
 }
 
-interface Improvisation { // Renamed interface
+interface Improvisation {
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -53,15 +53,17 @@ interface Improvisation { // Renamed interface
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
+  is_submitted_to_distrokid: boolean | null; // NEW
+  is_submitted_to_insight_timer: boolean | null; // NEW
 }
 
 const STALLED_THRESHOLD_HOURS = 24;
 
-const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => { // Renamed fetch function
+const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
   console.log("fetchImprovisations: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
-    .from('improvisations') // Updated table name
+    .from('improvisations')
     .select('*')
     .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
@@ -72,16 +74,26 @@ const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): 
 };
 
 // Unified Status Badge Function
-const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => { // Updated type
-  if (!hasFile && status === 'uploaded') {
+const getStatusBadge = (imp: Improvisation) => { // Updated to take full imp object
+  const hasFile = !!imp.storage_path;
+  const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
+
+  if (isSubmitted) {
+    return <Badge variant="default" className="bg-green-700 text-white">🎉 Submitted!</Badge>;
+  }
+  
+  if (!hasFile && imp.status === 'uploaded') {
     return <Badge variant="outline" className="bg-info text-info-foreground border-info">💡 Needs Audio</Badge>;
   }
   
-  switch (status) {
+  switch (imp.status) {
     case 'analyzing':
       return <Badge variant="outline" className="bg-warning text-warning-foreground border-warning"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
     case 'completed':
-      return <Badge variant="default" className="bg-success text-success-foreground">✅ Ready</Badge>;
+      if (imp.is_ready_for_release) {
+        return <Badge variant="default" className="bg-success text-success-foreground">✅ Ready</Badge>;
+      }
+      return <Badge variant="outline" className="text-muted-foreground">Uploaded</Badge>;
     case 'failed':
       return <Badge variant="destructive" className="bg-error text-error-foreground">❌ Failed</Badge>;
     default:
@@ -99,12 +111,17 @@ const getNotesStatusBadge = (notes: NoteTab[] | null) => {
   return null;
 };
 
-const getNextAction = (imp: Improvisation) => { // Updated parameter name and type
+const getNextAction = (imp: Improvisation) => {
   const hasFile = !!imp.storage_path;
   const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
   const hasArtworkPrompt = !!imp.artwork_prompt;
   const hasArtworkUrl = !!imp.artwork_url;
   const isReady = !!imp.is_ready_for_release;
+  const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
+
+  if (isSubmitted) {
+    return { label: 'View Submissions', icon: CheckCircle, color: 'text-green-700', type: 'manual' };
+  }
 
   if (!hasFile) {
     return { label: 'Upload Audio', icon: Upload, color: 'text-primary', type: 'manual' };
@@ -132,7 +149,7 @@ const getNextAction = (imp: Improvisation) => { // Updated parameter name and ty
   return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
 };
 
-interface ImprovisationListProps { // Renamed interface
+interface ImprovisationListProps {
   viewMode: 'grid' | 'list';
   setViewMode: (mode: 'grid' | 'list') => void;
   searchTerm: string;
@@ -140,7 +157,7 @@ interface ImprovisationListProps { // Renamed interface
   sortOption: string;
 }
 
-const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => { // Renamed component
+const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
   const { session, isLoading: isSessionLoading } = useSession();
   const queryClient = useQueryClient();
@@ -150,9 +167,9 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
   console.log("ImprovisationList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({ // Renamed variable and type
-    queryKey: ['improvisations'], // Updated query key
-    queryFn: () => fetchImprovisations(supabase, session!.user.id), // Updated fetch function
+  const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
+    queryKey: ['improvisations'],
+    queryFn: () => fetchImprovisations(supabase, session!.user.id),
     enabled: !isSessionLoading && !!session?.user,
     refetchInterval: 5000,
   });
@@ -170,9 +187,9 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (!improvisations) return; // Updated variable
+    if (!improvisations) return;
     if (checked) {
-      const allIds = new Set(improvisations.map(imp => imp.id)); // Updated variable
+      const allIds = new Set(improvisations.map(imp => imp.id));
       setSelectedImprovisations(allIds);
     } else {
       setSelectedImprovisations(new Set());
@@ -189,12 +206,12 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
     try {
       for (const id of selectedImprovisations) {
-        const impToDelete = improvisations?.find(imp => imp.id === id); // Updated variable
+        const impToDelete = improvisations?.find(imp => imp.id === id);
         if (impToDelete) {
           // 1. Delete audio file from Supabase Storage (if exists)
           if (impToDelete.storage_path) {
             const { error: storageError } = await supabase.storage
-              .from('piano_improvisations') // Updated bucket name
+              .from('piano_improvisations')
               .remove([impToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
           }
@@ -204,7 +221,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
           // 3. Delete record from database
           const { error: dbError } = await supabase
-            .from('improvisations') // Updated table name
+            .from('improvisations')
             .delete()
             .eq('id', id);
           if (dbError) throw dbError;
@@ -212,7 +229,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       }
       showSuccess(`${selectedImprovisations.size} improvisations deleted successfully.`);
       setSelectedImprovisations(new Set());
-      queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
     } catch (error) {
       console.error('Bulk deletion failed:', error);
@@ -233,7 +250,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .select('*')
         .in('id', Array.from(selectedImprovisations));
 
@@ -270,7 +287,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   const hasSelectedItems = selectedImprovisations.size > 0;
 
   // --- Filtering Logic ---
-  const filteredImprovisations = improvisations?.filter(imp => { // Updated variable
+  const filteredImprovisations = improvisations?.filter(imp => {
     const matchesSearch = searchTerm === '' || 
                           imp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -285,7 +302,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   }) || [];
 
   // --- Sorting Logic ---
-  const sortedImprovisations = [...filteredImprovisations].sort((a, b) => { // Updated variable
+  const sortedImprovisations = [...filteredImprovisations].sort((a, b) => {
     if (sortOption === 'created_at_desc') {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
@@ -321,7 +338,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
         </div>
       </CardHeader>
       <CardContent>
-        {sortedImprovisations && sortedImprovisations.length > 0 ? ( // Updated variable
+        {sortedImprovisations && sortedImprovisations.length > 0 ? (
           <>
             {/* Bulk Action Toolbar */}
             {hasSelectedItems && (
@@ -389,10 +406,10 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                 "grid gap-4",
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
-              {sortedImprovisations.map((imp) => { // Updated variable
+              {sortedImprovisations.map((imp) => {
                 const hasFile = !!imp.storage_path;
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
-                const nextAction = getNextAction(imp); // Updated variable
+                const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
                 const isSelected = selectedImprovisations.has(imp.id);
                 const notesBadge = getNotesStatusBadge(imp.notes);
@@ -406,7 +423,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
-                    onClick={() => navigate(`/improvisation/${imp.id}`)} // Updated path
+                    onClick={() => navigate(`/improvisation/${imp.id}`)}
                   >
                     <CardContent className={cn(
                         "p-4 flex items-center space-x-4",
@@ -437,14 +454,14 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {getStatusBadge(imp.status, hasFile)}
+                            {getStatusBadge(imp)} {/* Updated to pass full imp object */}
                             {notesBadge}
                         </div>
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
-                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }} // Updated path
+                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
                             <Icon className={cn(
                                 nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
@@ -453,6 +470,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                                 nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
                                 nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
                                 nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('View Submissions') && 'text-green-700 dark:text-green-500',
                             )} />
                             <span className={cn(
                                 nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
@@ -461,6 +479,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                                 nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
                                 nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
                                 nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('View Submissions') && 'text-green-700 dark:text-green-500',
                             )}>
                                 {nextAction.label}
                             </span>

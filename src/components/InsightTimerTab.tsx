@@ -23,7 +23,7 @@ interface ImprovisationData {
   primary_genre: string | null;
   is_improvisation: boolean | null;
   is_metadata_confirmed: boolean | null;
-  description: string | null; // NEW: Add description field
+  description: string | null;
   
   // INSIGHT TIMER FIELDS
   insight_content_type: string | null;
@@ -35,15 +35,17 @@ interface ImprovisationData {
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
+  is_submitted_to_insight_timer: boolean | null; // NEW
 }
 
 interface InsightTimerTabProps {
   imp: ImprovisationData;
-  aiGeneratedDescription: string; // Still passed, but local state will be primary
+  aiGeneratedDescription: string;
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
   handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
+  handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>; // NEW
 }
 
 // Helper function to get the benefit with its category
@@ -63,10 +65,11 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     handleAIPopulateMetadata,
     setAiGeneratedDescription,
     handleUpdateIsMetadataConfirmed,
+    handleUpdateIsSubmittedToInsightTimer, // NEW
 }) => {
   
   // Local state for description, initialized from AI result or kept empty
-  const [description, setDescription] = useState(imp.description || ''); // Initialize from DB
+  const [description, setDescription] = useState(imp.description || '');
   const updateMutation = useUpdateImprovisation(imp.id);
 
   // Sync local state when DB description changes (e.g., after AI population or manual save)
@@ -507,6 +510,26 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
           )}
         </TabsContent>
       </Tabs>
+
+      <Separator className="my-6" />
+
+      {/* NEW: Mark as Submitted to Insight Timer */}
+      <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
+        <div className="space-y-1">
+            <Label htmlFor="insight-timer-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">
+                <Check className="h-5 w-5 mr-2" /> Mark as Submitted to Insight Timer
+            </Label>
+            <p className="text-sm text-muted-foreground">
+                Check this box once you have successfully submitted this track to Insight Timer.
+            </p>
+        </div>
+        <Switch
+            id="insight-timer-submitted"
+            checked={!!imp.is_submitted_to_insight_timer}
+            onCheckedChange={handleUpdateIsSubmittedToInsightTimer}
+            disabled={updateMutation.isPending || !imp.is_metadata_confirmed} // Only allow marking as submitted if metadata is confirmed
+        />
+      </div>
     </div>
   );
 };
