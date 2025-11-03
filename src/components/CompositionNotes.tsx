@@ -32,7 +32,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
   // Ensure we use the initial notes if they exist, otherwise use defaults
   const initialData = initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes;
   const [notes, setNotes] = useState<NoteTab[]>(initialData);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved'>('idle');
 
   // Debounced save function
   const saveNotes = useCallback(async (currentNotes: NoteTab[]) => {
@@ -57,23 +57,36 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
 
   // Effect to debounce saving whenever notes change
   useEffect(() => {
+    // Check if notes have actually changed from the initial state or the last saved state
+    const notesChanged = JSON.stringify(notes) !== JSON.stringify(initialNotes);
+
     if (saveStatus === 'saved') return; // Don't trigger debounce immediately after a successful save reset
 
-    const handler = setTimeout(() => {
-      // Only save if content is actually different from the initial load (or if we just started typing)
-      if (JSON.stringify(notes) !== JSON.stringify(initialNotes)) {
-        saveNotes(notes);
-      }
-    }, 1500); // 1.5 second debounce
+    if (notesChanged) {
+        // Set status to unsaved immediately when notes change
+        if (saveStatus !== 'saving') {
+            setSaveStatus('unsaved');
+        }
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [notes, saveNotes, initialNotes]);
+        const handler = setTimeout(() => {
+            saveNotes(notes);
+        }, 1500); // 1.5 second debounce
+
+        return () => {
+            clearTimeout(handler);
+        };
+    } else {
+        // If notes haven't changed back to initial state, set to idle
+        setSaveStatus('idle');
+    }
+    
+    return () => {}; // Cleanup for the effect if no timeout was set
+  }, [notes, saveNotes, initialNotes, saveStatus]);
 
 
   const handleContentChange = (id: string, value: string) => {
-    setSaveStatus('idle'); // Indicate typing started
+    // Set status to unsaved immediately when typing starts
+    setSaveStatus('unsaved'); 
     setNotes(prevNotes => 
       prevNotes.map(note => 
         note.id === id ? { ...note, content: value } : note
@@ -94,6 +107,12 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
           <span className="flex items-center text-green-600 dark:text-green-400 text-sm">
             <Check className="h-4 w-4 mr-2" /> Saved
           </span>
+        );
+      case 'unsaved':
+        return (
+            <span className="flex items-center text-orange-600 dark:text-orange-400 text-sm">
+                Unsaved changes...
+            </span>
         );
       case 'idle':
       default:

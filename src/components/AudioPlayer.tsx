@@ -189,8 +189,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
                 className={cn(!isLoaded && "opacity-50 pointer-events-none")}
             />
             <div className="flex justify-between text-xs text-muted-foreground font-mono px-1">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
+                {/* Fixed width containers for time display */}
+                <span className="w-10 text-left">{formatTime(currentTime)}</span>
+                <span className="w-10 text-right">{formatTime(duration)}</span>
             </div>
           </div>
 

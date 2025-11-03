@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,8 @@ interface TagGeneratorProps {
 const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTags }) => {
   const [tags, setTags] = useState<string[]>(initialTags || []);
   const [inputValue, setInputValue] = useState('');
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved'>('idle');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // --- Persistence Logic ---
 
@@ -50,6 +51,11 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
       }
     }, 1000); // 1 second debounce
 
+    // Set status to unsaved immediately when tags change, unless we are currently saving
+    if (saveStatus !== 'saving') {
+        setSaveStatus('unsaved');
+    }
+
     return () => {
       clearTimeout(handler);
     };
@@ -62,13 +68,14 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
     if (newTag && !tags.includes(newTag)) {
       setTags(prev => [...prev, newTag]);
       setInputValue('');
-      setSaveStatus('idle');
+      setSaveStatus('unsaved'); // Indicate change
+      inputRef.current?.focus(); // Focus for rapid entry
     }
   }, [inputValue, tags]);
 
   const handleRemoveTag = useCallback((tagToRemove: string) => {
     setTags(prev => prev.filter(tag => tag !== tagToRemove));
-    setSaveStatus('idle');
+    setSaveStatus('unsaved');
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -110,6 +117,12 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
             <Check className="h-4 w-4 mr-2" /> Saved
           </span>
         );
+      case 'unsaved':
+        return (
+            <span className="flex items-center text-orange-600 dark:text-orange-400 text-sm">
+                Unsaved changes...
+            </span>
+        );
       case 'idle':
       default:
         return (
@@ -131,6 +144,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
       <CardContent className="space-y-4">
         <div className="flex space-x-2">
           <Input
+            ref={inputRef}
             placeholder="Type tag and press Enter (e.g., ambient, chill, piano-solo)"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
