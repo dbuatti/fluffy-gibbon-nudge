@@ -38,8 +38,8 @@ const Login = () => {
             },
           }}
           theme="light"
-          redirectTo={window.location.origin + '/'}
-          // Removed view="sign_in" to allow dynamic view detection for password recovery
+          // Changed redirect to /login to display the password reset form
+          redirectTo={window.location.origin + '/login'}
         />
 
         <div className="text-center pt-4">
