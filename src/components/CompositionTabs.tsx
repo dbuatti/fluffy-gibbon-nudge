@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
-const MIDJOURNEY_URL = "https://www.midjourney.com/";
+const VISUALGPT_NANO_BANANA_URL = "https://visualgpt.io/ai-models/nano-banana"; // NEW: Nano Banana link
 
 interface NoteTab {
   id: string;
@@ -263,7 +263,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         <Card id="artwork-actions">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
-                <ImageIcon className="w-5 h-5 mr-2" /> AI Generated Artwork
+                <ImageIcon className="w-5 h-5 mr-2" /> AI Artwork Prompt & External Generation
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -282,8 +282,8 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                 ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center text-red-600 dark:text-red-400 p-4">
                         <AlertTriangle className="w-12 h-12 mb-3" />
-                        <p className="text-lg font-bold">No Artwork Generated</p>
-                        <p className="text-sm mt-1">Generate below or upload your own.</p>
+                        <p className="text-lg font-bold">No Artwork Uploaded</p>
+                        <p className="text-sm mt-1">Generate a prompt below, use an external AI tool, then manually upload your artwork.</p>
                     </div>
                 )}
                 {isRegenerating && (
@@ -302,14 +302,14 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                     {imp.artwork_prompt ? 'AI Artwork Prompt:' : 'Prompt Missing (Generate Below)'}
                 </h3>
                 <p className={cn("text-sm font-mono", !imp.artwork_prompt && "text-red-600 dark:text-red-400")}>
-                    {imp.artwork_prompt || "Please ensure core metadata (Title, Genre, Mood) is set on the Creative Hub tab before generating artwork."}
+                    {imp.artwork_prompt || "Please ensure core metadata (Title, Genre, Mood) is set on the Creative Hub tab before generating an artwork prompt."}
                 </p>
             </div>
 
             {/* Actions Column */}
             <div className="space-y-2">
                 <Button 
-                    onClick={handleRegenerateArtwork} // This now triggers full image generation
+                    onClick={handleRegenerateArtwork} // This now triggers prompt generation
                     className="w-full h-10 text-base bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
                     disabled={isRegenerating || isAnalyzing || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
                 >
@@ -318,7 +318,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                     ) : (
                         <Sparkles className="h-5 w-5 mr-2" />
                     )}
-                    {isRegenerating ? 'Generating Artwork...' : 'Generate AI Artwork (Nano Banana)'}
+                    {isRegenerating ? 'Generating Prompt...' : 'Generate AI Artwork Prompt'}
                 </Button>
                 <Button 
                     onClick={handleCopyPrompt} 
@@ -334,18 +334,18 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                         variant="outline" 
                         className="w-full"
                     >
-                        <Download className="h-4 w-4 mr-2" /> Download Artwork
+                        <Download className="h-4 w-4 mr-2" /> Download Uploaded Artwork
                     </Button>
                 )}
             </div>
             
             <Separator />
             
-            <h3 className="text-lg font-semibold">External Artwork Generation</h3>
+            <h3 className="text-lg font-semibold">External Artwork Generation Tools</h3>
             <p className="text-sm text-muted-foreground">
                 Use the generated prompt above with an external AI tool to create your unique 3000x3000 album cover.
             </p>
-            <QuickLinkButton href={MIDJOURNEY_URL} icon={ImageIcon} label="Open Midjourney" />
+            <QuickLinkButton href={VISUALGPT_NANO_BANANA_URL} icon={ImageIcon} label="Open Nano Banana" /> {/* Updated link */}
             <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
             
             <Separator />
