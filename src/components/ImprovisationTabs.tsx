@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download } from 'lucide-react';
+import { Loader2, Info, Music, Clock, Download, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle, Sparkles, Upload, Copy } from 'lucide-react'; // Consolidated Info, removed duplicate
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,6 @@ import PreFlightChecklist from './PreFlightChecklist';
 import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
 import { Input } from '@/components/ui/input';
-import { Copy, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle, Sparkles, Upload } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';

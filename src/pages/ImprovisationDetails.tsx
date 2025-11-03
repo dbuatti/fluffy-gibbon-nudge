@@ -78,10 +78,6 @@ const getPublicAudioUrl = (storagePath: string | null): string | null => {
     return getPublicAudioUrlHelper(storagePath);
 };
 
-const getPublicArtworkDisplayUrl = (artworkUrl: string | null): string | null => {
-    return artworkUrl;
-};
-
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -120,8 +116,8 @@ const ImprovisationDetails: React.FC = () => {
   
   // Get public URL for the audio file
   const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
-  // Get public URL for the artwork
-  const artworkDisplayUrl = getPublicArtworkDisplayUrl(imp?.artwork_url || null);
+  // Removed unused artworkDisplayUrl
+  // const artworkDisplayUrl = getPublicArtworkDisplayUrl(imp?.artwork_url || null);
 
   // NEW: Core Metadata Completion Check
   const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood;
@@ -438,7 +434,6 @@ const ImprovisationDetails: React.FC = () => {
                 variant: "default"
             };
         } else {
-            progressMessage = "Ready for release. Submit to DistroKid and Insight Timer.";
             primaryAction = {
                 label: "Go to Distribution Prep",
                 onClick: () => handleTabChange('analysis-distro'),

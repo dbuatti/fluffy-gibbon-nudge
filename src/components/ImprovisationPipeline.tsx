@@ -13,7 +13,6 @@ interface StatusCount {
 }
 
 const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Promise<StatusCount[]> => {
-  console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
   // Removed redundant supabaseClient.auth.currentSession logging
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
@@ -33,13 +32,11 @@ const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Pr
   });
 
   const results = await Promise.all(promises);
-  console.log("fetchStatusCounts: Fetched counts:", results);
   return results;
 };
 
 const ImprovisationPipeline: React.FC = () => {
   const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
-  console.log("ImprovisationPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['improvisationStatusCounts'],

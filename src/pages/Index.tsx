@@ -26,8 +26,6 @@ interface Improvisation { // Renamed interface
 }
 
 const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => { // Renamed fetch function
-  console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
-  console.log("fetchImprovisationDates: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
     .from('improvisations') // Updated table name
     .select('created_at')
@@ -35,7 +33,6 @@ const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: strin
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchImprovisationDates: Fetched data:", data);
   return data as Improvisation[];
 };
 
@@ -106,8 +103,6 @@ const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortOption, setSortOption] = useState<string>('created_at_desc');
-
-  console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: improvisationDates } = useQuery<Improvisation[]>({ // Updated variable name and type
     queryKey: ['improvisationDates'], // Updated query key

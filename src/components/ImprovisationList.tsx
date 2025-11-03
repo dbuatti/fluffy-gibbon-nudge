@@ -60,8 +60,6 @@ interface Improvisation {
 const STALLED_THRESHOLD_HOURS = 24;
 
 const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
-  console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
-  console.log("fetchImprovisations: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
     .from('improvisations')
     .select('*')
@@ -69,7 +67,6 @@ const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): 
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchImprovisations: Fetched data:", data);
   return data as Improvisation[];
 };
 
@@ -164,8 +161,6 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   const [selectedImprovisations, setSelectedImprovisations] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isExportingBulk, setIsExportingBulk] = useState(false);
-
-  console.log("ImprovisationList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],

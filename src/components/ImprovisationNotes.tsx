@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Save, Loader2, NotebookText, Check, Lock } from 'lucide-react';
+import { Save, Loader2, NotebookText, Check } from 'lucide-react'; // Removed Lock
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
