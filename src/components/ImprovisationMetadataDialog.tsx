@@ -37,21 +37,10 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   is_ready_for_release: boolean | null;
   is_improvisation: boolean | null;
-  is_piano: boolean | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
   primary_genre: string | null;
   secondary_genre: string | null;
   analysis_data: AnalysisData | null;
-  insight_content_type: string | null;
-  insight_language: string | null;
-  insight_primary_use: string | null;
-  insight_audience_level: string | null;
-  insight_audience_age: string[] | null;
-  insight_voice: string | null;
-  is_submitted_to_distrokid: boolean | null; // NEW
-  is_submitted_to_insight_timer: boolean | null; // NEW
+  is_metadata_confirmed: boolean | null;
 }
 
 interface ImprovisationMetadataDialogProps {
@@ -139,10 +128,10 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center">
-            <Info className="h-6 w-6 mr-2" /> Improvisation Metadata
+            <Info className="h-6 w-6 mr-2" /> Core Musical Metadata
           </DialogTitle>
           <DialogDescription>
-            Edit core technical data for your improvisation. Distribution toggles and Insight Timer metadata are now on the "Distribution Prep" tab.
+            Edit the fundamental musical attributes of your improvisation. Distribution toggles are now on the "Distribution Prep" tab.
           </DialogDescription>
         </DialogHeader>
         

@@ -58,14 +58,14 @@ interface Improvisation {
   insight_themes: string[] | null;
   insight_voice: string | null;
   description: string | null;
-  is_submitted_to_distrokid: boolean | null; // NEW
-  is_submitted_to_insight_timer: boolean | null; // NEW
+  is_submitted_to_distrokid: boolean | null;
+  is_submitted_to_insight_timer: boolean | null;
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice,description,is_submitted_to_distrokid,is_submitted_to_insight_timer') // Added new fields to select
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice,description,is_submitted_to_distrokid,is_submitted_to_insight_timer')
     .eq('id', id)
     .single();
 
@@ -266,12 +266,12 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
   const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
   const handleUpdateInsightAudienceAge = (value: string[]) => updateMutation.mutateAsync({ insight_audience_age: value });
-  const handleUpdateInsightBenefits = (value: string[]) => updateMutation.mutateAsync({ insight_benefits: value }); // NEW
-  const handleUpdateInsightPractices = (value: string) => updateMutation.mutateAsync({ insight_practices: value }); // NEW
-  const handleUpdateInsightThemes = (value: string[]) => updateMutation.mutateAsync({ insight_themes: value }); // NEW
+  const handleUpdateInsightBenefits = (value: string[]) => updateMutation.mutateAsync({ insight_benefits: value });
+  const handleUpdateInsightPractices = (value: string) => updateMutation.mutateAsync({ insight_practices: value });
+  const handleUpdateInsightThemes = (value: string[]) => updateMutation.mutateAsync({ insight_themes: value });
   const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
   const handleUpdateIsMetadataConfirmed = (checked: boolean) => updateMutation.mutateAsync({ is_metadata_confirmed: checked });
-  const handleUpdateDescription = (value: string) => updateMutation.mutateAsync({ description: value }); // NEW
+  const handleUpdateDescription = (value: string) => updateMutation.mutateAsync({ description: value });
   
   // NEW HANDLERS FOR SUBMISSION STATUS
   const handleUpdateIsSubmittedToDistroKid = (checked: boolean) => updateMutation.mutateAsync({ is_submitted_to_distrokid: checked });
@@ -505,8 +505,8 @@ const ImprovisationDetails: React.FC = () => {
           isMarkingReady={isMarkingReady}
           isPopulating={isPopulating}
           isReadyForRelease={isReadyForRelease}
-          isSubmittedToDistroKid={imp.is_submitted_to_distrokid} // NEW
-          isSubmittedToInsightTimer={imp.is_submitted_to_insight_timer} // NEW
+          isSubmittedToDistroKid={imp.is_submitted_to_distrokid}
+          isSubmittedToInsightTimer={imp.is_submitted_to_insight_timer}
         />
         
         {/* 5. Tab Content */}
@@ -521,8 +521,8 @@ const ImprovisationDetails: React.FC = () => {
           handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
           handleUpdateIsImprovisation={handleUpdateIsImprovisation}
           handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
-          handleUpdateIsSubmittedToDistroKid={handleUpdateIsSubmittedToDistroKid} // NEW
-          handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer} // NEW
+          handleUpdateIsSubmittedToDistroKid={handleUpdateIsSubmittedToDistroKid}
+          handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer}
           isAnalyzing={isAnalyzing}
           isRegenerating={isRegenerating}
           audioPublicUrl={audioPublicUrl}
@@ -542,10 +542,10 @@ const ImprovisationDetails: React.FC = () => {
           handleUpdateInsightPractices={handleUpdateInsightPractices}
           handleUpdateInsightThemes={handleUpdateInsightThemes}
           handleUpdateInsightVoice={handleUpdateInsightVoice}
-          handleUpdateIsPiano={handleUpdateIsPiano} // Pass this down for DistributionTogglesCard
-          handleUpdateIsInstrumental={handleUpdateIsInstrumental} // Pass this down for DistributionTogglesCard
-          handleUpdateIsOriginalSong={handleUpdateIsOriginalSong} // Pass this down for DistributionTogglesCard
-          handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics} // Pass this down for DistributionTogglesCard
+          handleUpdateIsPiano={handleUpdateIsPiano}
+          handleUpdateIsInstrumental={handleUpdateIsInstrumental}
+          handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
+          handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
         />
       </Tabs>
     </div>

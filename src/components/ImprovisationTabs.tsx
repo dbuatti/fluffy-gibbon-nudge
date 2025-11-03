@@ -73,8 +73,8 @@ interface Improvisation {
   insight_themes: string[] | null;
   insight_voice: string | null;
   description: string | null;
-  is_submitted_to_distrokid: boolean | null; // NEW
-  is_submitted_to_insight_timer: boolean | null; // NEW
+  is_submitted_to_distrokid: boolean | null;
+  is_submitted_to_insight_timer: boolean | null;
 }
 
 interface ImprovisationTabsProps {
@@ -88,8 +88,8 @@ interface ImprovisationTabsProps {
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
   handleUpdateIsImprovisation: (value: string) => Promise<void>;
   handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
-  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>; // NEW
-  handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>; // NEW
+  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>;
+  handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>;
   isAnalyzing: boolean;
   isRegenerating: boolean;
   audioPublicUrl: string | null;
@@ -110,10 +110,10 @@ interface ImprovisationTabsProps {
   handleUpdateInsightPractices: (value: string) => Promise<void>;
   handleUpdateInsightThemes: (value: string[]) => Promise<void>;
   handleUpdateInsightVoice: (value: string) => Promise<void>;
-  handleUpdateIsPiano: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
-  handleUpdateIsInstrumental: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
-  handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
-  handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
+  handleUpdateIsPiano: (checked: boolean) => Promise<void>;
+  handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
+  handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
+  handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
 }
 
 const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: string }> = ({ href, icon: Icon, label }) => (
@@ -137,8 +137,8 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   handleUpdateSecondaryGenre,
   handleUpdateIsImprovisation,
   handleUpdateIsMetadataConfirmed,
-  handleUpdateIsSubmittedToDistroKid, // NEW
-  handleUpdateIsSubmittedToInsightTimer, // NEW
+  handleUpdateIsSubmittedToDistroKid,
+  handleUpdateIsSubmittedToInsightTimer,
   isAnalyzing,
   isRegenerating,
   audioPublicUrl,
@@ -158,10 +158,10 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   handleUpdateInsightPractices,
   handleUpdateInsightThemes,
   handleUpdateInsightVoice,
-  handleUpdateIsPiano, // Destructure for DistributionTogglesCard
-  handleUpdateIsInstrumental, // Destructure for DistributionTogglesCard
-  handleUpdateIsOriginalSong, // Destructure for DistributionTogglesCard
-  handleUpdateHasExplicitLyrics, // Destructure for DistributionTogglesCard
+  handleUpdateIsPiano,
+  handleUpdateIsInstrumental,
+  handleUpdateIsOriginalSong,
+  handleUpdateHasExplicitLyrics,
 }) => {
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
@@ -499,7 +499,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             isInstrumental={imp.is_instrumental}
             isOriginalSong={imp.is_original_song}
             hasExplicitLyrics={imp.has_explicit_lyrics}
-            isPending={isPending} // Pass pending state
+            isPending={isPending}
             handleUpdateIsPiano={handleUpdateIsPiano}
             handleUpdateIsInstrumental={handleUpdateIsInstrumental}
             handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
@@ -529,7 +529,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
               <DistroKidTab 
                 imp={imp} 
                 isReady={!isAnalyzing && !isBlocked} 
-                handleUpdateIsSubmittedToDistroKid={handleUpdateIsSubmittedToDistroKid} // NEW
+                handleUpdateIsSubmittedToDistroKid={handleUpdateIsSubmittedToDistroKid}
               />
             </TabsContent>
             <TabsContent value="insight-timer">
@@ -540,7 +540,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                   handleAIPopulateMetadata={handleAIPopulateMetadata}
                   setAiGeneratedDescription={setAiGeneratedDescription}
                   handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
-                  handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer} // NEW
+                  handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer}
                   // NEW: Pass pending state and all Insight Timer handlers
                   isPending={isPending}
                   handleUpdateDescription={handleUpdateDescription}
