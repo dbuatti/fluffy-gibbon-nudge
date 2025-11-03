@@ -11,15 +11,23 @@ interface StatusCount {
 }
 
 const fetchStatusCounts = async (): Promise<StatusCount[]> => {
-  const { data, error } = await (supabase
-    .from('improvisations')
-    .select('status, count') as any) // Use type assertion to allow rollup()
-    .rollup();
+  const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
+  const promises = statuses.map(async (status) => {
+    const { count, error } = await supabase
+      .from('improvisations')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', status);
 
-  if (error) throw new Error(error.message);
-  
-  // Supabase rollup returns an array of objects like [{ status: 'completed', count: 5 }]
-  return data as StatusCount[];
+    if (error) {
+      console.error(`Error fetching count for status ${status}:`, error);
+      // Return 0 on error to prevent the entire pipeline from failing
+      return { status, count: 0 };
+    }
+    return { status, count: count || 0 };
+  });
+
+  const results = await Promise.all(promises);
+  return results;
 };
 
 const CompositionPipeline: React.FC = () => {
@@ -34,8 +42,8 @@ const CompositionPipeline: React.FC = () => {
   const totalCompleted = getCount('completed');
   const totalAnalyzing = getCount('analyzing');
   const totalUploaded = getCount('uploaded');
-  const totalFailed = getCount('failed'); // NEW: Get count for failed status
-  const totalCompositions = totalCompleted + totalAnalyzing + totalUploaded + totalFailed; // UPDATED: Include failed count
+  const totalFailed = getCount('failed');
+  const totalCompositions = totalCompleted + totalAnalyzing + totalUploaded + totalFailed;
 
   const pipelineStages = [
     { 
@@ -59,7 +67,7 @@ const CompositionPipeline: React.FC = () => {
       border: 'border-yellow-500',
     },
     { 
-      status: 'failed', // NEW STAGE: Failed
+      status: 'failed', 
       label: 'Failed/Error',
       count: totalFailed, 
       icon: AlertTriangle, 
@@ -73,10 +81,10 @@ const CompositionPipeline: React.FC = () => {
       label: 'Ready for Prep',
       count: totalCompleted, 
       icon: Sparkles, 
-      color: 'text-success dark:text-success', // Use new success color
+      color: 'text-success dark:text-success',
       description: 'Ready for distribution prep.',
-      bg: 'bg-success/10 dark:bg-success/20', // Use new success color background
-      border: 'border-success', // Use new success color border
+      bg: 'bg-success/10 dark:bg-success/20',
+      border: 'border-success',
     },
   ];
 
@@ -85,7 +93,8 @@ const CompositionPipeline: React.FC = () => {
   }
 
   if (error) {
-    return <div className="text-center p-4 text-red-500">Failed to load pipeline status.</div>;
+    // Display a more user-friendly error message if the query fails
+    return <div className="text-center p-4 text-red-500">Error loading pipeline status. Please check your network connection.</div>;
   }
 
   return (
