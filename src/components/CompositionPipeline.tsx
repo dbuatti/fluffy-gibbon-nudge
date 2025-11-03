@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Clock, ArrowRight, Edit2, Sparkles, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import PipelineArrow from './PipelineArrow'; // Import PipelineArrow
 
 interface StatusCount {
   status: string;
@@ -127,9 +128,7 @@ const CompositionPipeline: React.FC = () => {
                   </div>
                 </div>
                 {index < pipelineStages.length - 1 && (
-                  <div className="hidden md:flex items-center justify-center mx-1">
-                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
+                  <PipelineArrow />
                 )}
               </React.Fragment>
             );
