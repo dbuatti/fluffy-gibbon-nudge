@@ -8,10 +8,10 @@ import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
   improvisationId: string; // Renamed prop
-  hasAudioFile: boolean; // Still passed, but not strictly disabling the button
+  // Removed hasAudioFile: boolean; as it's no longer used
 }
 
-const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasAudioFile }) => { // Renamed prop
+const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) => { // Removed hasAudioFile from destructuring
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -48,7 +48,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasA
   return (
     <Card className="shadow-lg dark:shadow-xl border-purple-500/50 border-2">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center text-xl text-purple-600 dark:text-purple-400">
+        <CardTitle className="text-xl text-purple-600 dark:text-purple-400">
           <Lightbulb className="w-5 h-5 mr-2" /> AI Creative Coach
         </CardTitle>
         <Button 

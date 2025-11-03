@@ -14,7 +14,7 @@ interface StatusCount {
 
 const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Promise<StatusCount[]> => {
   console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
-  console.log("fetchStatusCounts: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
+  // Removed redundant supabaseClient.auth.currentSession logging
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabaseClient
@@ -45,7 +45,7 @@ const ImprovisationPipeline: React.FC = () => {
     queryKey: ['improvisationStatusCounts'],
     queryFn: () => fetchStatusCounts(supabase, session!.user.id), // Use directly imported supabase
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
-    refetchInterval: 5000,
+    refetchInterval: 15000, // Changed from 5000 to 15000 (15 seconds)
   });
 
   const getCount = (status: string) => counts?.find(c => c.status === status)?.count || 0;

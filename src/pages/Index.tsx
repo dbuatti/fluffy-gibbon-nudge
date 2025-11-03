@@ -126,9 +126,7 @@ const Index = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisationDates'] }); // Updated query key
   };
   
-  const streakMessage = streak > 0 
-    ? `${streak}-Day Streak! Keep the momentum going.`
-    : `Start your streak today by capturing an idea!`;
+  // Removed unused streakMessage variable
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">

@@ -17,7 +17,7 @@ interface NoteTab {
 interface ImprovisationNotesProps {
   improvisationId: string; // Renamed prop
   initialNotes: NoteTab[] | null;
-  hasAudioFile: boolean;
+  // Removed hasAudioFile: boolean; as it's no longer used
 }
 
 // Updated color definitions for a cleaner, more defined look
@@ -28,7 +28,7 @@ const defaultNotes: NoteTab[] = [
   { id: 'zone4', title: 'Zone 4: Next Steps (Single most actionable task)', color: 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/30', content: '' },
 ];
 
-const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId, initialNotes, hasAudioFile }) => { // Renamed prop
+const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId, initialNotes }) => { // Removed hasAudioFile from destructuring
   // Ensure we use the initial notes if they exist, otherwise use defaults
   const initialData = initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes;
   const [notes, setNotes] = useState<NoteTab[]>(initialData);

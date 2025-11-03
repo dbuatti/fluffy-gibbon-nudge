@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { showError } from '@/utils/toast';
+import { showError, showSuccess } from '@/utils/toast'; // Import showSuccess
 import CaptureIdeaDialog from './CaptureIdeaDialog';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +39,7 @@ const DailyPromptCard: React.FC = () => {
 
     setCooldown(true);
     refetch();
-    showError("Generating a new prompt...");
+    showSuccess("Generating a new prompt..."); // Changed to showSuccess
     setTimeout(() => {
       setCooldown(false);
     }, 15000); // 15-second cooldown
