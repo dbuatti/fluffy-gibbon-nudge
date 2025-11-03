@@ -57,13 +57,13 @@ interface Improvisation { // Renamed interface
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
-  description: string | null; // NEW: Added description field
+  description: string | null; // Added description field
 }
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => { // Renamed fetch function
   const { data, error } = await supabase
     .from('improvisations') // Updated table name
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice,description') // NEW: Added description to select
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice,description') // Added description to select
     .eq('id', id)
     .single();
 
