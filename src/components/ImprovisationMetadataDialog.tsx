@@ -73,17 +73,18 @@ interface ImprovisationMetadataDialogProps {
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
   handleUpdateAnalysisData: (key: keyof AnalysisData, newValue: string) => Promise<void>;
   handleUpdateIsImprovisation: (value: string) => Promise<void>;
-  handleUpdateIsPiano: (checked: boolean) => Promise<void>;
-  handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
-  handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
-  handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
-  // NEW HANDLERS
-  handleUpdateInsightContentType: (value: string) => Promise<void>;
-  handleUpdateInsightLanguage: (value: string) => Promise<void>;
-  handleUpdateInsightPrimaryUse: (value: string) => Promise<void>;
-  handleUpdateInsightAudienceLevel: (value: string) => Promise<void>;
-  handleUpdateInsightAudienceAge: (value: string[]) => Promise<void>;
-  handleUpdateInsightVoice: (value: string) => Promise<void>;
+  // Removed toggle handlers as they are now in DistributionTogglesCard
+  // handleUpdateIsPiano: (checked: boolean) => Promise<void>;
+  // handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
+  // handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
+  // handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
+  // Removed Insight Timer handlers as they are now in InsightTimerTab
+  // handleUpdateInsightContentType: (value: string) => Promise<void>;
+  // handleUpdateInsightLanguage: (value: string) => Promise<void>;
+  // handleUpdateInsightPrimaryUse: (value: string) => Promise<void>;
+  // handleUpdateInsightAudienceLevel: (value: string) => Promise<void>;
+  // handleUpdateInsightAudienceAge: (value: string[]) => Promise<void>;
+  // handleUpdateInsightVoice: (value: string) => Promise<void>;
 }
 
 const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = ({
@@ -94,27 +95,21 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
   handleUpdateSecondaryGenre,
   handleUpdateAnalysisData,
   handleUpdateIsImprovisation,
-  handleUpdateIsPiano,
-  handleUpdateIsInstrumental,
-  handleUpdateIsOriginalSong,
-  handleUpdateHasExplicitLyrics,
-  handleUpdateInsightContentType,
-  handleUpdateInsightLanguage,
-  handleUpdateInsightPrimaryUse,
-  handleUpdateInsightAudienceLevel,
-  handleUpdateInsightAudienceAge,
-  handleUpdateInsightVoice,
+  // Removed toggle handlers
+  // handleUpdateIsPiano,
+  // handleUpdateIsInstrumental,
+  // handleUpdateIsOriginalSong,
+  // handleUpdateHasExplicitLyrics,
+  // Removed Insight Timer handlers
+  // handleUpdateInsightContentType,
+  // handleUpdateInsightLanguage,
+  // handleUpdateInsightPrimaryUse,
+  // handleUpdateInsightAudienceLevel,
+  // handleUpdateInsightAudienceAge,
+  // handleUpdateInsightVoice,
 }) => {
   const analysis = imp.analysis_data;
-  const currentAudienceAges = imp.insight_audience_age || [];
-
-  const handleAudienceAgeChange = (age: string, checked: boolean) => {
-    const newAges = checked
-      ? [...currentAudienceAges, age]
-      : currentAudienceAges.filter(a => a !== age);
-      
-    handleUpdateInsightAudienceAge(newAges);
-  };
+  // Removed currentAudienceAges and handleAudienceAgeChange as they are now in InsightTimerTab
 
   const renderEditableItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, key: keyof AnalysisData, inputType: 'text' | 'number' = 'text') => (
     <div className="flex items-center space-x-2">
@@ -166,38 +161,7 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
     </div>
   );
   
-  const renderInsightSelectItem = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], onSave: (v: string) => Promise<void>, allowCustom: boolean = false) => (
-    <div className="flex items-center space-x-2 py-2 border-b last:border-b-0">
-      <Icon className="h-5 w-5 mr-2 text-muted-foreground flex-shrink-0" />
-      <span className="text-sm font-medium text-muted-foreground w-24 flex-shrink-0">{label}:</span>
-      <div className="flex-grow">
-        <SelectField
-          value={value}
-          label={label}
-          options={options}
-          onSave={onSave}
-          placeholder={`Select ${label}`}
-          disabled={isPending}
-          allowCustom={allowCustom}
-          className="h-8"
-        />
-      </div>
-    </div>
-  );
-
-  const renderToggleItem = (Icon: React.ElementType, label: string, checked: boolean | null, onCheckedChange: (checked: boolean) => Promise<void>) => (
-    <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-      <div className="flex items-center">
-        <Icon className="h-5 w-5 mr-2 text-muted-foreground" />
-        <span className="font-semibold text-sm">{label}:</span>
-      </div>
-      <Switch
-        checked={!!checked}
-        onCheckedChange={onCheckedChange}
-        disabled={isPending}
-      />
-    </div>
-  );
+  // Removed renderInsightSelectItem and renderToggleItem as they are no longer used here
 
   return (
     <Dialog>
@@ -216,7 +180,7 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
             <Info className="h-6 w-6 mr-2" /> Improvisation Metadata
           </DialogTitle>
           <DialogDescription>
-            Edit technical analysis data and distribution toggles for your improvisation.
+            Edit core technical data for your improvisation. Distribution toggles and Insight Timer metadata are now on the "Distribution Prep" tab.
           </DialogDescription>
         </DialogHeader>
         
@@ -291,63 +255,18 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
                             </div>
                         </div>
                         
-                        <Separator />
-
-                        {/* Distribution Toggles */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold flex items-center"><Send className="h-5 w-5 mr-2" /> Distribution Toggles</h3>
-                            <div className="space-y-2">
-                                {renderToggleItem(Piano, "Is Piano", imp.is_piano, handleUpdateIsPiano)}
-                                {renderToggleItem(Music, "Is Instrumental", imp.is_instrumental, handleUpdateIsInstrumental)}
-                                {renderToggleItem(CheckCircle, "Is Original Song", imp.is_original_song, handleUpdateIsOriginalSong)}
-                                {renderToggleItem(XCircle, "Explicit Lyrics", imp.has_explicit_lyrics, handleUpdateHasExplicitLyrics)}
-                            </div>
-                        </div>
+                        {/* Removed Distribution Toggles section */}
                     </div>
 
-                    {/* COLUMN 2: Insight Timer Metadata */}
+                    {/* COLUMN 2: Insight Timer Metadata (Removed from here) */}
                     <div className="space-y-6">
-                        <h3 className="text-lg font-semibold flex items-center"><Clock className="h-5 w-5 mr-2" /> Insight Timer Metadata</h3>
+                        <h3 className="text-lg font-semibold flex items-center"><Clock className="h-5 w-5 mr-2" /> Insight Timer Metadata (Moved)</h3>
                         <p className="text-sm text-muted-foreground">
-                            These fields are required for submission to meditation platforms like Insight Timer.
+                            Insight Timer specific metadata fields have been moved to the dedicated "Insight Timer Prep" tab under "Distribution Prep" for a more streamlined workflow.
                         </p>
-                        <div className="space-y-2">
-                            {/* 1. Content Type */}
-                            {renderInsightSelectItem(Music, "Content Type", imp.insight_content_type, INSIGHT_CONTENT_TYPES, handleUpdateInsightContentType)}
-                            
-                            {/* 2. Language */}
-                            {renderInsightSelectItem(Globe, "Language", imp.insight_language, INSIGHT_LANGUAGES, handleUpdateInsightLanguage)}
-                            
-                            {/* 3. Primary Use */}
-                            {renderInsightSelectItem(Clock, "Primary Use", imp.insight_primary_use, INSIGHT_PRIMARY_USES, handleUpdateInsightPrimaryUse)}
-                            
-                            {/* 4. Audience Level */}
-                            {renderInsightSelectItem(Users, "Experience Level", imp.insight_audience_level, INSIGHT_AUDIENCE_LEVELS, handleUpdateInsightAudienceLevel)}
-                            
-                            {/* 6. Voice */}
-                            {renderInsightSelectItem(Volume2, "Voice", imp.insight_voice, INSIGHT_VOICES, handleUpdateInsightVoice)}
-                            
-                            {/* 5. Audience Age (Checkbox Group) */}
-                            <div className="py-2 border-b last:border-b-0">
-                                <Label className="font-semibold flex items-center mb-2">
-                                    <Users className="h-5 w-5 mr-2 text-muted-foreground" />
-                                    Age Group (Select all that apply)
-                                </Label>
-                                <div className="grid grid-cols-2 gap-2 ml-4">
-                                    {INSIGHT_AUDIENCE_AGES.map(age => (
-                                        <div key={age} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={age}
-                                                checked={currentAudienceAges.includes(age)}
-                                                onCheckedChange={(checked) => handleAudienceAgeChange(age, !!checked)}
-                                                disabled={isPending}
-                                            />
-                                            <Label htmlFor={age} className="text-sm font-normal">{age}</Label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            This dialog now focuses solely on core improvisation details and technical analysis.
+                        </p>
                     </div>
                 </div>
             </div>

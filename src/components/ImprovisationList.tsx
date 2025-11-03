@@ -117,30 +117,30 @@ const getNextAction = (imp: Improvisation) => {
   const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
 
   if (isSubmitted) {
-    return { label: 'View Submissions', icon: CheckCircle, color: 'text-green-700', type: 'manual' };
+    return { label: 'View Submissions', icon: CheckCircle, color: 'text-green-700 dark:text-green-500', type: 'manual' };
   }
 
   if (!hasFile) {
-    return { label: 'Upload Audio', icon: Upload, color: 'text-primary', type: 'manual' };
+    return { label: 'Upload Audio', icon: Upload, color: 'text-primary dark:text-primary-foreground', type: 'manual' };
   }
   if (imp.status === 'analyzing') {
-    return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning', type: 'ai' };
+    return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning dark:text-warning-foreground', type: 'ai' };
   }
   if (imp.status === 'completed') {
     if (!hasNotes) {
-      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary', type: 'manual' };
+      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary dark:text-primary-foreground', type: 'manual' };
     }
     if (!hasArtworkPrompt) {
-      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary', type: 'ai' };
+      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary dark:text-primary-foreground', type: 'ai' };
     }
     // If artwork_prompt exists but artwork_url is null, it means artwork needs manual upload
     if (hasArtworkPrompt && !hasArtworkUrl) {
-      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary', type: 'manual' };
+      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary dark:text-primary-foreground', type: 'manual' };
     }
     if (!isReady) {
-      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success', type: 'manual' };
+      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success dark:text-success-foreground', type: 'manual' };
     }
-    return { label: 'Submit to DistroKid', icon: Send, color: 'text-success', type: 'manual' };
+    return { label: 'Submit to DistroKid', icon: Send, color: 'text-success dark:text-success-foreground', type: 'manual' };
   }
   
   return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
