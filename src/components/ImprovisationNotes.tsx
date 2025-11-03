@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Save, Loader2, NotebookText, Check } from 'lucide-react'; // Removed Lock
+import { Save, Loader2, NotebookText, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,6 @@ interface NoteTab {
 interface ImprovisationNotesProps {
   improvisationId: string; // Renamed prop
   initialNotes: NoteTab[] | null;
-  // Removed hasAudioFile: boolean; as it's no longer used
 }
 
 // Updated color definitions for a cleaner, more defined look
@@ -28,7 +27,7 @@ const defaultNotes: NoteTab[] = [
   { id: 'zone4', title: 'Zone 4: Next Steps (Single most actionable task)', color: 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/30', content: '' },
 ];
 
-const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId, initialNotes }) => { // Removed hasAudioFile from destructuring
+const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId, initialNotes }) => {
   // Ensure we use the initial notes if they exist, otherwise use defaults
   const initialData = initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes;
   const [notes, setNotes] = useState<NoteTab[]>(initialData);
@@ -129,7 +128,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
     <Card id="improvisation-notes" className="shadow-lg dark:shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center text-xl">
-          <NotebookText className="w-5 h-5 mr-2 text-primary" /> Creative Notes Workspace
+          <NotebookText className="w-5 h-5 mr-2" /> Creative Notes Workspace
         </CardTitle>
         {renderSaveStatus()}
       </CardHeader>

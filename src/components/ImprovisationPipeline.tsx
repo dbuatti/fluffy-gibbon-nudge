@@ -13,7 +13,6 @@ interface StatusCount {
 }
 
 const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Promise<StatusCount[]> => {
-  // Removed redundant supabaseClient.auth.currentSession logging
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabaseClient

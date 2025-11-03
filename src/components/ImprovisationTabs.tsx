@@ -214,7 +214,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
         {/* NEW: AI Creative Coach */}
         <AICreativeCoach 
           improvisationId={imp.id}
-          // Removed hasAudioFile={hasAudioFile} 
         />
 
         {/* NEW: Core Metadata Card (Exposed for quick editing) */}
@@ -292,7 +291,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
           <ImprovisationNotes 
             improvisationId={imp.id} 
             initialNotes={imp.notes} 
-            // Removed hasAudioFile={hasAudioFile} 
           />
         </div>
       </TabsContent>

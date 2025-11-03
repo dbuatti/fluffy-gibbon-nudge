@@ -8,17 +8,13 @@ import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
   improvisationId: string; // Renamed prop
-  // Removed hasAudioFile: boolean; as it's no longer used
 }
 
-const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) => { // Removed hasAudioFile from destructuring
+const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGenerate = useCallback(async () => {
-    // Removed the hasAudioFile check here, as the button is no longer disabled by it.
-    // The AI function will do its best with available metadata.
-    
     setIsLoading(true);
     setSuggestions([]);
     showSuccess('AI Creative Coach is brainstorming suggestions...');
