@@ -12,6 +12,7 @@ import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -93,14 +94,16 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list'); // Corrected type to allow 'grid'
+  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all'); // 'all', 'uploaded', 'analyzing', 'completed', 'failed'
-  const [sortOption, setSortOption] = useState<string>('created_at_desc'); // 'created_at_desc', 'created_at_asc', 'name_asc', 'name_desc'
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [sortOption, setSortOption] = useState<string>('created_at_desc');
 
   const { data: improvisations } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
     queryFn: fetchImprovisationDates,
+    enabled: !isSessionLoading && !!session?.user?.id, // Only fetch if session is loaded and user is logged in
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,
   });

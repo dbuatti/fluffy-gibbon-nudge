@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 interface NoteTab {
   id: string;
@@ -114,11 +115,13 @@ interface ImprovisationListProps {
 
 const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
+  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
     queryFn: fetchImprovisations,
+    enabled: !isSessionLoading && !!session?.user?.id, // Only fetch if session is loaded and user is logged in
     refetchInterval: 5000,
   });
 
