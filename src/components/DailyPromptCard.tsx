@@ -45,6 +45,12 @@ const DailyPromptCard: React.FC = () => {
     }
   };
 
+  const buttonText = isLoading 
+    ? 'Generating Prompt...' 
+    : isCapturing 
+    ? 'Capturing Idea...' 
+    : 'Start Idea Based on Prompt';
+
   return (
     <Card className="shadow-xl dark:shadow-3xl border-purple-500/50 border-2">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -83,12 +89,9 @@ const DailyPromptCard: React.FC = () => {
             disabled={isLoading || isCapturing || !prompt}
             className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
         >
-            {isCapturing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-                <Music className="h-4 w-4 mr-2" />
-            )}
-            Start Idea Based on Prompt
+            {(isLoading || isCapturing) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {!isLoading && !isCapturing && <Music className="h-4 w-4 mr-2" />}
+            {buttonText}
         </Button>
       </CardContent>
     </Card>

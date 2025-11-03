@@ -522,11 +522,17 @@ const ImprovisationDetails: React.FC = () => {
                   onSave={handleUpdateName}
                   className="text-3xl font-bold p-0"
                   placeholder="Click to set title"
+                  disabled={isGenerating} // Disable editing while generating
               />
             </h1>
             
             {/* Title Generation Buttons */}
             <div className="flex space-x-1">
+                {isGenerating && (
+                    <Badge variant="secondary" className="flex items-center text-sm px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating Title...
+                    </Badge>
+                )}
                 <Button 
                     onClick={handleRandomGenerate} 
                     size="icon" 
