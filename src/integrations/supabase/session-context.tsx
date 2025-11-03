@@ -24,9 +24,9 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [supabaseClient] = useState(() =>
     createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: {
-        persistSession: true, // Ensure session persistence is enabled
-        autoRefreshToken: true, // Ensure auto refresh is enabled
-        detectSessionInUrl: true, // Detect session from URL hash
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
       },
     })
   );
@@ -48,15 +48,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, currentSession) => {
       console.log("SessionContextProvider: Auth state changed. Event:", event, "Session:", currentSession);
       setSession(currentSession);
-      // The client's internal session state is automatically updated by onAuthStateChange.
-      // Explicitly calling setSession here is generally not needed and can sometimes cause issues.
-      // if (currentSession) {
-      //   supabaseClient.auth.setSession(currentSession);
-      // } else {
-      //   // If signed out, the client's session is already cleared by onAuthStateChange.
-      //   // Explicitly setting an empty session might interfere.
-      //   // supabaseClient.auth.setSession({ access_token: '', refresh_token: '' });
-      // }
+      // Removed explicit supabaseClient.auth.setSession() calls as onAuthStateChange handles internal client state.
     });
 
     return () => {
