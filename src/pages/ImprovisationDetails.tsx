@@ -440,7 +440,7 @@ const ImprovisationDetails: React.FC = () => {
       />
       
       {/* 2. TABS (MOVED HERE) */}
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6"> {/* Added mb-6 here */}
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
