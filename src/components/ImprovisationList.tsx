@@ -344,6 +344,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             checked={selectedImprovisations.size === sortedImprovisations.length}
                             onCheckedChange={(checked) => handleSelectAll(!!checked)}
                             className="h-5 w-5"
+                            title="Select all visible improvisations"
                         />
                         <label htmlFor="select-all-toolbar" className="text-sm font-medium leading-none text-primary-foreground">
                             {selectedImprovisations.size} selected
@@ -390,6 +391,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                         checked={selectedImprovisations.size === sortedImprovisations.length && sortedImprovisations.length > 0}
                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                         className="h-5 w-5"
+                        title="Select all visible improvisations"
                     />
                     <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                         Select All
@@ -430,6 +432,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             checked={isSelected}
                             onCheckedChange={(checked) => handleSelectImprovisation(imp.id, !!checked)}
                             className="h-5 w-5"
+                            title={`Select improvisation: ${imp.generated_name || imp.file_name || 'Untitled Idea'}`}
                         />
                       </div>
                       

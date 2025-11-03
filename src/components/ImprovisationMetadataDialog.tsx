@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle } from 'lucide-react';
+import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, Loader2 } from 'lucide-react'; // Added Loader2
 import { Separator } from '@/components/ui/separator';
 import EditableField from './EditableField';
 import GenreSelect from './GenreSelect';
@@ -172,7 +172,7 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
                     
                     {/* Type & Genre */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold flex items-center"><Music className="h-5 w-5 mr-2" /> Type & Genre</h3>
+                        <h3 className="text-lg font-semibold flex items-center"><Music className="h-5 w-5 mr-2 text-primary" /> Type & Genre</h3>
                         
                         <div className="space-y-2 border-b pb-4">
                             <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Improvisation Type</Label>
@@ -201,7 +201,7 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
 
                     {/* Technical Data */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2" /> Technical Data</h3>
+                        <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2 text-primary" /> Technical Data</h3>
                         <div className="space-y-3">
                             {/* Key (SelectField) */}
                             {renderSelectAnalysisItem(Hash, "Key", analysis?.simulated_key, MUSICAL_KEYS, 'simulated_key')}

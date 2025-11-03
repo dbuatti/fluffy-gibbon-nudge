@@ -474,16 +474,6 @@ const ImprovisationDetails: React.FC = () => {
         handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
         handleUpdateAnalysisData={handleUpdateAnalysisData}
         handleUpdateIsImprovisation={handleUpdateIsImprovisation}
-        handleUpdateIsPiano={handleUpdateIsPiano}
-        handleUpdateIsInstrumental={handleUpdateIsInstrumental}
-        handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
-        handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
-        handleUpdateInsightContentType={handleUpdateInsightContentType}
-        handleUpdateInsightLanguage={handleUpdateInsightLanguage}
-        handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
-        handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
-        handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
-        handleUpdateInsightVoice={handleUpdateInsightVoice}
       />
       
       {/* 2. TABS (MOVED HERE) */}
