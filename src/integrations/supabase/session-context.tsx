@@ -19,21 +19,20 @@ export const useSession = () => {
 
 export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
 
   useEffect(() => {
-    console.log("SessionContextProvider: Initializing...");
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("SessionContextProvider: Initial getSession data:", session);
-      setSession(session);
-      setIsLoading(false);
+    console.log("SessionContextProvider: Initializing useEffect...");
+
+    // This listener will fire immediately with 'INITIAL_SESSION' event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log("SessionContextProvider: Auth state changed. Event:", event, "Session:", currentSession);
+      setSession(currentSession);
+      setIsLoading(false); // Set isLoading to false once we have a definitive session state
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("SessionContextProvider: Auth state changed. Event:", _event, "Session:", session);
-      setSession(session);
-      setIsLoading(false); // Ensure isLoading is false after any state change
-    });
+    // No need for supabase.auth.getSession() here, as onAuthStateChange handles the initial session.
+    // This simplifies the logic and ensures isLoading is only set to false once.
 
     return () => {
       console.log("SessionContextProvider: Unsubscribing from auth state changes.");
