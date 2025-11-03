@@ -2,9 +2,9 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Clock, ArrowRight, Edit2, Sparkles, AlertTriangle } from 'lucide-react';
+import { Loader2, Clock, ArrowRight, Edit2, Sparkles, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import PipelineArrow from './PipelineArrow'; // Import PipelineArrow
+
 
 interface StatusCount {
   status: string;
@@ -80,7 +80,7 @@ const CompositionPipeline: React.FC = () => {
       status: 'completed', 
       label: 'Ready for Prep',
       count: totalCompleted, 
-      icon: Sparkles, 
+      icon: CheckCircle, // Changed icon to CheckCircle for 'completed'
       color: 'text-success dark:text-success',
       description: 'Ready for distribution prep.',
       bg: 'bg-success/10 dark:bg-success/20',
@@ -102,35 +102,29 @@ const CompositionPipeline: React.FC = () => {
         <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
-          {pipelineStages.map((stage, index) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"> {/* Changed to responsive grid */}
+          {pipelineStages.map((stage) => {
             const Icon = stage.icon;
             const isActive = stage.count > 0;
             const isAnalyzingStage = stage.status === 'analyzing';
             
             return (
-              <React.Fragment key={stage.status}>
-                <div 
-                  className={cn(
-                    "flex-1 px-3 py-4 rounded-xl border transition-all flex items-center space-x-3 h-24", // Changed p-4 to px-3 py-4, space-x-4 to space-x-3
-                    stage.bg,
-                    isActive ? `border-2 border-${stage.border}` : 'border-gray-200 dark:border-gray-700',
-                    "hover:shadow-md dark:hover:shadow-lg"
-                  )}
-                >
-                  <div className={cn("h-10 w-10 flex items-center justify-center rounded-full", stage.bg)}>
-                    <Icon className={cn("h-6 w-6 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
-                  </div>
-                  
-                  <div className="flex flex-col justify-center">
-                    <h3 className="font-semibold text-xs text-muted-foreground">{stage.label}</h3> {/* Changed text-sm to text-xs */}
-                    <p className="text-3xl font-extrabold leading-none">{stage.count}</p>
-                  </div>
-                </div>
-                {index < pipelineStages.length - 1 && (
-                  <PipelineArrow />
+              <div 
+                key={stage.status}
+                className={cn(
+                  "flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 text-center", // Increased height, centered content
+                  stage.bg,
+                  isActive ? `border-2 ${stage.border}` : 'border-gray-200 dark:border-gray-700',
+                  "hover:shadow-md dark:hover:shadow-lg"
                 )}
-              </React.Fragment>
+              >
+                <div className={cn("h-10 w-10 flex items-center justify-center rounded-full mb-2", stage.bg)}>
+                  <Icon className={cn("h-6 w-6 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
+                </div>
+                
+                <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3>
+                <p className="text-3xl font-extrabold leading-none">{stage.count}</p>
+              </div>
             );
           })}
         </div>

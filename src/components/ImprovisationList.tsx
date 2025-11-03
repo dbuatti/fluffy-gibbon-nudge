@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Sparkles, User } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2 } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 
 interface NoteTab {
   id: string;
@@ -24,7 +24,7 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
-  artwork_prompt: string | null; // NEW FIELD
+  artwork_prompt: string | null;
   created_at: string;
   notes: NoteTab[] | null;
   storage_path: string | null;
@@ -66,14 +66,14 @@ const getNotesStatus = (notes: NoteTab[] | null) => {
   if (hasContent) {
     return <Badge variant="default" className="bg-purple-500 hover:bg-purple-500 dark:bg-purple-700 dark:hover:bg-purple-700">✍️ Notes Added</Badge>;
   }
-  return <Badge variant="outline" className="text-muted-foreground border-dashed">📝 Needs Notes</Badge>;
+  return <Badge variant="outline" className="text-muted-foreground border-dashed">📝 No Notes</Badge>;
 };
 
 const getNextAction = (imp: Improvisation) => {
   const hasFile = !!imp.storage_path;
   const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
-  const hasArtworkPrompt = !!imp.artwork_prompt; // Check for prompt
-  const hasArtworkUrl = !!imp.artwork_url; // Check for uploaded image
+  const hasArtworkPrompt = !!imp.artwork_prompt;
+  const hasArtworkUrl = !!imp.artwork_url;
   const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
@@ -103,14 +103,38 @@ const getNextAction = (imp: Improvisation) => {
 
 const ImprovisationList: React.FC = () => {
   const navigate = useNavigate();
+  const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
+
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
     queryFn: fetchImprovisations,
     refetchInterval: 5000,
   });
 
+  const handleSelectComposition = (id: string, checked: boolean) => {
+    setSelectedCompositions(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (!improvisations) return;
+    if (checked) {
+      const allIds = new Set(improvisations.map(imp => imp.id));
+      setSelectedCompositions(allIds);
+    } else {
+      setSelectedCompositions(new Set());
+    }
+  };
+
   if (isLoading) {
-    return <div className="text-center p-8">Loading compositions...</div>;
+    return <div className="text-center p-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading compositions...</p></div>;
   }
 
   if (error) {
@@ -119,82 +143,94 @@ const ImprovisationList: React.FC = () => {
 
   return (
     <Card className="w-full shadow-card-light dark:shadow-card-dark">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-2xl font-bold">My Ideas & Compositions</CardTitle>
-        <Button variant="outline" onClick={() => refetch()}>Refresh List</Button>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-xl font-bold">Active Compositions</CardTitle>
+        <div className="flex items-center space-x-2">
+            {selectedCompositions.size > 0 && (
+                <Button variant="outline" disabled>
+                    Bulk Actions ({selectedCompositions.size})
+                </Button>
+            )}
+            <Button variant="outline" onClick={() => refetch()}>Refresh List</Button>
+        </div>
       </CardHeader>
       <CardContent>
         {improvisations && improvisations.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">Art</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead className="hidden md:table-cell">Status</TableHead>
-                <TableHead className="hidden lg:table-cell">Notes</TableHead>
-                <TableHead className="text-right w-[200px]">Next Step</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            <div className="flex items-center space-x-2 mb-4 px-2">
+                <Checkbox 
+                    id="select-all"
+                    checked={selectedCompositions.size === improvisations.length && improvisations.length > 0}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                />
+                <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Select All ({selectedCompositions.size} selected)
+                </label>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {improvisations.map((imp) => {
-                const hasFile = !!imp.file_name;
+                const hasFile = !!imp.storage_path;
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
                 const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
+                const isSelected = selectedCompositions.has(imp.id);
                 
                 return (
-                  <TableRow 
+                  <Card 
                     key={imp.id} 
                     className={cn(
-                      "cursor-pointer transition-colors group",
-                      isStalled ? 'bg-red-50/50 hover:bg-red-100/70 dark:bg-red-950/50 dark:hover:bg-red-900/70 border-l-4 border-red-500' : 'hover:bg-muted/50'
+                      "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
+                      isStalled ? 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/50' : 'border-l-4 border-transparent',
+                      isSelected && 'border-2 border-primary ring-2 ring-primary/50'
                     )}
                     onClick={() => navigate(`/improvisation/${imp.id}`)}
                   >
-                    <TableCell>
-                      <Avatar className="h-10 w-10 rounded-md border border-border/50 shadow-sm">
+                    <CardContent className="p-4 flex items-start space-x-4">
+                      <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox 
+                            id={`select-${imp.id}`}
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleSelectComposition(imp.id, !!checked)}
+                        />
+                      </div>
+                      
+                      <Avatar className="h-16 w-16 rounded-md border border-border/50 shadow-sm flex-shrink-0 mt-1">
                         <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
                         <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>
-                    </TableCell>
-                    <TableCell className="font-medium flex flex-col items-start">
-                        <span className="flex items-center">
+                      
+                      <div className="flex-grow space-y-1">
+                        <h3 className="font-semibold text-lg leading-tight flex items-center">
                             {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-red-500 flex-shrink-0" />}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
-                        </span>
-                        <span className="text-xs text-muted-foreground mt-0.5">
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
-                        </span>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{getStatusBadge(imp.status, hasFile)}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{getNotesStatus(imp.notes)}</TableCell>
-                    <TableCell className="text-right">
-                        <Badge 
-                            variant="secondary" 
-                            className={cn(
-                                "font-semibold text-xs px-3 py-1.5 flex items-center justify-end ml-auto w-fit",
-                                nextAction.color,
-                                nextAction.label.includes('Analyzing') && 'bg-yellow-100 dark:bg-yellow-900/50',
-                                nextAction.label.includes('Upload Audio') && 'bg-blue-100 dark:bg-blue-900/50',
-                                nextAction.label.includes('Ready') && 'bg-success/10 dark:bg-success/20',
-                                nextAction.label.includes('Submit') && 'bg-success/10 dark:bg-success/20',
-                            )}
-                        >
-                            {nextAction.type === 'ai' ? (
-                                <Sparkles className={cn("w-3 h-3 mr-1.5", nextAction.label.includes('Analyzing') && 'animate-spin')} />
-                            ) : (
-                                <User className="w-3 h-3 mr-1.5" />
-                            )}
-                            {nextAction.label}
-                        </Badge>
-                    </TableCell>
-                  </TableRow>
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {getStatusBadge(imp.status, hasFile)}
+                            {getNotesStatus(imp.notes)}
+                        </div>
+                        <div className="mt-3 flex items-center text-sm font-medium">
+                            <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
+                            <span className={cn(
+                                nextAction.label.includes('Analyzing') && 'text-yellow-600 dark:text-yellow-400',
+                                nextAction.label.includes('Upload Audio') && 'text-blue-600 dark:text-blue-400',
+                                nextAction.label.includes('Ready') && 'text-green-600 dark:text-green-400',
+                                nextAction.label.includes('Submit') && 'text-green-600 dark:text-green-400',
+                            )}>
+                                {nextAction.label}
+                            </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
-            </TableBody>
-          </Table>
+            </div>
+          </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
             <Music className="w-10 h-10 mx-auto mb-4" />

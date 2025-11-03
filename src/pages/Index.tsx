@@ -3,15 +3,16 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import ImprovisationList from "@/components/ImprovisationList";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Music, Clock, Sparkles, Flame, CalendarCheck, Zap } from "lucide-react";
+import { ExternalLink, Music, Clock, Sparkles, Flame, CalendarCheck, Zap, Search, Filter, ListOrdered } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
-import DailyPromptCard from "@/components/DailyPromptCard";
+import DailyPromptCard from "@/components/DailyPromptCard"; // Keep import for now, but won't render
 import { supabase } from '@/integrations/supabase/client';
 import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input'; // For search input
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -34,7 +35,6 @@ const fetchImprovisationDates = async (): Promise<Improvisation[]> => {
 const useStreakTracker = (data: Improvisation[] | undefined) => {
   if (!data || data.length === 0) return { streak: 0, todayActivity: false };
 
-  // 1. Normalize all creation dates to YYYY-MM-DD strings for easy comparison
   const activityDates = new Set(
     data.map(item => format(parseISO(item.created_at), 'yyyy-MM-dd'))
   );
@@ -42,27 +42,21 @@ const useStreakTracker = (data: Improvisation[] | undefined) => {
   let currentStreak = 0;
   const todayString = format(new Date(), 'yyyy-MM-dd');
   
-  // 2. Check for today's activity
   const todayActivity = activityDates.has(todayString);
   
   let dateToCheck = new Date();
   
-  // If there was activity today, the streak starts at 1 and we check yesterday next.
   if (todayActivity) {
     currentStreak = 1;
     dateToCheck = subDays(dateToCheck, 1);
   } 
-  // If no activity today, we check if there was activity yesterday to maintain a streak.
   else if (activityDates.has(format(subDays(dateToCheck, 1), 'yyyy-MM-dd'))) {
-    // Streak starts at 1 if activity was yesterday, but today's goal is missed.
     currentStreak = 1;
     dateToCheck = subDays(dateToCheck, 2);
   } else {
-    // No activity today or yesterday, streak is 0.
     return { streak: 0, todayActivity: false };
   }
 
-  // 3. Iterate backwards to calculate the full streak length
   while (true) {
     const dateString = format(dateToCheck, 'yyyy-MM-dd');
     
@@ -84,16 +78,16 @@ const Index = () => {
   const { data: improvisations } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
     queryFn: fetchImprovisationDates,
-    refetchInterval: 60000, // Check streak every minute
+    staleTime: 86400000, // Cache the prompt for 24 hours
+    refetchOnWindowFocus: false,
   });
 
   const { streak, todayActivity } = useStreakTracker(improvisations);
 
   const handleRefetch = () => {
-    // Invalidate the query cache to force ImprovisationList and Pipeline to refetch
     queryClient.invalidateQueries({ queryKey: ['improvisations'] });
     queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
-    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] }); // Refetch dates for streak
+    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] });
   };
   
   const streakMessage = streak > 0 
@@ -103,9 +97,19 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <header className="mb-8 max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-          Dashboard
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+            Dashboard
+          </h1>
+          <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
+            <Button 
+              variant="default" 
+              className="w-full sm:w-auto text-sm h-10 px-4 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-shrink-0"
+            >
+              <Music className="w-4 h-4 mr-2" /> Capture New Idea
+            </Button>
+          </CaptureIdeaDialog>
+        </div>
         <p className="text-md text-muted-foreground mt-1">
           Welcome back! Manage your ideas and compositions here.
         </p>
@@ -113,112 +117,81 @@ const Index = () => {
       
       <main className="max-w-6xl mx-auto space-y-10">
         
-        {/* Main Grid Layout for Desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left Column (Main Content: Pipeline & List) - Takes 2/3 width on large screens */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Primary Action (Aligned Right) */}
-            <div className="flex justify-end">
-                <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
-                  <Button 
-                    variant="default" 
-                    className="w-full sm:w-auto text-sm h-10 px-4 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-shrink-0"
-                  >
-                    <Music className="w-4 h-4 mr-2" /> Capture New Idea
-                  </Button>
-                </CaptureIdeaDialog>
-            </div>
-            
-            {/* Composition Pipeline (Full Width) */}
-            <CompositionPipeline />
-            
-            {/* Improvisation List */}
-            <ImprovisationList />
+        {/* Composition Pipeline (Now full width at the top) */}
+        <CompositionPipeline />
+        
+        {/* Search, Filter, and View Toggles */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="relative w-full sm:w-1/2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search compositions..." 
+              className="pl-9 w-full" 
+              disabled // Placeholder for now
+            />
           </div>
-          
-          {/* Right Column (Utility: Prompt, Streak, Quick Links) - Takes 1/3 width on large screens */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" disabled>
+              <Filter className="h-4 w-4 mr-2" /> Filter
+            </Button>
+            <Button variant="outline" disabled>
+              <ListOrdered className="h-4 w-4 mr-2" /> Sort
+            </Button>
+            {/* Future: Grid/List Toggle */}
+          </div>
+        </div>
+
+        {/* Improvisation List (Will be redesigned as cards) */}
+        <ImprovisationList />
+        
+        {/* Quick Links (Simplified and moved to bottom) */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-bold text-muted-foreground">Quick Links</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <a href={GEMINI_URL} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full">
+                    Open Gemini <ExternalLink className="w-4 h-4 ml-2" />
+                  </Button>
+                </a>
+              </CardContent>
+            </Card>
             
-            {/* DAILY CREATIVE PROMPT */}
-            <DailyPromptCard />
-            
-            {/* STREAK TRACKER (Motivation) */}
-            <Card className={cn(
-                "p-4 border-2 shadow-card-light dark:shadow-3xl",
-                "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
-            )}>
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold flex items-center text-yellow-700 dark:text-yellow-300">
-                        <Flame className="w-6 h-6 mr-2" /> Consistency Tracker
-                    </h3>
-                    {todayActivity && <Badge className="bg-success hover:bg-success/90 text-success-foreground"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
-                </div>
-                <p className="mt-2 text-lg font-semibold text-foreground flex items-center">
-                    <Flame className="w-5 h-5 mr-2 text-orange-500 flex-shrink-0" />
-                    {streakMessage}
-                </p>
+            <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <a href={DISTROKID_URL} target="_blank" rel="noopener noreferrer">
+                  <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
+                    Go to DistroKid <ExternalLink className="w-4 h-4 ml-2" />
+                  </Button>
+                </a>
+              </CardContent>
             </Card>
 
-            {/* QUICK LINKS */}
-            <h3 className="text-lg font-bold text-muted-foreground pt-2">Quick Links</h3>
-            <div className="space-y-4">
-              
-              <Card className="shadow-card-light dark:shadow-3xl hover:shadow-xl transition-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-lg">
-                    <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Quick access to your AI assistant for brainstorming or creative writing.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <a href={GEMINI_URL} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" className="w-full">
-                      Open Gemini <ExternalLink className="w-4 h-4 ml-2" />
-                    </Button>
-                  </a>
-                </CardContent>
-              </Card>
-              
-              <Card className="shadow-card-light dark:shadow-3xl hover:shadow-xl transition-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-lg">
-                    <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Prepare metadata for streaming platforms like Spotify and Apple Music.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <a href={DISTROKID_URL} target="_blank" rel="noopener noreferrer">
-                    <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
-                      Go to DistroKid <ExternalLink className="w-4 h-4 ml-2" />
-                    </Button>
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-card-light dark:shadow-3xl hover:shadow-xl transition-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center text-lg">
-                    <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer
-                  </CardTitle>
-                  <CardDescription className="text-sm">
-                    Prepare track details for meditation and wellness platforms.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <a href={INSIGHT_TIMER_URL} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" className="w-full">
-                      Go to Insight Timer <ExternalLink className="w-4 h-4 ml-2" />
-                    </Button>
-                  </a>
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-lg">
+                  <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <a href={INSIGHT_TIMER_URL} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="w-full">
+                    Go to Insight Timer <ExternalLink className="w-4 h-4 ml-2" />
+                  </Button>
+                </a>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>
