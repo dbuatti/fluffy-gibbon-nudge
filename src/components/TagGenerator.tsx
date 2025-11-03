@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Tag, X, Loader2, Check } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface TagGeneratorProps {
@@ -14,7 +14,6 @@ interface TagGeneratorProps {
 }
 
 const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTags }) => {
-  const { supabase } = useSession(); // Get supabase from useSession
   const [tags, setTags] = useState<string[]>(initialTags || []);
   const [inputValue, setInputValue] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved'>('idle');
@@ -39,7 +38,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
       showError('Failed to autosave tags.');
       setSaveStatus('idle');
     }
-  }, [improvisationId, supabase]);
+  }, [improvisationId]);
 
   // Effect to trigger save when tags change
   useEffect(() => {

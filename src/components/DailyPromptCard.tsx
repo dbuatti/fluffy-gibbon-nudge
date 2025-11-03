@@ -1,14 +1,14 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
 import CaptureIdeaDialog from './CaptureIdeaDialog'; // Import the dialog
 import { cn } from '@/lib/utils';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
-const fetchDailyPrompt = async (supabase: any): Promise<string> => {
+const fetchDailyPrompt = async (): Promise<string> => {
   // Note: We use the anon key here as this is a public function call
   const { data, error } = await supabase.functions.invoke('generate-daily-prompt', {
     method: 'GET', // Use GET since we are just fetching data
@@ -23,10 +23,9 @@ const fetchDailyPrompt = async (supabase: any): Promise<string> => {
 };
 
 const DailyPromptCard: React.FC = () => {
-  const { supabase } = useSession(); // Get supabase from useSession
   const { data: prompt, isLoading, error, refetch } = useQuery<string>({
     queryKey: ['dailyPrompt'],
-    queryFn: () => fetchDailyPrompt(supabase), // Pass supabase client to fetcher
+    queryFn: fetchDailyPrompt,
     // Cache the prompt for 24 hours (86400000 ms) to ensure it's "daily"
     staleTime: 86400000, 
     refetchOnWindowFocus: false,

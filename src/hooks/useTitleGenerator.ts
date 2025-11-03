@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
 const ABSTRACT_WORDS = [
@@ -29,7 +29,6 @@ const generateRandomTitle = (): string => {
 };
 
 export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (title: string) => Promise<void>) => {
-  const { supabase } = useSession(); // Get supabase from useSession
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleRandomGenerate = useCallback(async () => {
@@ -75,7 +74,7 @@ export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (ti
     } finally {
       setIsGenerating(false);
     }
-  }, [improvisationId, onTitleGenerated, isGenerating, supabase]);
+  }, [improvisationId, onTitleGenerated, isGenerating]);
 
   return {
     isGenerating,

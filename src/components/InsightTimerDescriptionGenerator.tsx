@@ -4,14 +4,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Copy, Loader2, Sparkles } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 
 interface InsightTimerDescriptionGeneratorProps {
   improvisationId: string;
 }
 
 const InsightTimerDescriptionGenerator: React.FC<InsightTimerDescriptionGeneratorProps> = ({ improvisationId }) => {
-  const { supabase } = useSession(); // Get supabase from useSession
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -40,7 +39,7 @@ const InsightTimerDescriptionGenerator: React.FC<InsightTimerDescriptionGenerato
     } finally {
       setIsLoading(false);
     }
-  }, [improvisationId, supabase]);
+  }, [improvisationId]);
 
   const handleCopy = () => {
     if (description) {

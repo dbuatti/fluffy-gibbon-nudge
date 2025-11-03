@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Save, Loader2, NotebookText, Check, Lock } from 'lucide-react';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +29,6 @@ const defaultNotes: NoteTab[] = [
 ];
 
 const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, initialNotes, hasAudioFile }) => {
-  const { supabase } = useSession(); // Get supabase from useSession
   // Ensure we use the initial notes if they exist, otherwise use defaults
   const initialData = initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes;
   const [notes, setNotes] = useState<NoteTab[]>(initialData);
@@ -54,7 +53,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
       showError('Failed to autosave notes.');
       setSaveStatus('idle'); // Revert to idle on error
     }
-  }, [improvisationId, supabase]);
+  }, [improvisationId]);
 
   // Effect to debounce saving whenever notes change
   useEffect(() => {

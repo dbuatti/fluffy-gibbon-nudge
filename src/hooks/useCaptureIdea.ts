@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { format } from 'date-fns';
+import { useSession } from '@/integrations/supabase/session-context';
 import { useNavigate } from 'react-router-dom';
 
 interface CaptureIdeaOptions {
@@ -10,7 +11,7 @@ interface CaptureIdeaOptions {
 }
 
 export const useCaptureIdea = () => {
-  const { session, supabase } = useSession(); // Get supabase from useSession
+  const { session } = useSession();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -61,7 +62,7 @@ export const useCaptureIdea = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [session, navigate, supabase]);
+  }, [session, navigate]);
 
   return {
     captureIdea,

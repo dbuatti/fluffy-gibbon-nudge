@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -10,7 +10,6 @@ interface AIAugmentationResult {
 
 export const useAIAugmentation = (improvisationId: string) => {
   const queryClient = useQueryClient();
-  const { supabase } = useSession(); // Get supabase from useSession
   const [isPopulating, setIsPopulating] = useState(false);
   const [aiGeneratedDescription, setAiGeneratedDescription] = useState('');
 
@@ -47,7 +46,7 @@ export const useAIAugmentation = (improvisationId: string) => {
     } finally {
       setIsPopulating(false);
     }
-  }, [improvisationId, queryClient, isPopulating, supabase]);
+  }, [improvisationId, queryClient, isPopulating]);
 
   return {
     isPopulating,

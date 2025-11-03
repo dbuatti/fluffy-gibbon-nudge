@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Menu, Trash2, Loader2, Settings, AlertTriangle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 interface CompositionSettingsSheetProps {
   impId: string;
@@ -14,7 +13,6 @@ interface CompositionSettingsSheetProps {
 }
 
 const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ impId, impName, handleDelete, isDeleting }) => {
-  const { supabase } = useSession(); // Get supabase from useSession
   return (
     <Sheet>
       <SheetTrigger asChild>

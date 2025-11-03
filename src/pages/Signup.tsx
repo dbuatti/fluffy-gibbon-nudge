@@ -1,6 +1,7 @@
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/integrations/supabase/session-context';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -8,7 +9,7 @@ import PasswordGenerator from '@/components/PasswordGenerator';
 import { Key, ArrowLeft } from 'lucide-react';
 
 const Signup = () => {
-  const { session, isLoading, supabase } = useSession(); // Get supabase from useSession
+  const { session, isLoading } = useSession();
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;

@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Lightbulb, Zap, Check } from 'lucide-react';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
@@ -12,7 +12,6 @@ interface AICreativeCoachProps {
 }
 
 const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasAudioFile }) => {
-  const { supabase } = useSession(); // Get supabase from useSession
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,7 +45,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasA
     } finally {
       setIsLoading(false);
     }
-  }, [improvisationId, hasAudioFile, supabase]);
+  }, [improvisationId, hasAudioFile]);
 
   return (
     <Card className="shadow-lg dark:shadow-xl border-purple-500/50 border-2">

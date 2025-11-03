@@ -7,11 +7,11 @@ import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered,
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
+import { supabase } from '@/integrations/supabase/client';
 import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -21,17 +21,13 @@ interface Improvisation {
   created_at: string;
 }
 
-const fetchImprovisationDates = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
-  console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
-  console.log("fetchImprovisationDates: Supabase client session:", supabase.auth.currentSession); // Add this line
+const fetchImprovisationDates = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
     .from('improvisations')
     .select('created_at')
-    .eq('user_id', sessionUserId) // Filter by user_id
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchImprovisationDates: Fetched data:", data);
   return data as Improvisation[];
 };
 
@@ -45,7 +41,7 @@ const useStreakTracker = (data: Improvisation[] | undefined) => {
   let currentStreak = 0;
   const todayString = format(new Date(), 'yyyy-MM-dd');
   
-  const todayActivity = activityDates.has(todayString); // Define todayActivity here
+  const todayActivity = activityDates.has(todayString);
   
   let dateToCheck = new Date();
   
@@ -97,18 +93,14 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const { session, isLoading: isSessionLoading, supabase } = useSession(); // Use useSession
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list'); // Corrected type to allow 'grid'
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [sortOption, setSortOption] = useState<string>('created_at_desc');
-
-  console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+  const [filterStatus, setFilterStatus] = useState<string>('all'); // 'all', 'uploaded', 'analyzing', 'completed', 'failed'
+  const [sortOption, setSortOption] = useState<string>('created_at_desc'); // 'created_at_desc', 'created_at_asc', 'name_asc', 'name_desc'
 
   const { data: improvisations } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
-    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Pass supabase client and user ID to fetcher
-    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
+    queryFn: fetchImprovisationDates,
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,
   });

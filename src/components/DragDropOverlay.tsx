@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { UploadCloud, Music, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/integrations/supabase/session-context';
 import { showSuccess, showError } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
 
 const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session, supabase } = useSession(); // Get supabase from useSession
+  const { session } = useSession();
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -115,7 +116,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     } finally {
       setIsProcessing(false);
     }
-  }, [session, navigate, supabase]);
+  }, [session, navigate]);
 
   React.useEffect(() => {
     window.addEventListener('dragenter', handleDragEnter);
