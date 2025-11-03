@@ -13,8 +13,9 @@ import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES } from '@/lib/insight-constants';
+import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TYPES, INSIGHT_LANGUAGES, INSIGHT_PRIMARY_USES, INSIGHT_AUDIENCE_LEVELS, INSIGHT_AUDIENCE_AGES, INSIGHT_VOICES } from '@/lib/insight-constants';
 import { cn } from '@/lib/utils';
+import SelectField from './SelectField'; // Import SelectField
 
 interface ImprovisationData {
   id: string;
@@ -86,7 +87,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   // If the content type is 'Music', we assume the other fields are required for full categorization.
   const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
 
-  // --- Handlers for Categorization Fields (Moved from InsightTimerFormFields) ---
+  // --- Handlers for Categorization Fields ---
   
   // --- Benefits (Multi-Select, Max 3) ---
   const handleBenefitChange = (benefit: string, checked: boolean) => {
@@ -118,7 +119,23 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     updateMutation.mutate({ insight_themes: newThemes });
   };
   
-  // --- Rendering Functions for Categorization Fields (Moved from InsightTimerFormFields) ---
+  // --- Core Field Handlers (Re-implementing logic from CompositionMetadataDialog) ---
+  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
+  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
+  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
+  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
+  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
+  
+  const handleAudienceAgeChange = (age: string, checked: boolean) => {
+    const currentAudienceAges = imp.insight_audience_age || [];
+    const newAges = checked
+      ? [...currentAudienceAges, age]
+      : currentAudienceAges.filter(a => a !== age);
+      
+    updateMutation.mutate({ insight_audience_age: newAges });
+  };
+  
+  // --- Rendering Functions ---
 
   const renderCheckboxGroup = (title: string, options: { [key: string]: string[] }, selectedValues: string[], onChange: (value: string, checked: boolean) => void, maxSelection?: number) => (
     <Card className="shadow-none border">
@@ -236,6 +253,24 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
       </div>
     );
   };
+  
+  const renderInsightSelectField = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], onSave: (v: string) => Promise<void>) => (
+    <div className="flex items-center space-x-2 py-2 border-b last:border-b-0">
+      <Icon className="h-5 w-5 mr-2 text-muted-foreground flex-shrink-0" />
+      <span className="text-sm font-medium text-muted-foreground w-32 flex-shrink-0">{label}:</span>
+      <div className="flex-grow">
+        <SelectField
+          value={value}
+          label={label}
+          options={options}
+          onSave={onSave}
+          placeholder={`Select ${label}`}
+          disabled={updateMutation.isPending}
+          allowCustom={false}
+        />
+      </div>
+    </div>
+  );
 
 
   return (
@@ -267,7 +302,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
 
           {/* Required Fields Summary */}
           <div className="p-4 border rounded-lg bg-muted/50 space-y-1">
-            <h4 className="font-semibold text-base mb-2">Required Core Metadata (Set via <Link to={`/improvisation/${imp.id}`}><Info className="w-4 h-4 inline-block text-primary" /></Link> button):</h4>
+            <h4 className="font-semibold text-base mb-2">Required Core Metadata:</h4>
             {renderSingleSelectStatusItem("Content Type", imp.insight_content_type, Music, true)}
             {renderSingleSelectStatusItem("Language", imp.insight_language, Globe, true)}
             {renderSingleSelectStatusItem("Primary Use", imp.insight_primary_use, Clock, true)}
@@ -277,7 +312,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
             
             <Separator className="my-3" />
             
-            <h4 className="font-semibold text-base mb-2">Required Categorization (Set below):</h4>
+            <h4 className="font-semibold text-base mb-2">Required Categorization:</h4>
             {renderMultiSelectStatusItem("Benefits (Max 3)", imp.insight_benefits, CheckCircle, true)}
             {renderSingleSelectStatusItem("Practices (Select 1)", imp.insight_practices, BookOpen, true)}
             {renderMultiSelectStatusItem("Themes", imp.insight_themes, Info, true)}
@@ -370,12 +405,52 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
       {/* Complex Categorization Fields (NOW TABBED) */}
       <h3 className="text-xl font-bold mt-8">Detailed Categorization</h3>
       
-      <Tabs defaultValue="benefits">
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+      <Tabs defaultValue="core-fields">
+        <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+          <TabsTrigger value="core-fields" className="text-base py-2 flex items-center"><Info className="h-4 w-4 mr-1" /> Core Fields</TabsTrigger>
           <TabsTrigger value="benefits" className="text-base py-2">Benefits (Max 3)</TabsTrigger>
           <TabsTrigger value="practices" className="text-base py-2">Practices (Select 1)</TabsTrigger>
           <TabsTrigger value="themes" className="text-base py-2">Themes</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="core-fields" className="mt-4">
+            <Card className="shadow-none border">
+                <CardHeader className="py-3 px-4 border-b">
+                    <CardTitle className="text-base font-semibold">
+                        Required Single-Select Fields
+                        {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-2">
+                    {renderInsightSelectField(Music, "Content Type", imp.insight_content_type, INSIGHT_CONTENT_TYPES, handleUpdateInsightContentType)}
+                    {renderInsightSelectField(Globe, "Language", imp.insight_language, INSIGHT_LANGUAGES, handleUpdateInsightLanguage)}
+                    {renderInsightSelectField(Clock, "Primary Use", imp.insight_primary_use, INSIGHT_PRIMARY_USES, handleUpdateInsightPrimaryUse)}
+                    {renderInsightSelectField(Users, "Experience Level", imp.insight_audience_level, INSIGHT_AUDIENCE_LEVELS, handleUpdateInsightAudienceLevel)}
+                    {renderInsightSelectField(Volume2, "Voice", imp.insight_voice, INSIGHT_VOICES, handleUpdateInsightVoice)}
+                    
+                    {/* Audience Age Checkbox Group */}
+                    <div className="py-2 border-b last:border-b-0">
+                        <Label className="font-semibold flex items-center mb-2 text-sm text-muted-foreground">
+                            <Users className="h-5 w-5 mr-2 text-muted-foreground" />
+                            Age Group (Select all that apply)
+                        </Label>
+                        <div className="grid grid-cols-2 gap-2 ml-4">
+                            {INSIGHT_AUDIENCE_AGES.map(age => (
+                                <div key={age} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`age-${age}`}
+                                        checked={(imp.insight_audience_age || []).includes(age)}
+                                        onCheckedChange={(checked) => handleAudienceAgeChange(age, !!checked)}
+                                        disabled={updateMutation.isPending}
+                                    />
+                                    <Label htmlFor={`age-${age}`} className="text-sm font-normal">{age}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
         
         <TabsContent value="benefits" className="mt-4">
           {renderCheckboxGroup(
