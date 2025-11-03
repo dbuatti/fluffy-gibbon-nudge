@@ -14,7 +14,7 @@ async function generateImagePromptWithGemini(generatedName: string, primaryGenre
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
         console.error("GEMINI_API_KEY is not set for prompt generation.");
-        return generatedName; // Fallback to name if key is missing
+        return `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`; // Fallback
     }
 
     const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". The primary genre is ${primaryGenre} and the mood is ${mood}. Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on color, texture, and lighting that reflects the ${mood} and ${primaryGenre} genres. The style should be cinematic, painterly, or digital art.
@@ -41,29 +41,21 @@ async function generateImagePromptWithGemini(generatedName: string, primaryGenre
         if (!response.ok) {
             const errorBody = await response.json();
             console.error("Gemini Prompt API Error:", errorBody);
-            return generatedName;
+            return `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
         }
 
         const data = await response.json();
-        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || generatedName;
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
         
         // Clean up and return the prompt
         return generatedText.replace(/^["']|["']$/g, '');
 
     } catch (error) {
         console.error("Error calling Gemini Prompt API:", error);
-        return generatedName;
+        return `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
     }
 }
 
-
-// Placeholder function to simulate generating an image URL
-function generatePlaceholderImageUrl(prompt: string): string {
-    // Reverting to Unsplash to allow AI prompt keywords to influence the image content.
-    // We extract the first 5 relevant keywords from the AI prompt.
-    const keywords = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).slice(0, 5).join(',');
-    return `https://source.unsplash.com/random/3000x3000/?${keywords}`;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -88,42 +80,37 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Starting artwork generation for ID: ${improvisationId} based on name: ${generatedName}`);
+    console.log(`Starting artwork prompt generation for ID: ${improvisationId} based on name: ${generatedName}`);
 
     // 1. Generate a detailed, artistic prompt using Gemini, incorporating musical context
     const imagePrompt = await generateImagePromptWithGemini(generatedName, primaryGenre, secondaryGenre || '', mood);
     console.log(`AI Generated Image Prompt: ${imagePrompt}`);
 
-    // 2. Simulate image generation time
-    await new Promise(resolve => setTimeout(resolve, 3000)); 
-
-    // 3. Use the AI prompt keywords to influence the Unsplash image selection
-    const artworkUrl = generatePlaceholderImageUrl(imagePrompt);
-
-    // Update the database record with the artwork URL
+    // 2. Update the database record with the artwork prompt (and clear the old artwork_url)
     const { error } = await supabase
       .from('improvisations')
       .update({ 
-        artwork_url: artworkUrl,
+        artwork_prompt: imagePrompt,
+        artwork_url: null, // Clear the old placeholder URL
       })
       .eq('id', improvisationId);
 
     if (error) {
-      console.error('Database update failed during artwork generation:', error);
-      return new Response(JSON.stringify({ error: 'Failed to update database with artwork URL' }), {
+      console.error('Database update failed during artwork prompt generation:', error);
+      return new Response(JSON.stringify({ error: 'Failed to update database with artwork prompt' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Artwork generated and saved for ID: ${improvisationId}. URL: ${artworkUrl}`);
+    console.log(`Artwork prompt generated and saved for ID: ${improvisationId}.`);
 
-    return new Response(JSON.stringify({ success: true, artworkUrl }), {
+    return new Response(JSON.stringify({ success: true, artworkPrompt: imagePrompt }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Artwork Generation Edge Function error:', error);
+    console.error('Artwork Prompt Generation Edge Function error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

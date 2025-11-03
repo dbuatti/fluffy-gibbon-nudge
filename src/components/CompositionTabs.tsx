@@ -15,16 +15,18 @@ import PreFlightChecklist from './PreFlightChecklist';
 import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
 import { Input } from '@/components/ui/input';
-import { Copy, ExternalLink, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { Copy, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
+import { cn } from '@/lib/utils';
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
+const MIDJOURNEY_URL = "https://www.midjourney.com/";
 
 interface NoteTab {
   id: string;
@@ -46,6 +48,7 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
+  artwork_prompt: string | null; // NEW FIELD
   is_piano: boolean | null;
   is_improvisation: boolean | null;
   primary_genre: string | null;
@@ -142,9 +145,19 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
       showError('No public URL available.');
     }
   };
+  
+  const handleCopyPrompt = () => {
+    if (imp.artwork_prompt) {
+      navigator.clipboard.writeText(imp.artwork_prompt);
+      showSuccess('AI Artwork Prompt copied to clipboard!');
+    } else {
+      showError('No prompt generated yet.');
+    }
+  };
 
   // A composition is blocked if any critical asset or confirmation is missing.
   const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
+  // Artwork check now relies on the user having uploaded an image (artwork_url is set)
   const isBlocked = !hasAudioFile || !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
 
 
@@ -246,61 +259,76 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
       {/* --- ASSETS & DOWNLOADS TAB --- */}
       <TabsContent value="assets-downloads" className="space-y-8 mt-6">
         
-        {/* Artwork & Actions Card */}
+        {/* Artwork Prompt & Actions Card */}
         <Card id="artwork-actions">
           <CardHeader>
-            <CardTitle>Artwork & Asset Actions</CardTitle>
+            <CardTitle className="flex items-center text-xl">
+                <ImageIcon className="w-5 h-5 mr-2" /> AI Artwork Prompt Generator
+            </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="space-y-4">
             
-            {/* Artwork Column */}
-            <div className="space-y-4">
-              {imp.artwork_url ? (
-                <img 
-                  src={imp.artwork_url} 
-                  alt="Generated Artwork" 
-                  className="w-full aspect-square object-cover rounded-lg shadow-lg"
-                />
-              ) : (
-                <div className="w-full aspect-square bg-muted rounded-lg flex flex-col items-center justify-center text-muted-foreground">
-                  <Music className="h-12 w-12" />
-                  <p className="mt-2">
-                    {hasAudioFile ? 'Artwork generating...' : 'Upload audio to generate artwork.'}
-                  </p>
-                </div>
-              )}
+            {/* Prompt Display */}
+            <div className={cn(
+                "p-4 rounded-lg border-2 border-dashed",
+                imp.artwork_prompt ? "border-primary/50 bg-muted/50" : "border-red-500/50 bg-red-50/50 dark:bg-red-950/50"
+            )}>
+                <h3 className="font-semibold mb-2 flex items-center">
+                    {imp.artwork_prompt ? 'Generated Prompt:' : 'Prompt Missing (Generate Below)'}
+                </h3>
+                <p className={cn("text-sm font-mono", !imp.artwork_prompt && "text-red-600 dark:text-red-400")}>
+                    {imp.artwork_prompt || "Please ensure core metadata (Title, Genre, Mood) is set on the Creative Hub tab before generating the prompt."}
+                </p>
             </div>
 
             {/* Actions Column */}
-            <div className="space-y-4 pt-4 md:pt-0">
-              <h3 className="text-lg font-semibold">Asset Management</h3>
-              <div className="space-y-2">
-                  {isCompleted && imp.artwork_url && (
-                    <Button onClick={handleDownload} className="w-full">
-                      <Download className="h-4 w-4 mr-2" /> Download Artwork (3000x3000)
-                    </Button>
-                  )}
-                  {isCompleted && (
-                    <Button 
-                      onClick={handleRegenerateArtwork} 
-                      variant="outline" 
-                      className="w-full"
-                      disabled={isRegenerating || isAnalyzing}
-                    >
-                      {isRegenerating ? (
+            <div className="space-y-2">
+                <Button 
+                    onClick={handleCopyPrompt} 
+                    className="w-full"
+                    disabled={!imp.artwork_prompt}
+                >
+                    <Copy className="h-4 w-4 mr-2" /> Copy Prompt to Clipboard
+                </Button>
+                <Button 
+                    onClick={handleRegenerateArtwork} 
+                    variant="outline" 
+                    className="w-full"
+                    disabled={isRegenerating || isAnalyzing || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
+                >
+                    {isRegenerating ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
+                    ) : (
                         <RefreshCw className="h-4 w-4 mr-2" />
-                      )}
-                      {isRegenerating ? 'Regenerate Artwork' : 'Regenerate Artwork'}
-                    </Button>
-                  )}
-              </div>
-              
-              <Separator />
-              
-              <h3 className="text-lg font-semibold">External Tools</h3>
-              <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+                    )}
+                    {isRegenerating ? 'Regenerating Prompt...' : 'Regenerate Prompt'}
+                </Button>
+            </div>
+            
+            <Separator />
+            
+            <h3 className="text-lg font-semibold">External Artwork Generation</h3>
+            <p className="text-sm text-muted-foreground">
+                Use the generated prompt above with an external AI tool to create your unique 3000x3000 album cover.
+            </p>
+            <QuickLinkButton href={MIDJOURNEY_URL} icon={ImageIcon} label="Open Midjourney" />
+            <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+            
+            <Separator />
+            
+            {/* Artwork Upload CTA */}
+            <div className="p-4 border rounded-lg bg-yellow-50/50 dark:bg-yellow-950/50 space-y-2">
+                <h3 className="text-lg font-semibold flex items-center text-yellow-700 dark:text-yellow-300">
+                    <AlertTriangle className="h-5 w-5 mr-2" /> Manual Artwork Upload
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                    Once you have generated your 3000x3000 artwork externally, upload it here to link it to this composition.
+                </p>
+                {/* Placeholder for future manual upload component */}
+                <Input type="file" accept=".jpg, .png" disabled={true} className="mt-2" />
+                <Button variant="secondary" disabled className="w-full">
+                    Upload Final Artwork (Coming Soon)
+                </Button>
             </div>
           </CardContent>
         </Card>

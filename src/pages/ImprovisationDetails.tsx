@@ -31,6 +31,7 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
+  artwork_prompt: string | null; // NEW FIELD
   is_piano: boolean | null;
   is_improvisation: boolean | null;
   primary_genre: string | null;
@@ -59,7 +60,7 @@ interface Improvisation {
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
     .eq('id', id)
     .single();
 
@@ -122,12 +123,12 @@ const ImprovisationDetails: React.FC = () => {
 
   const handleRegenerateArtwork = async () => {
     if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) {
-      showError("Cannot regenerate artwork: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
+      showError("Cannot regenerate artwork prompt: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
       return;
     }
 
     setIsRegenerating(true);
-    showSuccess("Artwork regeneration started...");
+    showSuccess("Artwork prompt regeneration started...");
 
     try {
       const { error: functionError } = await supabase.functions.invoke('generate-artwork', {
@@ -147,11 +148,11 @@ const ImprovisationDetails: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1500)); 
       
       handleRefetch();
-      showSuccess("New artwork generated successfully!");
+      showSuccess("New artwork prompt generated successfully! Check the Assets tab.");
 
     } catch (error) {
       console.error('Regeneration failed:', error);
-      showError(`Failed to regenerate artwork: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showError(`Failed to regenerate artwork prompt: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRegenerating(false);
     }
@@ -334,26 +335,24 @@ const ImprovisationDetails: React.FC = () => {
     // Step 4: Notes Added (70%)
     if (hasAudioFile && isCoreMetadataComplete && hasNotes) {
         progressValue = 70;
-        progressMessage = "Notes added. Generate artwork and populate distribution fields.";
+        progressMessage = "Notes added. Generate artwork prompt and populate distribution fields.";
         
-        // Action 3: Generate Artwork
-        if (!imp.artwork_url) {
+        // Action 3: Generate Artwork Prompt
+        if (!imp.artwork_prompt) {
             primaryAction = {
-                label: "Generate Artwork (10% Progress Boost)",
-                onClick: () => {
-                    handleTabChange('assets-downloads');
-                },
+                label: "Generate Artwork Prompt (10% Progress Boost)",
+                onClick: handleRegenerateArtwork,
                 variant: "outline"
             };
         }
     }
 
-    // Step 5: Artwork Generated (80%)
+    // Step 5: Artwork Prompt Generated (80%)
     const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
     
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_url) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) {
       progressValue = 80;
-      progressMessage = "Artwork generated. Use AI to populate distribution fields.";
+      progressMessage = "Artwork prompt generated. Use AI to populate distribution fields.";
       
       // Action 4: AI Populate Metadata
       if (!hasInsightTimerPopulated) {
@@ -366,7 +365,7 @@ const ImprovisationDetails: React.FC = () => {
     }
     
     // Step 6: AI Augmentation Complete (90%)
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_url && hasInsightTimerPopulated) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) {
         progressValue = 90;
         progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
         

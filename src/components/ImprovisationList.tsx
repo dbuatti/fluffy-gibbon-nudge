@@ -24,6 +24,7 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
+  artwork_prompt: string | null; // NEW FIELD
   created_at: string;
   notes: NoteTab[] | null;
   storage_path: string | null;
@@ -35,7 +36,7 @@ const STALLED_THRESHOLD_HOURS = 48;
 const fetchImprovisations = async (): Promise<Improvisation[]> => {
   const { data, error } = await supabase
     .from('improvisations')
-    .select('id, file_name, status, generated_name, artwork_url, created_at, notes, storage_path, is_ready_for_release')
+    .select('id, file_name, status, generated_name, artwork_url, artwork_prompt, created_at, notes, storage_path, is_ready_for_release')
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -71,7 +72,8 @@ const getNotesStatus = (notes: NoteTab[] | null) => {
 const getNextAction = (imp: Improvisation) => {
   const hasFile = !!imp.storage_path;
   const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
-  const hasArtwork = !!imp.artwork_url;
+  const hasArtworkPrompt = !!imp.artwork_prompt; // Check for prompt
+  const hasArtworkUrl = !!imp.artwork_url; // Check for uploaded image
   const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
@@ -84,8 +86,11 @@ const getNextAction = (imp: Improvisation) => {
     if (!hasNotes) {
       return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-purple-500', type: 'manual' };
     }
-    if (!hasArtwork) {
-      return { label: 'Generate Artwork', icon: Palette, color: 'text-orange-500', type: 'ai' };
+    if (!hasArtworkPrompt) {
+      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-orange-500', type: 'ai' };
+    }
+    if (!hasArtworkUrl) {
+      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-orange-500', type: 'manual' };
     }
     if (!isReady) {
       return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success', type: 'manual' };
