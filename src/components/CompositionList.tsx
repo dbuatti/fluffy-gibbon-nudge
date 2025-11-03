@@ -405,7 +405,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
-                    onClick={() => navigate(`/composition/${comp.id}`)} {/* FIX: Updated route path */}
+                    onClick={() => navigate(`/composition/${comp.id}`)}
                   >
                     <CardContent className={cn(
                         "p-4 flex items-center space-x-4",
@@ -443,7 +443,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                             variant="ghost" 
                             size="sm" 
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
-                            onClick={(e) => { e.stopPropagation(); navigate(`/composition/${comp.id}`); }} {/* FIX: Updated route path */}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/composition/${comp.id}`); }}
                         >
                             <Icon className={cn(
                                 "w-4 h-4 mr-2", 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query'; // Removed UseQueryOptions import
+import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { MadeWithDyad } from '@/components/made-with-dyad';
@@ -78,9 +78,8 @@ const CompositionDetails: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('details');
   const [aiGeneratedDescription, setAiGeneratedDescription] = useState<string | null>(null);
 
-  // FIX: Directly pass the options object to useQuery and let TypeScript infer the type
-  // Use 'as const' on queryKey to ensure it's inferred as a readonly tuple, which helps with onSuccess typing.
-  const { data: comp, isLoading, error, refetch }: UseQueryResult<Composition, Error> = useQuery({
+  // FIX: Removed explicit UseQueryResult type annotation from destructuring
+  const { data: comp, isLoading, error, refetch } = useQuery({
     queryKey: ['composition', id!] as const, // Non-null assertion here as enabled ensures id is present
     queryFn: () => fetchCompositionDetails(supabase, id!),
     enabled: !!id && !isSessionLoading && !!session?.user,
@@ -161,7 +160,7 @@ const CompositionDetails: React.FC = () => {
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage
-        .from('artwork_complements')
+        .from('artwork_compositions')
         .getPublicUrl(filePath);
 
       await handleUpdateComposition({ artwork_url: publicUrlData.publicUrl });
