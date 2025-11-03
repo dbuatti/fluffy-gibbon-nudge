@@ -10,6 +10,7 @@ import { useAIAugmentation } from '@/hooks/useAIAugmentation';
 import CompositionHeader from '@/components/CompositionHeader';
 import CompositionProgressCard from '@/components/CompositionProgressCard';
 import CompositionTabs from '@/components/CompositionTabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Import Tabs components
 
 interface NoteTab {
   id: string;
@@ -459,26 +460,37 @@ const ImprovisationDetails: React.FC = () => {
         isReadyForRelease={isReadyForRelease}
       />
 
-      {/* 4. TABS */}
-      <CompositionTabs
-        imp={imp}
-        currentTab={currentTab}
-        handleTabChange={handleTabChange}
-        handleRefetch={handleRefetch}
-        handleRegenerateArtwork={handleRegenerateArtwork}
-        handleClearFile={handleClearFile}
-        handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
-        handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
-        handleUpdateIsImprovisation={handleUpdateIsImprovisation}
-        handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
-        isAnalyzing={isAnalyzing}
-        isRegenerating={isRegenerating}
-        audioPublicUrl={audioPublicUrl}
-        isPopulating={isPopulating}
-        aiGeneratedDescription={aiGeneratedDescription}
-        handleAIPopulateMetadata={handleAIPopulateMetadata}
-        setAiGeneratedDescription={setAiGeneratedDescription}
-      />
+      {/* 4. TABS (Moved to the top of the tab content area) */}
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
+          <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
+          <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
+            Distribution Prep {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+          </TabsTrigger>
+        </TabsList>
+        
+        {/* Tab Content is now rendered inside the Tabs wrapper */}
+        <CompositionTabs
+          imp={imp}
+          currentTab={currentTab}
+          handleTabChange={handleTabChange}
+          handleRefetch={handleRefetch}
+          handleRegenerateArtwork={handleRegenerateArtwork}
+          handleClearFile={handleClearFile}
+          handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
+          handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
+          handleUpdateIsImprovisation={handleUpdateIsImprovisation}
+          handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
+          isAnalyzing={isAnalyzing}
+          isRegenerating={isRegenerating}
+          audioPublicUrl={audioPublicUrl}
+          isPopulating={isPopulating}
+          aiGeneratedDescription={aiGeneratedDescription}
+          handleAIPopulateMetadata={handleAIPopulateMetadata}
+          setAiGeneratedDescription={setAiGeneratedDescription}
+        />
+      </Tabs>
     </div>
   );
 };

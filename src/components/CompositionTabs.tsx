@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download } from 'lucide-react'; // <-- ADDED Music, Clock, Download
+import { Loader2, Info, Music, Clock, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -76,7 +76,7 @@ interface Improvisation {
 interface CompositionTabsProps {
   imp: Improvisation;
   currentTab: string;
-  handleTabChange: (newTab: string) => void;
+  handleTabChange: (newTab: string) => void; // Still needed for internal links/actions
   handleRefetch: () => void;
   handleRegenerateArtwork: () => Promise<void>;
   handleClearFile: () => Promise<void>;
@@ -160,18 +160,10 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
   // Artwork check now relies on the user having uploaded an image (artwork_url is set)
   const isBlocked = !hasAudioFile || !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
 
+  // --- Conditional Content Rendering ---
 
-  return (
-    <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-        <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
-        <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
-        <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
-          Distribution Prep {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
-        </TabsTrigger>
-      </TabsList>
-
-      {/* --- CREATIVE HUB TAB --- */}
+  if (currentTab === 'creative-hub') {
+    return (
       <TabsContent value="creative-hub" className="space-y-8 mt-6">
         
         {/* NEW: AI Creative Coach */}
@@ -255,8 +247,11 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
           <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
         </div>
       </TabsContent>
+    );
+  }
 
-      {/* --- ASSETS & DOWNLOADS TAB --- */}
+  if (currentTab === 'assets-downloads') {
+    return (
       <TabsContent value="assets-downloads" className="space-y-8 mt-6">
         
         {/* Artwork Prompt & Actions Card */}
@@ -367,8 +362,11 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         )}
         
       </TabsContent>
+    );
+  }
 
-      {/* --- ANALYSIS & DISTRIBUTION TAB --- */}
+  if (currentTab === 'analysis-distro') {
+    return (
       <TabsContent value="analysis-distro" className="space-y-8 mt-6">
         
         {/* NEW: Pre-Flight Checklist */}
@@ -461,8 +459,10 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
           </Card>
         )}
       </TabsContent>
-    </Tabs>
-  );
+    );
+  }
+  
+  return null;
 };
 
 export default CompositionTabs;
