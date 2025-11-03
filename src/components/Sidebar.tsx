@@ -12,7 +12,7 @@ import ThemeToggle from './ThemeToggle';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/improvisations', icon: Music, label: 'Improvisations' }, // Updated route and label
+  // Removed the /improvisations route as it's no longer a separate page
   { to: '/composition-script', icon: FileText, label: 'Local Script' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
