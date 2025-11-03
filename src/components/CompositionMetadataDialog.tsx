@@ -64,7 +64,7 @@ interface CompositionMetadataDialogProps {
     insight_voice: string | null;
   };
   isPending: boolean;
-  isCoreMetadataComplete: boolean; // NEW PROP
+  isCoreMetadataComplete: boolean;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
   handleUpdateAnalysisData: (key: keyof AnalysisData, newValue: string) => Promise<void>;
@@ -85,7 +85,7 @@ interface CompositionMetadataDialogProps {
 const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   imp,
   isPending,
-  isCoreMetadataComplete, // Use new prop
+  isCoreMetadataComplete,
   handleUpdatePrimaryGenre,
   handleUpdateSecondaryGenre,
   handleUpdateAnalysisData,
@@ -102,7 +102,6 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   handleUpdateInsightVoice,
 }) => {
   const analysis = imp.analysis_data;
-  // Removed isCompleted check here, technical data is always editable now
   const currentAudienceAges = imp.insight_audience_age || [];
 
   const handleAudienceAgeChange = (age: string, checked: boolean) => {
@@ -123,7 +122,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
         onSave={(v) => handleUpdateAnalysisData(key, v)}
         className="flex-grow"
         placeholder="Click to set"
-        disabled={isPending} // Always editable if not pending
+        disabled={isPending}
       />
     </div>
   );
@@ -139,9 +138,8 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           options={options}
           onSave={(v) => handleUpdateAnalysisData(key, v)}
           placeholder={`Select ${label}`}
-          disabled={isPending} // Always editable if not pending
-          allowCustom={label === 'Mood'} // Allow custom mood input
-          // Added h-8 class for consistency
+          disabled={isPending}
+          allowCustom={label === 'Mood'}
           className="h-8" 
         />
       </div>
@@ -177,7 +175,6 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           placeholder={`Select ${label}`}
           disabled={isPending}
           allowCustom={allowCustom}
-          // Added h-8 class for consistency
           className="h-8"
         />
       </div>
@@ -240,107 +237,113 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
                     )}
                 </div>
 
-                {/* Type & Genre */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center"><Music className="h-5 w-5 mr-2" /> Type & Genre</h3>
+                {/* Two-Column Layout for Metadata */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     
-                    <div className="space-y-2 border-b pb-4">
-                        <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Composition Type</Label>
-                        <RadioGroup 
-                            value={String(imp.is_improvisation)} 
-                            onValueChange={handleUpdateIsImprovisation}
-                            disabled={isPending}
-                            className="flex space-x-4 ml-4"
-                        >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="sheet-improv" />
-                              <Label htmlFor="sheet-improv">Improvisation</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="sheet-composition" />
-                              <Label htmlFor="sheet-composition">Composition</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
-
-                    {renderGenreItem(Music, "Primary Genre", imp.primary_genre, handleUpdatePrimaryGenre)}
-                    {renderGenreItem(Music, "Secondary Genre", imp.secondary_genre, handleUpdateSecondaryGenre)}
-                </div>
-
-                <Separator />
-
-                {/* Technical Data */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2" /> Technical Data</h3>
-                    <div className="space-y-3">
-                        {/* Key (SelectField) */}
-                        {renderSelectAnalysisItem(Hash, "Key", analysis?.simulated_key, MUSICAL_KEYS, 'simulated_key')}
+                    {/* COLUMN 1: Core & Technical */}
+                    <div className="space-y-6">
                         
-                        {/* Tempo (EditableField - numerical validation handled in parent) */}
-                        {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo', 'number')}
-                        
-                        {/* Mood (SelectField with custom allowed) */}
-                        {renderSelectAnalysisItem(Palette, "Mood", analysis?.mood, MOODS, 'mood')}
-                    </div>
-                </div>
-
-                <Separator />
-                
-                {/* Insight Timer Metadata (NEW SECTION) */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center"><Clock className="h-5 w-5 mr-2" /> Insight Timer Metadata</h3>
-                    <p className="text-sm text-muted-foreground">
-                        These fields are required for submission to meditation platforms like Insight Timer.
-                    </p>
-                    <div className="space-y-2">
-                        {/* 1. Content Type */}
-                        {renderInsightSelectItem(Music, "Content Type", imp.insight_content_type, INSIGHT_CONTENT_TYPES, handleUpdateInsightContentType)}
-                        
-                        {/* 2. Language */}
-                        {renderInsightSelectItem(Globe, "Language", imp.insight_language, INSIGHT_LANGUAGES, handleUpdateInsightLanguage)}
-                        
-                        {/* 3. Primary Use */}
-                        {renderInsightSelectItem(Clock, "Primary Use", imp.insight_primary_use, INSIGHT_PRIMARY_USES, handleUpdateInsightPrimaryUse)}
-                        
-                        {/* 4. Audience Level */}
-                        {renderInsightSelectItem(Users, "Experience Level", imp.insight_audience_level, INSIGHT_AUDIENCE_LEVELS, handleUpdateInsightAudienceLevel)}
-                        
-                        {/* 5. Audience Age (Checkbox Group) */}
-                        <div className="py-2 border-b last:border-b-0">
-                            <Label className="font-semibold flex items-center mb-2">
-                                <Users className="h-5 w-5 mr-2 text-muted-foreground" />
-                                Age Group (Select all that apply)
-                            </Label>
-                            <div className="grid grid-cols-2 gap-2 ml-4">
-                                {INSIGHT_AUDIENCE_AGES.map(age => (
-                                    <div key={age} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={age}
-                                            checked={currentAudienceAges.includes(age)}
-                                            onCheckedChange={(checked) => handleAudienceAgeChange(age, !!checked)}
-                                            disabled={isPending}
-                                        />
-                                        <Label htmlFor={age} className="text-sm font-normal">{age}</Label>
+                        {/* Type & Genre */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold flex items-center"><Music className="h-5 w-5 mr-2" /> Type & Genre</h3>
+                            
+                            <div className="space-y-2 border-b pb-4">
+                                <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Composition Type</Label>
+                                <RadioGroup 
+                                    value={String(imp.is_improvisation)} 
+                                    onValueChange={handleUpdateIsImprovisation}
+                                    disabled={isPending}
+                                    className="flex space-x-4 ml-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="true" id="sheet-improv" />
+                                      <Label htmlFor="sheet-improv">Improvisation</Label>
                                     </div>
-                                ))}
+                                    <div className="flex items-center space-x-2">
+                                      <RadioGroupItem value="false" id="sheet-composition" />
+                                      <Label htmlFor="sheet-composition">Composition</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
+                            {renderGenreItem(Music, "Primary Genre", imp.primary_genre, handleUpdatePrimaryGenre)}
+                            {renderGenreItem(Music, "Secondary Genre", imp.secondary_genre, handleUpdateSecondaryGenre)}
+                        </div>
+
+                        <Separator />
+
+                        {/* Technical Data */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold flex items-center"><Hash className="h-5 w-5 mr-2" /> Technical Data</h3>
+                            <div className="space-y-3">
+                                {/* Key (SelectField) */}
+                                {renderSelectAnalysisItem(Hash, "Key", analysis?.simulated_key, MUSICAL_KEYS, 'simulated_key')}
+                                
+                                {/* Tempo (EditableField - numerical validation handled in parent) */}
+                                {renderEditableItem(Gauge, "Tempo (BPM)", analysis?.simulated_tempo, 'simulated_tempo', 'number')}
+                                
+                                {/* Mood (SelectField with custom allowed) */}
+                                {renderSelectAnalysisItem(Palette, "Mood", analysis?.mood, MOODS, 'mood')}
                             </div>
                         </div>
                         
-                        {/* 6. Voice */}
-                        {renderInsightSelectItem(Volume2, "Voice", imp.insight_voice, INSIGHT_VOICES, handleUpdateInsightVoice)}
+                        <Separator />
+
+                        {/* Distribution Toggles */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold flex items-center"><Send className="h-5 w-5 mr-2" /> Distribution Toggles</h3>
+                            <div className="space-y-2">
+                                {renderToggleItem(Piano, "Is Piano", imp.is_piano, handleUpdateIsPiano)}
+                                {renderToggleItem(Music, "Is Instrumental", imp.is_instrumental, handleUpdateIsInstrumental)}
+                                {renderToggleItem(CheckCircle, "Is Original Song", imp.is_original_song, handleUpdateIsOriginalSong)}
+                                {renderToggleItem(XCircle, "Explicit Lyrics", imp.has_explicit_lyrics, handleUpdateHasExplicitLyrics)}
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <Separator />
-
-                {/* Distribution Toggles */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center"><Send className="h-5 w-5 mr-2" /> Distribution Toggles</h3>
-                    <div className="space-y-2">
-                        {renderToggleItem(Piano, "Is Piano", imp.is_piano, handleUpdateIsPiano)}
-                        {renderToggleItem(Music, "Is Instrumental", imp.is_instrumental, handleUpdateIsInstrumental)}
-                        {renderToggleItem(CheckCircle, "Is Original Song", imp.is_original_song, handleUpdateIsOriginalSong)}
-                        {renderToggleItem(XCircle, "Explicit Lyrics", imp.has_explicit_lyrics, handleUpdateHasExplicitLyrics)}
+                    {/* COLUMN 2: Insight Timer Metadata */}
+                    <div className="space-y-6">
+                        <h3 className="text-lg font-semibold flex items-center"><Clock className="h-5 w-5 mr-2" /> Insight Timer Metadata</h3>
+                        <p className="text-sm text-muted-foreground">
+                            These fields are required for submission to meditation platforms like Insight Timer.
+                        </p>
+                        <div className="space-y-2">
+                            {/* 1. Content Type */}
+                            {renderInsightSelectItem(Music, "Content Type", imp.insight_content_type, INSIGHT_CONTENT_TYPES, handleUpdateInsightContentType)}
+                            
+                            {/* 2. Language */}
+                            {renderInsightSelectItem(Globe, "Language", imp.insight_language, INSIGHT_LANGUAGES, handleUpdateInsightLanguage)}
+                            
+                            {/* 3. Primary Use */}
+                            {renderInsightSelectItem(Clock, "Primary Use", imp.insight_primary_use, INSIGHT_PRIMARY_USES, handleUpdateInsightPrimaryUse)}
+                            
+                            {/* 4. Audience Level */}
+                            {renderInsightSelectItem(Users, "Experience Level", imp.insight_audience_level, INSIGHT_AUDIENCE_LEVELS, handleUpdateInsightAudienceLevel)}
+                            
+                            {/* 6. Voice */}
+                            {renderInsightSelectItem(Volume2, "Voice", imp.insight_voice, INSIGHT_VOICES, handleUpdateInsightVoice)}
+                            
+                            {/* 5. Audience Age (Checkbox Group) */}
+                            <div className="py-2 border-b last:border-b-0">
+                                <Label className="font-semibold flex items-center mb-2">
+                                    <Users className="h-5 w-5 mr-2 text-muted-foreground" />
+                                    Age Group (Select all that apply)
+                                </Label>
+                                <div className="grid grid-cols-2 gap-2 ml-4">
+                                    {INSIGHT_AUDIENCE_AGES.map(age => (
+                                        <div key={age} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={age}
+                                                checked={currentAudienceAges.includes(age)}
+                                                onCheckedChange={(checked) => handleAudienceAgeChange(age, !!checked)}
+                                                disabled={isPending}
+                                            />
+                                            <Label htmlFor={age} className="text-sm font-normal">{age}</Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

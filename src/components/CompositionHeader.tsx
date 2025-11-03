@@ -1,6 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, Sparkles, Loader2, Info } from 'lucide-react';
+import { RefreshCw, Sparkles, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EditableField from './EditableField';
@@ -9,6 +8,7 @@ import CompositionSettingsSheet from './CompositionSettingsSheet';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
+import TitleBar from './TitleBar'; // Import TitleBar
 
 interface AnalysisData {
   simulated_key?: string;
@@ -21,7 +21,7 @@ interface CompositionHeaderProps {
   imp: {
     id: string;
     generated_name: string | null;
-    file_name: string | null; // <-- ADDED
+    file_name: string | null;
     created_at: string;
     status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
     is_ready_for_release: boolean | null;
@@ -85,101 +85,87 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
 
-  return (
-    <>
-      {/* NEW: Back Button */}
-      <Link to="/" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
-      </Link>
-
-      <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
-        <div className="flex-grow">
-          <div className="flex items-center space-x-2">
-            {/* EDITABLE TITLE */}
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-              <EditableField
-                value={imp.generated_name}
-                label="Composition Title"
-                onSave={handleUpdateName}
-                className="text-3xl font-bold p-0"
-                placeholder="Click to set title"
-                disabled={isGenerating}
-              />
-            </h1>
-
-            {/* Title Generation Buttons */}
-            <div className="flex space-x-1">
-              {isGenerating && (
-                <Badge variant="secondary" className="flex items-center text-sm px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating Title...
-                </Badge>
-              )}
-              <Button
-                onClick={handleRandomGenerate}
-                size="icon"
-                variant="outline" // Changed to outline for better contrast
-                title="Generate Random Title"
-                disabled={isGenerating || updateMutation.isPending}
-                className="h-8 w-8" // Ensure consistent size
-              >
-                {isGenerating && updateMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                onClick={handleAIGenerate}
-                size="icon"
-                variant="outline" // Changed to outline for better contrast
-                title="Generate AI Title (Based on Analysis & Notes)"
-                disabled={isGenerating || updateMutation.isPending}
-                className="h-8 w-8" // Ensure consistent size
-              >
-                {isGenerating && updateMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4 text-purple-500" />
-                )}
-              </Button>
-            </div>
-
-            {/* Metadata Dialog Trigger */}
-            <CompositionMetadataDialog
-              imp={imp}
-              isPending={updateMutation.isPending}
-              isCoreMetadataComplete={isCoreMetadataComplete}
-              handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
-              handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
-              handleUpdateAnalysisData={handleUpdateAnalysisData}
-              handleUpdateIsImprovisation={handleUpdateIsImprovisation}
-              handleUpdateIsPiano={handleUpdateIsPiano}
-              handleUpdateIsInstrumental={handleUpdateIsInstrumental}
-              handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
-              handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
-              handleUpdateInsightContentType={handleUpdateInsightContentType}
-              handleUpdateInsightLanguage={handleUpdateInsightLanguage}
-              handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
-              handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
-              handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
-              handleUpdateInsightVoice={handleUpdateInsightVoice}
-            />
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
-          </p>
-        </div>
-
-        <div className="flex-shrink-0">
-          <CompositionSettingsSheet
-            impId={imp.id}
-            impName={imp.generated_name || imp.file_name || 'Untitled Idea'}
-            handleDelete={handleDelete}
-            isDeleting={isDeleting}
-          />
-        </div>
+  const titleContent = (
+    <div className="flex flex-col items-start">
+      <div className="flex items-center space-x-2">
+        {/* EDITABLE TITLE */}
+        <EditableField
+          value={imp.generated_name}
+          label="Composition Title"
+          onSave={handleUpdateName}
+          className="text-3xl font-bold p-0"
+          placeholder="Click to set title"
+          disabled={isGenerating}
+        />
       </div>
+      <p className="text-sm text-muted-foreground mt-1">
+        Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+      </p>
+    </div>
+  );
+
+  const actionButtons = (
+    <>
+      {isGenerating && (
+        <Badge variant="secondary" className="flex items-center text-sm px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating Title...
+        </Badge>
+      )}
+      <Button
+        onClick={handleRandomGenerate}
+        size="icon"
+        variant="outline"
+        title="Generate Random Title"
+        disabled={isGenerating || updateMutation.isPending}
+        className="h-8 w-8"
+      >
+        <RefreshCw className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={handleAIGenerate}
+        size="icon"
+        variant="outline"
+        title="Generate AI Title (Based on Analysis & Notes)"
+        disabled={isGenerating || updateMutation.isPending}
+        className="h-8 w-8"
+      >
+        <Sparkles className="h-4 w-4 text-purple-500" />
+      </Button>
+      <CompositionMetadataDialog
+        imp={imp}
+        isPending={updateMutation.isPending}
+        isCoreMetadataComplete={isCoreMetadataComplete}
+        handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
+        handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
+        handleUpdateAnalysisData={handleUpdateAnalysisData}
+        handleUpdateIsImprovisation={handleUpdateIsImprovisation}
+        handleUpdateIsPiano={handleUpdateIsPiano}
+        handleUpdateIsInstrumental={handleUpdateIsInstrumental}
+        handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
+        handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
+        handleUpdateInsightContentType={handleUpdateInsightContentType}
+        handleUpdateInsightLanguage={handleUpdateInsightLanguage}
+        handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
+        handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
+        handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
+        handleUpdateInsightVoice={handleUpdateInsightVoice}
+      />
+      <CompositionSettingsSheet
+        impId={imp.id}
+        impName={imp.generated_name || imp.file_name || 'Untitled Idea'}
+        handleDelete={handleDelete}
+        isDeleting={isDeleting}
+      />
     </>
+  );
+
+  return (
+    <TitleBar
+      title={titleContent}
+      backLink="/"
+      actions={actionButtons}
+      className="mb-0" // Remove default margin bottom from TitleBar since we handle it in the title content
+    />
   );
 };
 
