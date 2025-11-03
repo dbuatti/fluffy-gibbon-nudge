@@ -300,7 +300,7 @@ const ImprovisationDetails: React.FC = () => {
   
   // --- Progress Logic (Gamification) ---
   let progressValue = 0;
-  let progressMessage = "Start by capturing your idea.";
+  let progressMessage = "Start by capturing your idea."; // Default message if no imp or first step not met
   let primaryAction: { label: string; onClick: () => void; variant: "default" | "secondary" | "outline" } | null = null;
 
   if (imp) {
@@ -317,55 +317,109 @@ const ImprovisationDetails: React.FC = () => {
         !!imp.insight_voice &&
         !!imp.description; // Check for description as well
 
-    // Define steps and their conditions
+    // Define steps and their conditions, with messages as instructions for the *next* action
     const steps: { 
         condition: boolean; 
         message: string; 
         action: { label: string; onClick: () => void; variant: "default" | "secondary" | "outline" } | null 
     }[] = [
-      { condition: true, message: "Idea captured. Set improvisation type.", action: null }, // Base step
-      { condition: imp.is_improvisation !== null, message: "Improvisation type set. Upload your audio file.", action: { label: "Upload Audio", onClick: () => document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' }), variant: "default" } },
+      // Step 1: Improvisation Type
       { 
-        condition: hasAudioFile, 
-        message: "Audio uploaded. Set core musical metadata.", 
-        action: { 
-            label: "Edit Core Metadata", 
-            onClick: () => {
-                const button = document.querySelector('[title="Edit Improvisation Metadata"]');
-                if (button instanceof HTMLButtonElement) {
-                    button.click();
-                }
-            }, 
-            variant: "default" 
-        } 
+          condition: imp.is_improvisation !== null, 
+          message: "Set improvisation type.", 
+          action: { 
+              label: "Set Improvisation Type", 
+              onClick: () => {
+                  const button = document.querySelector('[title="Edit Improvisation Metadata"]');
+                  if (button instanceof HTMLButtonElement) {
+                      button.click();
+                  }
+              }, 
+              variant: "default" 
+          } 
       },
-      { condition: isCoreMetadataComplete, message: "Core metadata set. Add creative notes.", action: { label: "Add Creative Notes", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } },
-      { condition: hasNotes, message: "Creative notes added. Add user tags.", action: { label: "Add User Tags", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } }, // Tags are in the same card as notes
-      { condition: hasUserTags, message: "User tags added. Generate AI artwork prompt.", action: { label: "Generate AI Artwork Prompt", onClick: handleRegenerateArtwork, variant: "outline" } },
-      { condition: !!imp.artwork_prompt, message: "Artwork prompt generated. Upload your artwork.", action: { label: "Upload Artwork", onClick: () => handleTabChange('assets-downloads'), variant: "default" } },
-      { condition: !!imp.artwork_url, message: "Artwork uploaded. Populate Insight Timer metadata.", action: { label: "AI Populate Metadata", onClick: handleAIPopulateMetadata, variant: "default" } },
-      { condition: hasInsightTimerCategorization, message: "Insight Timer metadata populated. Confirm metadata review.", action: { label: "Confirm Metadata Review", onClick: () => handleTabChange('analysis-distro'), variant: "default" } },
-      { condition: !!imp.is_metadata_confirmed, message: "All set! Ready for release. Go to Distribution Prep.", action: { label: "Go to Distribution Prep", onClick: () => handleTabChange('analysis-distro'), variant: "default" } },
+      // Step 2: Audio File Upload
+      { 
+          condition: hasAudioFile, 
+          message: "Upload your audio file.", 
+          action: { label: "Upload Audio", onClick: () => document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' }), variant: "default" } 
+      },
+      // Step 3: Core Musical Metadata
+      { 
+          condition: isCoreMetadataComplete, 
+          message: "Set core musical metadata (Key, Tempo, Mood).", 
+          action: { 
+              label: "Edit Core Metadata", 
+              onClick: () => {
+                  const button = document.querySelector('[title="Edit Improvisation Metadata"]');
+                  if (button instanceof HTMLButtonElement) {
+                      button.click();
+                  }
+              }, 
+              variant: "default" 
+          } 
+      },
+      // Step 4: Creative Notes
+      { 
+          condition: hasNotes, 
+          message: "Add creative notes.", 
+          action: { label: "Add Creative Notes", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } 
+      },
+      // Step 5: User Tags
+      { 
+          condition: hasUserTags, 
+          message: "Add user tags.", 
+          action: { label: "Add User Tags", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } 
+      },
+      // Step 6: Artwork Prompt Generation
+      { 
+          condition: !!imp.artwork_prompt, 
+          message: "Generate AI artwork prompt.", 
+          action: { label: "Generate AI Artwork Prompt", onClick: handleRegenerateArtwork, variant: "outline" } 
+      },
+      // Step 7: Artwork Upload
+      { 
+          condition: !!imp.artwork_url, 
+          message: "Upload your artwork.", 
+          action: { label: "Upload Artwork", onClick: () => handleTabChange('assets-downloads'), variant: "default" } 
+      },
+      // Step 8: Insight Timer Metadata Population
+      { 
+          condition: hasInsightTimerCategorization, 
+          message: "Populate Insight Timer metadata.", 
+          action: { label: "AI Populate Metadata", onClick: handleAIPopulateMetadata, variant: "default" } 
+      },
+      // Step 9: Metadata Confirmation
+      { 
+          condition: !!imp.is_metadata_confirmed, 
+          message: "Confirm metadata review.", 
+          action: { label: "Confirm Metadata Review", onClick: () => handleTabChange('analysis-distro'), variant: "default" } 
+      },
+      // Step 10: Ready for Release
+      { 
+          condition: !!imp.is_ready_for_release, 
+          message: "Mark as Ready for Release.", 
+          action: { label: "Mark as Ready for Release", onClick: handleMarkReady, variant: "default" } 
+      },
     ];
 
-    let completedSteps = 0;
+    let completedStepsCount = 0;
     for (let i = 0; i < steps.length; i++) {
       if (steps[i].condition) {
-        completedSteps++;
-        progressMessage = steps[i].message;
-        primaryAction = steps[i].action;
+        completedStepsCount++;
       } else {
-        // If a step is not met, its message and action become the current primary.
+        // This is the first uncompleted step, so its message and action are the current ones.
         progressMessage = steps[i].message;
         primaryAction = steps[i].action;
-        break; // Stop at the first uncompleted step
+        break; // Found the first uncompleted step, so we set its message/action and stop.
       }
     }
-    progressValue = Math.round((completedSteps / steps.length) * 100);
+
+    progressValue = Math.round((completedStepsCount / steps.length) * 100);
     if (progressValue > 100) progressValue = 100; // Cap at 100%
 
-    // Override primary action if already ready for release
-    if (isReadyForRelease) {
+    // If all steps are completed, set the final "Ready for Release" message and action
+    if (completedStepsCount === steps.length) {
         progressValue = 100;
         progressMessage = "Improvisation is 100% ready for release! Time to submit.";
         primaryAction = {
@@ -375,8 +429,8 @@ const ImprovisationDetails: React.FC = () => {
         };
     }
 
-    // Post-readiness submission status
-    if (isReadyForRelease && (imp.is_submitted_to_distrokid || imp.is_submitted_to_insight_timer)) {
+    // Post-readiness submission status overrides
+    if (imp.is_ready_for_release && (imp.is_submitted_to_distrokid || imp.is_submitted_to_insight_timer)) {
         let submittedCount = 0;
         if (imp.is_submitted_to_distrokid) submittedCount++;
         if (imp.is_submitted_to_insight_timer) submittedCount++;
