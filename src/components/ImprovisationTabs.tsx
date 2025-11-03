@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle, Sparkles, Upload, Copy } from 'lucide-react'; // Consolidated Info, removed duplicate
+import { Loader2, Info, Music, Clock, Download, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle, Sparkles, Upload, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
 import ArtworkUpload from './ArtworkUpload';
-import DistributionTogglesCard from './DistributionTogglesCard'; // NEW: Import DistributionTogglesCard
+import DistributionTogglesCard from './DistributionTogglesCard';
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";

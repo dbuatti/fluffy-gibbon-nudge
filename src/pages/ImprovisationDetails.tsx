@@ -116,8 +116,6 @@ const ImprovisationDetails: React.FC = () => {
   
   // Get public URL for the audio file
   const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
-  // Removed unused artworkDisplayUrl and getPublicArtworkDisplayUrl
-  // const artworkDisplayUrl = getPublicArtworkDisplayUrl(imp?.artwork_url || null);
 
   // NEW: Core Metadata Completion Check
   const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood;

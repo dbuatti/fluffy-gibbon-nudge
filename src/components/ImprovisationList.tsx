@@ -92,7 +92,7 @@ const getStatusBadge = (imp: Improvisation) => { // Updated to take full imp obj
       }
       return <Badge variant="outline" className="text-muted-foreground">Uploaded</Badge>;
     case 'failed':
-      return <Badge variant="destructive" className="bg-error text-error-foreground">❌ Failed</Badge>;
+      return <Badge variant="destructive" className="bg-destructive text-destructive-foreground">❌ Failed</Badge>;
     default:
       return <Badge variant="outline" className="text-muted-foreground">Uploaded</Badge>;
   }
@@ -117,7 +117,7 @@ const getNextAction = (imp: Improvisation) => {
   const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
 
   if (isSubmitted) {
-    return { label: 'View Submissions', icon: CheckCircle, color: 'text-green-700 dark:text-green-500', type: 'manual' };
+    return { label: 'View Submissions', icon: CheckCircle, color: 'text-success dark:text-success-foreground', type: 'manual' };
   }
 
   if (!hasFile) {
@@ -414,7 +414,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                     key={imp.id} 
                     className={cn(
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
-                      isStalled ? 'border-l-4 border-red-500 dark:border-red-400 bg-red-50/50 dark:bg-red-950/30' : 'border-l-4 border-transparent', // Updated stalled colors
+                      isStalled ? 'border-l-4 border-destructive dark:border-destructive-foreground bg-destructive/5 dark:bg-destructive/10' : 'border-l-4 border-transparent', // Updated stalled colors
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
@@ -442,7 +442,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                       
                       <div className="flex-grow space-y-1">
                         <h3 className="font-semibold text-lg leading-tight flex items-center">
-                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-red-600 dark:text-red-400 flex-shrink-0" />} {/* Updated stalled icon color */}
+                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-destructive flex-shrink-0" />} {/* Updated stalled icon color */}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
                         <p className="text-sm text-muted-foreground">

@@ -76,18 +76,6 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
   handleUpdateSecondaryGenre,
   handleUpdateAnalysisData,
   handleUpdateIsImprovisation,
-  // Removed toggle handlers
-  // handleUpdateIsPiano,
-  // handleUpdateIsInstrumental,
-  // handleUpdateIsOriginalSong,
-  // handleUpdateHasExplicitLyrics,
-  // Removed Insight Timer handlers
-  // handleUpdateInsightContentType,
-  // handleUpdateInsightLanguage,
-  // handleUpdateInsightPrimaryUse,
-  // handleUpdateInsightAudienceLevel,
-  // handleUpdateInsightAudienceAge,
-  // handleUpdateInsightVoice,
 }) => {
   const updateMutation = useUpdateImprovisation(imp.id);
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
@@ -147,18 +135,6 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
         handleUpdateAnalysisData={handleUpdateAnalysisData}
         handleUpdateIsImprovisation={handleUpdateIsImprovisation}
-        // Removed toggle handlers
-        // handleUpdateIsPiano={handleUpdateIsPiano}
-        // handleUpdateIsInstrumental={handleUpdateIsInstrumental}
-        // handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
-        // handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
-        // Removed Insight Timer handlers
-        // handleUpdateInsightContentType={handleUpdateInsightContentType}
-        // handleUpdateInsightLanguage={handleUpdateInsightLanguage}
-        // handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
-        // handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
-        // handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
-        // handleUpdateInsightVoice={handleUpdateInsightVoice}
       />
       <ImprovisationSettingsSheet
         improvisationId={imp.id}
