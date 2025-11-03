@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client'; // Removed getPublicArtworkUrl
+import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
 import { Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -10,7 +10,8 @@ import { useAIAugmentation } from '@/hooks/useAIAugmentation';
 import CompositionHeader from '@/components/CompositionHeader';
 import CompositionProgressCard from '@/components/CompositionProgressCard';
 import CompositionTabs from '@/components/CompositionTabs';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Import Tabs components
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 interface NoteTab {
   id: string;
@@ -32,7 +33,7 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
-  artwork_prompt: string | null; // NEW FIELD
+  artwork_prompt: string | null;
   is_piano: boolean | null;
   is_improvisation: boolean | null;
   primary_genre: string | null;
@@ -87,6 +88,7 @@ const ImprovisationDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { session, isLoading: isSessionLoading } = useSession(); // Get session and its loading state
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
@@ -103,7 +105,7 @@ const ImprovisationDetails: React.FC = () => {
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
     queryFn: () => fetchImprovisationDetails(id!),
-    enabled: !!id,
+    enabled: !!id && !!session?.user?.id, // Only enable query if ID and user session are available
     refetchInterval: 5000,
   });
 
@@ -112,7 +114,7 @@ const ImprovisationDetails: React.FC = () => {
   
   // Determine if we are loading the initial data OR if the status is actively analyzing
   const isAnalyzing = imp?.status === 'analyzing';
-  const showLoadingSpinner = isLoading || isAnalyzing;
+  const showLoadingSpinner = isLoading || isSessionLoading || isAnalyzing; // Include session loading
   const hasAudioFile = !!imp?.storage_path;
   const isReadyForRelease = imp?.is_ready_for_release;
   
@@ -208,22 +210,8 @@ const ImprovisationDetails: React.FC = () => {
         }
       }
       
-      // 2. Delete artwork from Supabase Storage (only if artwork exists)
-      //    Since AI no longer uploads artwork, this would only apply to manually uploaded artwork (future feature)
-      if (imp.artwork_url) {
-        // Assuming artwork_url is a full public URL, we need to extract the path
-        // This logic might need adjustment if manual upload uses a different bucket/path structure
-        const artworkPath = imp.artwork_url.split('/public/artwork/')[1]; // Assuming 'artwork' bucket
-        if (artworkPath) {
-            const { error: artworkStorageError } = await supabase.storage
-                .from('artwork') // Assuming 'artwork' bucket for manual uploads
-                .remove([artworkPath]);
-
-            if (artworkStorageError) {
-                console.error("Failed to delete artwork from storage:", artworkStorageError);
-            }
-        }
-      }
+      // 2. Artwork is no longer directly uploaded by AI, so no need to delete from 'artwork' bucket.
+      //    If manual upload is implemented later, this logic would need to be revisited.
 
       // 3. Delete record from database
       const { error: dbError } = await supabase
@@ -436,8 +424,9 @@ const ImprovisationDetails: React.FC = () => {
     );
   }
 
-  if (error) {
-    return <div className="text-center p-8 text-red-500">Error loading details: {error.message}</div>;
+  // If data fetching completed but imp is null (e.g., 404 or no data found)
+  if (error || !imp) {
+    return <div className="text-center p-8 text-red-500">Error loading details or composition not found: {error?.message || "No data."}</div>;
   }
 
   return (
@@ -466,7 +455,7 @@ const ImprovisationDetails: React.FC = () => {
       />
       
       {/* 2. TABS (MOVED HERE) */}
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6"> {/* Added mb-6 here */}
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
