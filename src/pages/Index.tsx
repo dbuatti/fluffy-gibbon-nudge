@@ -46,7 +46,7 @@ const useStreakTracker = (data: Improvisation[] | undefined) => {
   let currentStreak = 0;
   const todayString = format(new Date(), 'yyyy-MM-dd');
   
-  const todayActivity = activityDates.has(todayString);
+  const todayActivity = activityDates.has(todayString); // Define todayActivity here
   
   let dateToCheck = new Date();
   
