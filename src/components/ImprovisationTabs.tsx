@@ -216,62 +216,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
           improvisationId={imp.id}
         />
 
-        {/* NEW: Core Metadata Card (Exposed for quick editing) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center">
-              <Music className="h-5 w-5 mr-2" /> Core Metadata
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-              <div className="space-y-2 border-b pb-4">
-                  <Label className="font-semibold flex items-center"><Info className="h-4 w-4 mr-2" /> Improvisation Type</Label>
-                  <RadioGroup 
-                      value={String(imp.is_improvisation)} 
-                      onValueChange={handleUpdateIsImprovisation}
-                      disabled={isAnalyzing}
-                      className="flex space-x-4 ml-4"
-                  >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="true" id="main-improv" />
-                        <Label htmlFor="main-improv">Spontaneous Improvisation</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="false" id="main-composition" />
-                        <Label htmlFor="main-composition">Fixed Composition</Label>
-                      </div>
-                  </RadioGroup>
-              </div>
-              
-              <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">Primary Genre:</span>
-                      <div className="flex-grow">
-                          <GenreSelect
-                              value={imp.primary_genre}
-                              label="Primary Genre"
-                              onSave={handleUpdatePrimaryGenre}
-                              placeholder="Select or type genre"
-                              disabled={isAnalyzing}
-                          />
-                      </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">Secondary Genre:</span>
-                      <div className="flex-grow">
-                          <GenreSelect
-                              value={imp.secondary_genre}
-                              label="Secondary Genre"
-                              onSave={handleUpdateSecondaryGenre}
-                              placeholder="Select or type genre"
-                              disabled={isAnalyzing}
-                          />
-                      </div>
-                  </div>
-              </div>
-          </CardContent>
-        </Card>
-
         {/* 1. Audio Upload (if needed) - Prominent CTA */}
         {!hasAudioFile && imp.is_improvisation !== null && (
           <div id="audio-upload-cta">
