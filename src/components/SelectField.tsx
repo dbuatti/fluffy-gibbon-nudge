@@ -102,9 +102,11 @@ const SelectField: React.FC<SelectFieldProps> = ({
     // If disabled, show read-only text
     if (disabled) {
         return (
-            <span className={cn("truncate text-sm font-semibold", !value && "text-muted-foreground italic")}>
-                {value || placeholder}
-            </span>
+            <div className="h-8 flex items-center px-3 py-1 text-sm rounded-md border bg-muted/50 text-muted-foreground">
+                <span className="truncate font-semibold">
+                    {value || placeholder}
+                </span>
+            </div>
         );
     }
 

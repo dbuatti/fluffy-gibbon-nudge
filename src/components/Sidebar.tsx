@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User } from 'lucide-react';
+import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -86,7 +86,7 @@ const Sidebar: React.FC = () => {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50">
-            <LayoutDashboard className="h-6 w-6" />
+            <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-[280px] p-0">

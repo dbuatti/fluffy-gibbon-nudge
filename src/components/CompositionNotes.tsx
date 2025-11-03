@@ -155,7 +155,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
                           value={note.content}
                           onChange={(e) => handleContentChange(note.id, e.target.value)}
                           maxLength={100} // Enforce short length
-                          className="bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700"
+                          className="bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary" // Added focus style
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                           Focus: What is the single, most actionable task to move this idea forward?
@@ -167,7 +167,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
                       value={note.content}
                       onChange={(e) => handleContentChange(note.id, e.target.value)}
                       rows={5}
-                      className="min-h-[150px] bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700"
+                      className="min-h-[150px] bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary" // Added focus style
                   />
               )}
             </div>
