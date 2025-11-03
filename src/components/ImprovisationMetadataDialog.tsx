@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, Loader2 } from 'lucide-react'; // Added Loader2
+import { Info, Hash, Gauge, Palette, Music, Piano, CheckCircle, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import EditableField from './EditableField';
 import GenreSelect from './GenreSelect';

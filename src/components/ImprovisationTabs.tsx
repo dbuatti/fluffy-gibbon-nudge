@@ -10,6 +10,7 @@ import ImprovisationNotes from './ImprovisationNotes';
 import TagGenerator from './TagGenerator';
 import AICreativeCoach from './AICreativeCoach';
 import FilePathSuggestion from './FilePathSuggestion';
+import AudioPlayer from './AudioPlayer'; // Re-added AudioPlayer import
 import PreFlightChecklist from './PreFlightChecklist';
 import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
