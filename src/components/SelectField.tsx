@@ -14,6 +14,7 @@ interface SelectFieldProps {
     placeholder?: string;
     disabled?: boolean;
     allowCustom?: boolean;
+    className?: string; // Added className prop
 }
 
 const SelectField: React.FC<SelectFieldProps> = ({ 
@@ -24,6 +25,7 @@ const SelectField: React.FC<SelectFieldProps> = ({
     placeholder = `Select ${label}`,
     disabled = false,
     allowCustom = false,
+    className, // Destructure className
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isCustomInput, setIsCustomInput] = useState(false);
@@ -102,7 +104,7 @@ const SelectField: React.FC<SelectFieldProps> = ({
     // If disabled, show read-only text
     if (disabled) {
         return (
-            <div className="h-8 flex items-center px-3 py-1 text-sm rounded-md border bg-muted/50 text-muted-foreground">
+            <div className={cn("h-8 flex items-center px-3 py-1 text-sm rounded-md border bg-muted/50 text-muted-foreground", className)}>
                 <span className="truncate font-semibold">
                     {value || placeholder}
                 </span>
@@ -153,7 +155,7 @@ const SelectField: React.FC<SelectFieldProps> = ({
                 onValueChange={handleSelectChange}
                 disabled={isLoading}
             >
-                <SelectTrigger className="h-8 flex-grow">
+                <SelectTrigger className={cn("h-8 flex-grow", className)}>
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
                 <SelectContent>

@@ -117,9 +117,10 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
               <Button
                 onClick={handleRandomGenerate}
                 size="icon"
-                variant="ghost"
+                variant="outline" // Changed to outline for better contrast
                 title="Generate Random Title"
                 disabled={isGenerating || updateMutation.isPending}
+                className="h-8 w-8" // Ensure consistent size
               >
                 {isGenerating && updateMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -130,9 +131,10 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
               <Button
                 onClick={handleAIGenerate}
                 size="icon"
-                variant="ghost"
+                variant="outline" // Changed to outline for better contrast
                 title="Generate AI Title (Based on Analysis & Notes)"
                 disabled={isGenerating || updateMutation.isPending}
+                className="h-8 w-8" // Ensure consistent size
               >
                 {isGenerating && updateMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

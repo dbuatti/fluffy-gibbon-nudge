@@ -141,6 +141,8 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           placeholder={`Select ${label}`}
           disabled={isPending} // Always editable if not pending
           allowCustom={label === 'Mood'} // Allow custom mood input
+          // Added h-8 class for consistency
+          className="h-8" 
         />
       </div>
     </div>
@@ -175,6 +177,8 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
           placeholder={`Select ${label}`}
           disabled={isPending}
           allowCustom={allowCustom}
+          // Added h-8 class for consistency
+          className="h-8"
         />
       </div>
     </div>
