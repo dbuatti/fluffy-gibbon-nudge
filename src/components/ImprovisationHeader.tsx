@@ -52,18 +52,6 @@ interface ImprovisationHeaderProps {
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
   handleUpdateAnalysisData: (key: keyof AnalysisData, newValue: string) => Promise<void>;
   handleUpdateIsImprovisation: (value: string) => Promise<void>;
-  // Removed toggle handlers as they are now in DistributionTogglesCard
-  // handleUpdateIsPiano: (checked: boolean) => Promise<void>;
-  // handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
-  // handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
-  // handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
-  // Removed Insight Timer handlers as they are now in InsightTimerTab
-  // handleUpdateInsightContentType: (value: string) => Promise<void>;
-  // handleUpdateInsightLanguage: (value: string) => Promise<void>;
-  // handleUpdateInsightPrimaryUse: (value: string) => Promise<void>;
-  // handleUpdateInsightAudienceLevel: (value: string) => Promise<void>;
-  // handleUpdateInsightAudienceAge: (value: string[]) => Promise<void>;
-  // handleUpdateInsightVoice: (value: string) => Promise<void>;
 }
 
 const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({

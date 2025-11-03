@@ -208,7 +208,6 @@ const Index = () => {
             </Button>
           </div>
         </div>
-
         {/* Improvisation List */}
         <ImprovisationList // Renamed component
           viewMode={viewMode} 

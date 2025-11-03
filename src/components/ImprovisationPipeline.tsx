@@ -100,7 +100,7 @@ const ImprovisationPipeline: React.FC = () => {
   }
 
   if (error) {
-    return <div className="text-center p-4 text-error dark:text-error-foreground">Error loading pipeline status. Please check your network connection.</div>;
+    return <div className="text-center p-4 text-destructive dark:text-destructive-foreground">Error loading pipeline status. Please check your network connection.</div>;
   }
 
   return (
