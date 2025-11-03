@@ -23,6 +23,11 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
   const [isImprovisation, setIsImprovisation] = useState('true'); // Default to improvisation
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
+  // Calculate dynamic title preview
+  const datePrefix = format(new Date(), 'yyyyMMdd');
+  const baseTitle = ideaName.trim() || 'Quick Capture';
+  const finalTitlePreview = `${datePrefix} - ${baseTitle}`;
+
   // Reset state when dialog opens/closes
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -79,7 +84,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
               disabled={isCapturing}
             />
             <p className="text-xs text-muted-foreground">
-                The date ({format(new Date(), 'yyyyMMdd')}) will be automatically prepended.
+                Final Title Preview: <span className="font-mono text-primary dark:text-primary-foreground">{finalTitlePreview}</span>
             </p>
           </div>
           

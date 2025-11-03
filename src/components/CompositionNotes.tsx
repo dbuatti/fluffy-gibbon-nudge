@@ -134,6 +134,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, in
       </CardHeader>
       <CardContent className="space-y-6">
         {notes.map((note) => {
+          // Only lock Zone 3 (Technical) and Zone 4 (Next Steps) if audio is missing
           const isLocked = !hasAudioFile && (note.id === 'zone3' || note.id === 'zone4');
           
           return (
