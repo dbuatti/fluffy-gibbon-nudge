@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, Clock, Users, Info, CheckCircle, XCircle, Music, Globe, Volume2, Sparkles, Loader2, Copy } from 'lucide-react';
-import InsightTimerFormFields from './InsightTimerFormFields';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,11 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES } from '@/lib/insight-constants';
+import { cn } from '@/lib/utils';
 
 interface ImprovisationData {
   id: string;
@@ -82,34 +86,114 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   // If the content type is 'Music', we assume the other fields are required for full categorization.
   const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
 
-  const renderStatusItem = (label: string, value: string | number | string[] | null, Icon: React.ElementType, isRequired: boolean = false) => {
-    let displayValue: React.ReactNode;
-    const isSet = Array.isArray(value) ? value.length > 0 : !!value;
-    
-    if (Array.isArray(value)) {
-        displayValue = value.length > 0 ? (
-            <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
-                {value.map(v => <Badge key={v} variant="secondary" className="text-xs px-2 py-0.5">{v}</Badge>)}
-            </div>
-        ) : 'Not Set';
-    } else {
-        displayValue = value || 'Not Set';
-    }
+  // --- Handlers for Categorization Fields (Moved from InsightTimerFormFields) ---
+  
+  // --- Benefits (Multi-Select, Max 3) ---
+  const handleBenefitChange = (benefit: string, checked: boolean) => {
+    const currentBenefits = imp.insight_benefits || [];
+    let newBenefits = checked
+      ? [...currentBenefits, benefit]
+      : currentBenefits.filter(b => b !== benefit);
 
-    return (
-      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-        <span className="text-sm font-medium text-muted-foreground flex items-center">
-          <Icon className="w-4 h-4 mr-2" /> {label}
-        </span>
-        <div className="flex items-center">
-            <Badge variant={isSet ? 'default' : (isRequired ? 'destructive' : 'outline')} className="flex items-center">
-                {isSet ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-                {Array.isArray(value) ? `${value.length} selected` : displayValue}
-            </Badge>
-        </div>
-      </div>
-    );
+    // Enforce max 3 benefits
+    if (newBenefits.length > 3) {
+      newBenefits = newBenefits.slice(0, 3);
+    }
+    
+    updateMutation.mutate({ insight_benefits: newBenefits });
   };
+
+  // --- Practices (Single Select) ---
+  const handlePracticeChange = (practice: string) => {
+    updateMutation.mutate({ insight_practices: practice });
+  };
+
+  // --- Themes (Multi-Select) ---
+  const handleThemeChange = (theme: string, checked: boolean) => {
+    const currentThemes = imp.insight_themes || [];
+    const newThemes = checked
+      ? [...currentThemes, theme]
+      : currentThemes.filter(t => t !== theme);
+      
+    updateMutation.mutate({ insight_themes: newThemes });
+  };
+  
+  // --- Rendering Functions for Categorization Fields (Moved from InsightTimerFormFields) ---
+
+  const renderCheckboxGroup = (title: string, options: { [key: string]: string[] }, selectedValues: string[], onChange: (value: string, checked: boolean) => void, maxSelection?: number) => (
+    <Card className="shadow-none border">
+      <CardHeader className="py-3 px-4 border-b">
+        <CardTitle className="text-base font-semibold">
+          {title} 
+          {maxSelection && <span className="text-sm font-normal text-muted-foreground ml-2"> (Select up to {maxSelection})</span>}
+          {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 space-y-4">
+        {Object.entries(options).map(([category, items]) => (
+          <div key={category} className="space-y-2">
+            <h4 className="text-sm font-bold text-primary">{category}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {items.map(item => {
+                const isChecked = selectedValues.includes(item);
+                const isDisabled = maxSelection && selectedValues.length >= maxSelection && !isChecked;
+                
+                return (
+                  <div key={item} className={cn("flex items-center space-x-2 p-2 rounded-md transition-colors", isDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-muted/50")}>
+                    <Checkbox
+                      id={item}
+                      checked={isChecked}
+                      onCheckedChange={(checked) => onChange(item, !!checked)}
+                      disabled={updateMutation.isPending || isDisabled}
+                    />
+                    <Label htmlFor={item} className="text-sm font-normal cursor-pointer">
+                      {item}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+
+  const renderRadioGroup = (title: string, options: { [key: string]: string[] }, selectedValue: string | null, onChange: (value: string) => void) => (
+    <Card className="shadow-none border">
+      <CardHeader className="py-3 px-4 border-b">
+        <CardTitle className="text-base font-semibold">
+          {title} 
+          <span className="text-sm font-normal text-muted-foreground ml-2"> (Select one option)</span>
+          {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 space-y-4">
+        <RadioGroup 
+          value={selectedValue || ''} 
+          onValueChange={onChange}
+          disabled={updateMutation.isPending}
+          className="space-y-4"
+        >
+          {Object.entries(options).map(([category, items]) => (
+            <div key={category} className="space-y-2">
+              <h4 className="text-sm font-bold text-primary">{category}</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {items.map(item => (
+                  <div key={item} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50">
+                    <RadioGroupItem value={item} id={item} />
+                    <Label htmlFor={item} className="text-sm font-normal cursor-pointer">
+                      {item}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </RadioGroup>
+      </CardContent>
+    </Card>
+  );
   
   // New render function for multi-select fields to show actual values
   const renderMultiSelectStatusItem = (label: string, values: string[] | null, Icon: React.ElementType, isRequired: boolean = false) => {
@@ -283,14 +367,44 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         )}
       </Card>
       
-      {/* Complex Categorization Fields */}
+      {/* Complex Categorization Fields (NOW TABBED) */}
       <h3 className="text-xl font-bold mt-8">Detailed Categorization</h3>
-      <InsightTimerFormFields 
-        improvisationId={imp.id}
-        initialBenefits={imp.insight_benefits}
-        initialPractices={imp.insight_practices}
-        initialThemes={imp.insight_themes}
-      />
+      
+      <Tabs defaultValue="benefits">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsTrigger value="benefits" className="text-base py-2">Benefits (Max 3)</TabsTrigger>
+          <TabsTrigger value="practices" className="text-base py-2">Practices (Select 1)</TabsTrigger>
+          <TabsTrigger value="themes" className="text-base py-2">Themes</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="benefits" className="mt-4">
+          {renderCheckboxGroup(
+            "Benefits", 
+            INSIGHT_BENEFITS, 
+            imp.insight_benefits || [], 
+            handleBenefitChange, 
+            3
+          )}
+        </TabsContent>
+        
+        <TabsContent value="practices" className="mt-4">
+          {renderRadioGroup(
+            "Practices", 
+            INSIGHT_PRACTICES, 
+            imp.insight_practices, 
+            handlePracticeChange
+          )}
+        </TabsContent>
+        
+        <TabsContent value="themes" className="mt-4">
+          {renderCheckboxGroup(
+            "Themes & Belief Systems", 
+            INSIGHT_THEMES, 
+            imp.insight_themes || [], 
+            handleThemeChange
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
