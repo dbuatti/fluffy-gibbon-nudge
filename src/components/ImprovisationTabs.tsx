@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
+import ArtworkUpload from './ArtworkUpload'; // NEW: Import ArtworkUpload
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -350,20 +351,12 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             
             <Separator />
             
-            {/* Manual Artwork Upload (Still useful for custom uploads) */}
-            <div className="p-4 border rounded-lg bg-yellow-50/50 dark:bg-yellow-950/50 space-y-2">
-                <h3 className="text-lg font-semibold flex items-center text-yellow-700 dark:text-yellow-300">
-                    <Upload className="h-5 w-5 mr-2" /> Manual Artwork Upload
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    If you have custom artwork, upload it here. This will override any AI-generated artwork.
-                </p>
-                {/* Placeholder for future manual upload component */}
-                <Input type="file" accept=".jpg, .png" disabled={true} className="mt-2" />
-                <Button variant="secondary" disabled className="w-full">
-                    Upload Custom Artwork (Coming Soon)
-                </Button>
-            </div>
+            {/* Manual Artwork Upload (Now functional) */}
+            <ArtworkUpload 
+                improvisationId={imp.id}
+                onUploadSuccess={handleRefetch} // Refetch to update artwork_url in parent
+                currentArtworkUrl={imp.artwork_url}
+            />
           </CardContent>
         </Card>
         
