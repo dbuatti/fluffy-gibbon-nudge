@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -17,7 +17,7 @@ import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TY
 import { cn } from '@/lib/utils';
 import SelectField from './SelectField';
 
-interface ImprovisationData { // Renamed interface
+interface ImprovisationData {
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
@@ -37,7 +37,7 @@ interface ImprovisationData { // Renamed interface
 }
 
 interface InsightTimerTabProps {
-  imp: ImprovisationData; // Updated prop name and type
+  imp: ImprovisationData;
   aiGeneratedDescription: string;
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
@@ -45,8 +45,18 @@ interface InsightTimerTabProps {
   handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
 }
 
+// Helper function to get the benefit with its category
+const getBenefitWithCategory = (benefit: string): string => {
+  for (const category in INSIGHT_BENEFITS) {
+    if (INSIGHT_BENEFITS[category].includes(benefit)) {
+      return `${category}: ${benefit}`;
+    }
+  }
+  return benefit; // Fallback, though should not happen if benefit is valid
+};
+
 const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ 
-    imp, // Updated prop name
+    imp,
     aiGeneratedDescription, 
     isPopulating, 
     handleAIPopulateMetadata,
@@ -56,7 +66,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(aiGeneratedDescription);
-  const updateMutation = useUpdateImprovisation(imp.id); // Updated hook
+  const updateMutation = useUpdateImprovisation(imp.id);
 
   // Sync local state when AI generates a new description
   useEffect(() => {
@@ -183,8 +193,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
           {title} 
           <span className="text-sm font-normal text-muted-foreground ml-2"> (Select one option)</span>
           {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
-        </CardTitle>
-      </CardHeader>
+        </CardHeader>
       <CardContent className="p-4 space-y-4">
         <RadioGroup 
           value={selectedValue || ''} 
@@ -230,7 +239,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         </div>
         {isSet && (
             <div className="flex flex-wrap gap-1 mt-1 ml-6">
-                {actualValues.map(v => <Badge key={v} variant="secondary" className="text-xs px-2 py-0.5">{v}</Badge>)}
+                {actualValues.map(v => <Badge key={v} variant="secondary" className="text-xs px-2 py-0.5">{getBenefitWithCategory(v)}</Badge>)}
             </div>
         )}
       </div>
