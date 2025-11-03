@@ -19,3 +19,13 @@ export const getPublicAudioUrl = (storagePath: string): string => {
     const { data } = supabase.storage.from('piano_improvisations').getPublicUrl(storagePath);
     return data.publicUrl;
 };
+
+/**
+ * Generates the public URL for a file in the 'artwork' bucket.
+ * @param storagePath The path within the bucket (e.g., 'improvisation_id/artwork_timestamp.jpg').
+ * @returns The full public URL string.
+ */
+export const getPublicArtworkUrl = (storagePath: string): string => {
+    const { data } = supabase.storage.from('artwork').getPublicUrl(storagePath);
+    return data.publicUrl;
+};

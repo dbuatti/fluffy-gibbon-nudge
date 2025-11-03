@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
+import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper, getPublicArtworkUrl } from '@/integrations/supabase/client';
 import { Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -74,6 +74,12 @@ const getPublicAudioUrl = (storagePath: string | null): string | null => {
     return getPublicAudioUrlHelper(storagePath);
 };
 
+// The edge function now stores the full public URL directly in artwork_url.
+// So, this helper simply returns the URL from the improvisation object.
+const getPublicArtworkDisplayUrl = (artworkUrl: string | null): string | null => {
+    return artworkUrl;
+};
+
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -111,6 +117,8 @@ const ImprovisationDetails: React.FC = () => {
   
   // Get public URL for the audio file
   const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
+  // Get public URL for the artwork
+  const artworkDisplayUrl = getPublicArtworkDisplayUrl(imp?.artwork_url || null);
 
   // NEW: Core Metadata Completion Check
   const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood;
@@ -124,12 +132,12 @@ const ImprovisationDetails: React.FC = () => {
 
   const handleRegenerateArtwork = async () => {
     if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) {
-      showError("Cannot regenerate artwork prompt: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
+      showError("Cannot generate artwork: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
       return;
     }
 
     setIsRegenerating(true);
-    showSuccess("Artwork prompt regeneration started...");
+    showSuccess("AI artwork generation started..."); // Updated message
 
     try {
       const { error: functionError } = await supabase.functions.invoke('generate-artwork', {
@@ -146,14 +154,14 @@ const ImprovisationDetails: React.FC = () => {
         throw functionError;
       }
       
-      await new Promise(resolve => setTimeout(resolve, 1500)); 
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Give some time for image generation/upload
       
       handleRefetch();
-      showSuccess("New artwork prompt generated successfully! Check the Assets tab.");
+      showSuccess("New AI artwork generated and saved successfully! Check the Assets tab."); // Updated message
 
     } catch (error) {
-      console.error('Regeneration failed:', error);
-      showError(`Failed to regenerate artwork prompt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Artwork generation failed:', error);
+      showError(`Failed to generate artwork: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRegenerating(false);
     }
@@ -198,8 +206,23 @@ const ImprovisationDetails: React.FC = () => {
           console.error("Failed to delete file from storage:", storageError);
         }
       }
+      
+      // 2. Delete artwork from Supabase Storage (only if artwork exists)
+      if (imp.artwork_url) {
+        // Assuming artwork_url is a full public URL, we need to extract the path
+        const artworkPath = imp.artwork_url.split('/public/artwork/')[1];
+        if (artworkPath) {
+            const { error: artworkStorageError } = await supabase.storage
+                .from('artwork')
+                .remove([artworkPath]);
 
-      // 2. Delete record from database
+            if (artworkStorageError) {
+                console.error("Failed to delete artwork from storage:", artworkStorageError);
+            }
+        }
+      }
+
+      // 3. Delete record from database
       const { error: dbError } = await supabase
         .from('improvisations')
         .delete()
@@ -336,24 +359,24 @@ const ImprovisationDetails: React.FC = () => {
     // Step 4: Notes Added (70%)
     if (hasAudioFile && isCoreMetadataComplete && hasNotes) {
         progressValue = 70;
-        progressMessage = "Notes added. Generate artwork prompt and populate distribution fields.";
+        progressMessage = "Notes added. Generate artwork and populate distribution fields."; // Updated message
         
-        // Action 3: Generate Artwork Prompt
-        if (!imp.artwork_prompt) {
+        // Action 3: Generate Artwork
+        if (!imp.artwork_url) { // Check for artwork_url now
             primaryAction = {
-                label: "Generate Artwork Prompt (10% Progress Boost)",
+                label: "Generate AI Artwork (10% Progress Boost)", // Updated label
                 onClick: handleRegenerateArtwork,
                 variant: "outline"
             };
         }
     }
 
-    // Step 5: Artwork Prompt Generated (80%)
+    // Step 5: Artwork Generated (80%)
     const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
     
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_url) { // Check for artwork_url
       progressValue = 80;
-      progressMessage = "Artwork prompt generated. Use AI to populate distribution fields.";
+      progressMessage = "AI artwork generated. Use AI to populate distribution fields."; // Updated message
       
       // Action 4: AI Populate Metadata
       if (!hasInsightTimerPopulated) {
@@ -366,7 +389,7 @@ const ImprovisationDetails: React.FC = () => {
     }
     
     // Step 6: AI Augmentation Complete (90%)
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) {
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_url && hasInsightTimerPopulated) {
         progressValue = 90;
         progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
         
