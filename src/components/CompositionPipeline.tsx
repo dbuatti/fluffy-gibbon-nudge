@@ -12,13 +12,15 @@ interface StatusCount {
   count: number;
 }
 
-const fetchStatusCounts = async (): Promise<StatusCount[]> => {
+const fetchStatusCounts = async (sessionUserId: string): Promise<StatusCount[]> => {
+  console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabase
       .from('improvisations')
       .select('*', { count: 'exact', head: true })
-      .eq('status', status);
+      .eq('status', status)
+      .eq('user_id', sessionUserId); // Ensure we only count for the current user
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
@@ -28,15 +30,18 @@ const fetchStatusCounts = async (): Promise<StatusCount[]> => {
   });
 
   const results = await Promise.all(promises);
+  console.log("fetchStatusCounts: Fetched counts:", results);
   return results;
 };
 
 const CompositionPipeline: React.FC = () => {
   const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
+  console.log("CompositionPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
-    queryFn: fetchStatusCounts,
-    enabled: !isSessionLoading && !!session?.user, // Changed to !!session?.user
+    queryFn: () => fetchStatusCounts(session!.user.id), // Pass user ID to fetcher
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
 

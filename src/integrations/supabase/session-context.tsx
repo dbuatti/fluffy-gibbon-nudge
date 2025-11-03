@@ -22,18 +22,26 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log("SessionContextProvider: Initializing...");
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("SessionContextProvider: Initial getSession data:", session);
       setSession(session);
       setIsLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("SessionContextProvider: Auth state changed. Event:", _event, "Session:", session);
       setSession(session);
-      setIsLoading(false);
+      setIsLoading(false); // Ensure isLoading is false after any state change
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("SessionContextProvider: Unsubscribing from auth state changes.");
+      subscription.unsubscribe();
+    };
   }, []);
+
+  console.log("SessionContextProvider: Render. Session:", session, "isLoading:", isLoading);
 
   return (
     <SessionContext.Provider value={{ session, isLoading }}>

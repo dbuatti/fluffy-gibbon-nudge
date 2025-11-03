@@ -22,13 +22,16 @@ interface Improvisation {
   created_at: string;
 }
 
-const fetchImprovisationDates = async (): Promise<Improvisation[]> => {
+const fetchImprovisationDates = async (sessionUserId: string): Promise<Improvisation[]> => {
+  console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
   const { data, error } = await supabase
     .from('improvisations')
     .select('created_at')
+    .eq('user_id', sessionUserId) // Filter by user_id
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
+  console.log("fetchImprovisationDates: Fetched data:", data);
   return data as Improvisation[];
 };
 
@@ -100,10 +103,12 @@ const Index = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortOption, setSortOption] = useState<string>('created_at_desc');
 
+  console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+
   const { data: improvisations } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
-    queryFn: fetchImprovisationDates,
-    enabled: !isSessionLoading && !!session?.user, // Changed to !!session?.user
+    queryFn: () => fetchImprovisationDates(session!.user.id), // Pass user ID to fetcher
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,
   });

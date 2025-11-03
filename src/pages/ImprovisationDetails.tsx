@@ -59,14 +59,17 @@ interface Improvisation {
   insight_voice: string | null;
 }
 
-const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
+const fetchImprovisationDetails = async (id: string, sessionUserId: string): Promise<Improvisation> => {
+  console.log("fetchImprovisationDetails: Attempting to fetch details for ID:", id, "user:", sessionUserId);
   const { data, error } = await supabase
     .from('improvisations')
     .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
     .eq('id', id)
+    .eq('user_id', sessionUserId) // Filter by user_id
     .single();
 
   if (error) throw new Error(error.message);
+  console.log("fetchImprovisationDetails: Fetched data:", data);
   return data as Improvisation;
 };
 
@@ -102,10 +105,12 @@ const ImprovisationDetails: React.FC = () => {
   };
   // --- End Tab State Management ---
 
+  console.log("ImprovisationDetails: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
-    queryFn: () => fetchImprovisationDetails(id!),
-    enabled: !!id && !isSessionLoading && !!session?.user, // Changed to !!session?.user
+    queryFn: () => fetchImprovisationDetails(id!, session!.user.id), // Pass user ID to fetcher
+    enabled: !!id && !isSessionLoading && !!session?.user, // Only enable if ID exists, session is loaded, and user exists
     refetchInterval: 5000,
   });
 
@@ -379,7 +384,7 @@ const ImprovisationDetails: React.FC = () => {
     // Step 5: Artwork Prompt Generated (80%)
     const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
     
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) { // Check for artwork_prompt
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) {
       progressValue = 80;
       progressMessage = "AI artwork prompt generated. Use AI to populate distribution fields."; // Updated message
       

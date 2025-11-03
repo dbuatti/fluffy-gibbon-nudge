@@ -57,13 +57,16 @@ interface Improvisation {
 
 const STALLED_THRESHOLD_HOURS = 48;
 
-const fetchImprovisations = async (): Promise<Improvisation[]> => {
+const fetchImprovisations = async (sessionUserId: string): Promise<Improvisation[]> => {
+  console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
   const { data, error } = await supabase
     .from('improvisations')
     .select('*') // Select all fields for potential export
+    .eq('user_id', sessionUserId) // Filter by user_id
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
+  console.log("fetchImprovisations: Fetched data:", data);
   return data as Improvisation[];
 };
 
@@ -144,10 +147,12 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isExportingBulk, setIsExportingBulk] = useState(false);
 
+  console.log("ImprovisationList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
-    queryFn: fetchImprovisations,
-    enabled: !isSessionLoading && !!session?.user, // Changed to !!session?.user
+    queryFn: () => fetchImprovisations(session!.user.id), // Pass user ID to fetcher
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
 
