@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
 import DailyPromptCard from "@/components/DailyPromptCard"; // Import new component
+import CompositionScriptCard from "@/components/CompositionScriptCard"; // Import new component
 import { supabase } from '@/integrations/supabase/client';
 import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge'; // Import Badge
@@ -131,6 +132,9 @@ const Index = () => {
         
         {/* NEW: DAILY CREATIVE PROMPT */}
         <DailyPromptCard />
+        
+        {/* NEW: COMPOSITION SCRIPT STORY */}
+        <CompositionScriptCard />
 
         {/* STREAK TRACKER (Motivation) */}
         <Card className={cn(
