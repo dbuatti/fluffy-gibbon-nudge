@@ -264,7 +264,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
         {/* Artwork Display & Actions Card */}
         <Card id="artwork-actions">
           <CardHeader>
-            <CardTitle className="flex items-center text-xl">
+            <CardTitle className="text-xl flex items-center">
                 <ImageIcon className="w-5 h-5 mr-2" /> AI Artwork Prompt & External Generation
             </CardTitle>
           </CardHeader>
