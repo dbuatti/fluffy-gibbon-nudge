@@ -83,21 +83,76 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
 
   const renderStatusItem = (label: string, value: string | number | string[] | null, Icon: React.ElementType, isRequired: boolean = false) => {
-    const displayValue = Array.isArray(value) ? (value.length > 0 ? `${value.length} selected` : 'Not Set') : (value || 'Not Set');
+    let displayValue: React.ReactNode;
     const isSet = Array.isArray(value) ? value.length > 0 : !!value;
+    
+    if (Array.isArray(value)) {
+        displayValue = value.length > 0 ? (
+            <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
+                {value.map(v => <Badge key={v} variant="secondary" className="text-xs px-2 py-0.5">{v}</Badge>)}
+            </div>
+        ) : 'Not Set';
+    } else {
+        displayValue = value || 'Not Set';
+    }
+
+    return (
+      <div className="flex items-center justify-between py-2 border-b last:border-b-0">
+        <span className="text-sm font-medium text-muted-foreground flex items-center">
+          <Icon className="w-4 h-4 mr-2" /> {label}
+        </span>
+        <div className="flex items-center">
+            <Badge variant={isSet ? 'default' : (isRequired ? 'destructive' : 'outline')} className="flex items-center">
+                {isSet ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                {Array.isArray(value) ? `${value.length} selected` : displayValue}
+            </Badge>
+        </div>
+      </div>
+    );
+  };
+  
+  // New render function for multi-select fields to show actual values
+  const renderMultiSelectStatusItem = (label: string, values: string[] | null, Icon: React.ElementType, isRequired: boolean = false) => {
+    const actualValues = values || [];
+    const isSet = actualValues.length > 0;
+    
+    return (
+      <div className="flex flex-col py-2 border-b last:border-b-0">
+        <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-muted-foreground flex items-center">
+              <Icon className="w-4 h-4 mr-2" /> {label}
+            </span>
+            <Badge variant={isSet ? 'default' : (isRequired ? 'destructive' : 'outline')} className="flex items-center">
+                {isSet ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                {isSet ? `${actualValues.length} selected` : 'Not Set'}
+            </Badge>
+        </div>
+        {isSet && (
+            <div className="flex flex-wrap gap-1 mt-1 ml-6">
+                {actualValues.map(v => <Badge key={v} variant="secondary" className="text-xs px-2 py-0.5">{v}</Badge>)}
+            </div>
+        )}
+      </div>
+    );
+  };
+  
+  // New render function for single-select fields to show actual value
+  const renderSingleSelectStatusItem = (label: string, value: string | null, Icon: React.ElementType, isRequired: boolean = false) => {
+    const isSet = !!value;
     
     return (
       <div className="flex items-center justify-between py-2 border-b last:border-b-0">
         <span className="text-sm font-medium text-muted-foreground flex items-center">
           <Icon className="w-4 h-4 mr-2" /> {label}
         </span>
-        <Badge variant={isSet ? 'default' : (isRequired ? 'destructive' : 'outline')}>
-          {isSet ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-          {displayValue}
+        <Badge variant={isSet ? 'default' : (isRequired ? 'destructive' : 'outline')} className="flex items-center">
+            {isSet ? <CheckCircle className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+            {value || 'Not Set'}
         </Badge>
       </div>
     );
   };
+
 
   return (
     <div className="space-y-6">
@@ -129,19 +184,19 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
           {/* Required Fields Summary */}
           <div className="p-4 border rounded-lg bg-muted/50 space-y-1">
             <h4 className="font-semibold text-base mb-2">Required Core Metadata (Set via <Link to={`/improvisation/${imp.id}`}><Info className="w-4 h-4 inline-block text-primary" /></Link> button):</h4>
-            {renderStatusItem("Content Type", imp.insight_content_type, Music, true)}
-            {renderStatusItem("Language", imp.insight_language, Globe, true)}
-            {renderStatusItem("Primary Use", imp.insight_primary_use, Clock, true)}
-            {renderStatusItem("Experience Level", imp.insight_audience_level, Users, true)}
-            {renderStatusItem("Age Group", imp.insight_audience_age, Users)}
-            {renderStatusItem("Voice", imp.insight_voice, Volume2)}
+            {renderSingleSelectStatusItem("Content Type", imp.insight_content_type, Music, true)}
+            {renderSingleSelectStatusItem("Language", imp.insight_language, Globe, true)}
+            {renderSingleSelectStatusItem("Primary Use", imp.insight_primary_use, Clock, true)}
+            {renderSingleSelectStatusItem("Experience Level", imp.insight_audience_level, Users, true)}
+            {renderMultiSelectStatusItem("Age Group", imp.insight_audience_age, Users)}
+            {renderSingleSelectStatusItem("Voice", imp.insight_voice, Volume2)}
             
             <Separator className="my-3" />
             
             <h4 className="font-semibold text-base mb-2">Required Categorization (Set below):</h4>
-            {renderStatusItem("Benefits (Max 3)", imp.insight_benefits, CheckCircle, true)}
-            {renderStatusItem("Practices (Select 1)", imp.insight_practices, BookOpen, true)}
-            {renderStatusItem("Themes", imp.insight_themes, Info, true)}
+            {renderMultiSelectStatusItem("Benefits (Max 3)", imp.insight_benefits, CheckCircle, true)}
+            {renderSingleSelectStatusItem("Practices (Select 1)", imp.insight_practices, BookOpen, true)}
+            {renderMultiSelectStatusItem("Themes", imp.insight_themes, Info, true)}
             
             <div className="flex items-center justify-between py-2 border-b last:border-b-0">
                 <span className="text-sm font-medium text-muted-foreground flex items-center">
