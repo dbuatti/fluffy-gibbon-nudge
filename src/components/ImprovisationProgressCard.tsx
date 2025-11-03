@@ -28,17 +28,32 @@ const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
   isSubmittedToDistroKid, // NEW
   isSubmittedToInsightTimer, // NEW
 }) => {
-  const isFullySubmitted = isSubmittedToDistroKid && isSubmittedToInsightTimer;
+  const isFullySubmitted = !!isSubmittedToDistroKid && !!isSubmittedToInsightTimer;
+  const isPartiallySubmitted = !!isReadyForRelease && (!!isSubmittedToDistroKid || !!isSubmittedToInsightTimer) && !isFullySubmitted;
+  const isReadyButNotSubmitted = !!isReadyForRelease && !isFullySubmitted && !isPartiallySubmitted;
+  const isInProgress = !isReadyForRelease; // Default state when not ready
+
+  const cardClasses = cn(
+    "p-4 border-2 shadow-card-light dark:shadow-card-dark transition-all",
+    isFullySubmitted && "border-success/50 bg-success/50 dark:bg-success/20",
+    isPartiallySubmitted && "border-info/50 bg-info/50 dark:bg-info/20",
+    isReadyButNotSubmitted && "border-primary/50 bg-primary/5 dark:bg-primary/10",
+    isInProgress && "border-muted/50 bg-muted/5 dark:bg-muted/10"
+  );
+
+  const iconColorClass = cn(
+    "h-5 w-5 mr-2",
+    isFullySubmitted && "text-success",
+    isPartiallySubmitted && "text-info",
+    isReadyButNotSubmitted && "text-primary",
+    isInProgress && "text-yellow-500" // Keep yellow for general in-progress/attention
+  );
 
   return (
-    <Card className={cn(
-      "p-4 border-2 shadow-card-light dark:shadow-card-dark transition-all",
-      isFullySubmitted ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/50" : 
-      (isReadyForRelease ? "border-primary/50 bg-primary/5 dark:bg-primary/10" : "border-muted/50 bg-muted/5 dark:bg-muted/10")
-    )}>
+    <Card className={cardClasses}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold flex items-center">
-          <Zap className="h-5 w-5 mr-2 text-yellow-500" /> Improvisation Readiness
+          <Zap className={iconColorClass} /> Improvisation Readiness
         </h3>
         <span className="text-sm font-bold text-primary">{progressValue}%</span>
       </div>
