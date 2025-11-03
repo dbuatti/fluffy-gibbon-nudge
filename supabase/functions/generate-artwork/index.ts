@@ -86,18 +86,17 @@ serve(async (req) => {
     const imagePrompt = await generateImagePromptWithGemini(generatedName, primaryGenre, secondaryGenre || '', mood);
     console.log(`AI Generated Image Prompt: ${imagePrompt}`);
 
-    // 2. Update the database record with the artwork prompt.
-    //    Set artwork_url to null as we are no longer generating and uploading the image directly.
-    const { error: updateError } = await supabase
+    // 2. Update the database record with the artwork prompt (and clear the old artwork_url)
+    const { error } = await supabase
       .from('improvisations')
       .update({ 
         artwork_prompt: imagePrompt,
-        artwork_url: null, // Clear artwork_url as AI no longer uploads image
+        artwork_url: null, // Clear the old placeholder URL
       })
       .eq('id', improvisationId);
 
-    if (updateError) {
-      console.error('Database update failed during artwork prompt generation:', updateError);
+    if (error) {
+      console.error('Database update failed during artwork prompt generation:', error);
       return new Response(JSON.stringify({ error: 'Failed to update database with artwork prompt' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -106,7 +105,7 @@ serve(async (req) => {
 
     console.log(`Artwork prompt generated and saved for ID: ${improvisationId}.`);
 
-    return new Response(JSON.stringify({ success: true, artworkPrompt: imagePrompt, artworkUrl: null }), {
+    return new Response(JSON.stringify({ success: true, artworkPrompt: imagePrompt }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 
 interface StatusCount {
@@ -32,11 +31,9 @@ const fetchStatusCounts = async (): Promise<StatusCount[]> => {
 };
 
 const CompositionPipeline: React.FC = () => {
-  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
     queryFn: fetchStatusCounts,
-    enabled: !isSessionLoading && !!session?.user?.id, // Only fetch if session is loaded and user is logged in
     refetchInterval: 5000,
   });
 

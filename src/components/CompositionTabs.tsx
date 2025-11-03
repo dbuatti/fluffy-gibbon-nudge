@@ -15,7 +15,7 @@ import PreFlightChecklist from './PreFlightChecklist';
 import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
 import { Input } from '@/components/ui/input';
-import { Copy, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle, Sparkles, Upload } from 'lucide-react';
+import { Copy, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
-const VISUALGPT_NANO_BANANA_URL = "https://visualgpt.io/ai-models/nano-banana"; // NEW: Nano Banana link
+const MIDJOURNEY_URL = "https://www.midjourney.com/";
 
 interface NoteTab {
   id: string;
@@ -78,7 +78,7 @@ interface CompositionTabsProps {
   currentTab: string;
   handleTabChange: (newTab: string) => void; // Still needed for internal links/actions
   handleRefetch: () => void;
-  handleRegenerateArtwork: () => Promise<void>; // This now triggers full image generation
+  handleRegenerateArtwork: () => Promise<void>;
   handleClearFile: () => Promise<void>;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
@@ -125,20 +125,15 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
 }) => {
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
-  const hasArtwork = !!imp.artwork_url; // Check if artwork_url is set
-
-  const handleDownloadArtwork = () => {
+  
+  const handleDownload = () => {
     if (imp.artwork_url) {
-      // The artwork_url is now the direct public URL
       const link = document.createElement('a');
       link.href = imp.artwork_url;
       link.download = `${imp.generated_name || 'artwork'}_3000x3000.jpg`; 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showSuccess('Artwork downloaded!');
-    } else {
-      showError('No artwork available to download.');
     }
   };
   
@@ -162,7 +157,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
 
   // A composition is blocked if any critical asset or confirmation is missing.
   const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
-  // Artwork check now relies on the user having an artwork_url set
+  // Artwork check now relies on the user having uploaded an image (artwork_url is set)
   const isBlocked = !hasAudioFile || !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
 
   // --- Conditional Content Rendering ---
@@ -259,109 +254,75 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
     return (
       <TabsContent value="assets-downloads" className="space-y-8 mt-6">
         
-        {/* Artwork Display & Actions Card */}
+        {/* Artwork Prompt & Actions Card */}
         <Card id="artwork-actions">
           <CardHeader>
             <CardTitle className="flex items-center text-xl">
-                <ImageIcon className="w-5 h-5 mr-2" /> AI Artwork Prompt & External Generation
+                <ImageIcon className="w-5 h-5 mr-2" /> AI Artwork Prompt Generator
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             
-            {/* Artwork Preview */}
-            <div className={cn(
-                "relative w-full aspect-square rounded-lg overflow-hidden border-2",
-                hasArtwork ? "border-primary/50" : "border-dashed border-red-500/50 bg-red-50/50 dark:bg-red-950/50"
-            )}>
-                {hasArtwork ? (
-                    <img 
-                        src={imp.artwork_url!} 
-                        alt={imp.generated_name || "Generated Artwork"} 
-                        className="w-full h-full object-cover" 
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center text-red-600 dark:text-red-400 p-4">
-                        <AlertTriangle className="w-12 h-12 mb-3" />
-                        <p className="text-lg font-bold">No Artwork Uploaded</p>
-                        <p className="text-sm mt-1">Generate a prompt below, use an external AI tool, then manually upload your artwork.</p>
-                    </div>
-                )}
-                {isRegenerating && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    </div>
-                )}
-            </div>
-
             {/* Prompt Display */}
             <div className={cn(
                 "p-4 rounded-lg border-2 border-dashed",
                 imp.artwork_prompt ? "border-primary/50 bg-muted/50" : "border-red-500/50 bg-red-50/50 dark:bg-red-950/50"
             )}>
                 <h3 className="font-semibold mb-2 flex items-center">
-                    {imp.artwork_prompt ? 'AI Artwork Prompt:' : 'Prompt Missing (Generate Below)'}
+                    {imp.artwork_prompt ? 'Generated Prompt:' : 'Prompt Missing (Generate Below)'}
                 </h3>
                 <p className={cn("text-sm font-mono", !imp.artwork_prompt && "text-red-600 dark:text-red-400")}>
-                    {imp.artwork_prompt || "Please ensure core metadata (Title, Genre, Mood) is set on the Creative Hub tab before generating an artwork prompt."}
+                    {imp.artwork_prompt || "Please ensure core metadata (Title, Genre, Mood) is set on the Creative Hub tab before generating the prompt."}
                 </p>
             </div>
 
             {/* Actions Column */}
             <div className="space-y-2">
                 <Button 
-                    onClick={handleRegenerateArtwork} // This now triggers prompt generation
-                    className="w-full h-10 text-base bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
-                    disabled={isRegenerating || isAnalyzing || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
-                >
-                    {isRegenerating ? (
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    ) : (
-                        <Sparkles className="h-5 w-5 mr-2" />
-                    )}
-                    {isRegenerating ? 'Generating Prompt...' : 'Generate AI Artwork Prompt'}
-                </Button>
-                <Button 
                     onClick={handleCopyPrompt} 
-                    variant="outline" 
                     className="w-full"
                     disabled={!imp.artwork_prompt}
                 >
                     <Copy className="h-4 w-4 mr-2" /> Copy Prompt to Clipboard
                 </Button>
-                {hasArtwork && (
-                    <Button 
-                        onClick={handleDownloadArtwork} 
-                        variant="outline" 
-                        className="w-full"
-                    >
-                        <Download className="h-4 w-4 mr-2" /> Download Uploaded Artwork
-                    </Button>
-                )}
+                <Button 
+                    onClick={handleRegenerateArtwork} 
+                    variant="outline" 
+                    className="w-full"
+                    disabled={isRegenerating || isAnalyzing || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
+                >
+                    {isRegenerating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    {isRegenerating ? 'Regenerating Prompt...' : 'Regenerate Prompt'}
+                </Button>
             </div>
             
             <Separator />
             
-            <h3 className="text-lg font-semibold">External Artwork Generation Tools</h3>
+            <h3 className="text-lg font-semibold">External Artwork Generation</h3>
             <p className="text-sm text-muted-foreground">
                 Use the generated prompt above with an external AI tool to create your unique 3000x3000 album cover.
             </p>
-            <QuickLinkButton href={VISUALGPT_NANO_BANANA_URL} icon={ImageIcon} label="Open Nano Banana" /> {/* Updated link */}
+            <QuickLinkButton href={MIDJOURNEY_URL} icon={ImageIcon} label="Open Midjourney" />
             <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
             
             <Separator />
             
-            {/* Manual Artwork Upload (Still useful for custom uploads) */}
+            {/* Artwork Upload CTA */}
             <div className="p-4 border rounded-lg bg-yellow-50/50 dark:bg-yellow-950/50 space-y-2">
                 <h3 className="text-lg font-semibold flex items-center text-yellow-700 dark:text-yellow-300">
-                    <Upload className="h-5 w-5 mr-2" /> Manual Artwork Upload
+                    <AlertTriangle className="h-5 w-5 mr-2" /> Manual Artwork Upload
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                    If you have custom artwork, upload it here. This will override any AI-generated artwork.
+                    Once you have generated your 3000x3000 artwork externally, upload it here to link it to this composition.
                 </p>
                 {/* Placeholder for future manual upload component */}
                 <Input type="file" accept=".jpg, .png" disabled={true} className="mt-2" />
                 <Button variant="secondary" disabled className="w-full">
-                    Upload Custom Artwork (Coming Soon)
+                    Upload Final Artwork (Coming Soon)
                 </Button>
             </div>
           </CardContent>
