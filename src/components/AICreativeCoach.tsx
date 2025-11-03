@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
   improvisationId: string; // Renamed prop
-  hasAudioFile: boolean;
+  hasAudioFile: boolean; // Still passed, but not strictly disabling the button
 }
 
 const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasAudioFile }) => { // Renamed prop
@@ -16,10 +16,8 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasA
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGenerate = useCallback(async () => {
-    if (!hasAudioFile) {
-        showError("Please upload the audio file first to enable AI analysis for creative suggestions.");
-        return;
-    }
+    // Removed the hasAudioFile check here, as the button is no longer disabled by it.
+    // The AI function will do its best with available metadata.
     
     setIsLoading(true);
     setSuggestions([]);
@@ -45,7 +43,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasA
     } finally {
       setIsLoading(false);
     }
-  }, [improvisationId, hasAudioFile]); // Updated dependency
+  }, [improvisationId]); // Updated dependency
 
   return (
     <Card className="shadow-lg dark:shadow-xl border-purple-500/50 border-2">
@@ -55,7 +53,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasA
         </CardTitle>
         <Button 
           onClick={handleGenerate} 
-          disabled={isLoading || !hasAudioFile} 
+          disabled={isLoading} // Button is now only disabled by loading state
           size="sm"
           className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
         >
@@ -81,7 +79,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasA
           <div className="text-center p-6 bg-muted rounded-lg">
             <Lightbulb className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Click 'Generate Suggestions' to get three actionable ideas for developing this improvisation. Requires audio file and notes.
+              Click 'Generate Suggestions' to get three actionable ideas for developing this improvisation. Suggestions are enhanced by audio analysis and creative notes.
             </p>
           </div>
         )}
