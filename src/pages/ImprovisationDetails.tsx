@@ -272,8 +272,12 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
   const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
   const handleUpdateInsightAudienceAge = (value: string[]) => updateMutation.mutateAsync({ insight_audience_age: value });
+  const handleUpdateInsightBenefits = (value: string[]) => updateMutation.mutateAsync({ insight_benefits: value }); // NEW
+  const handleUpdateInsightPractices = (value: string) => updateMutation.mutateAsync({ insight_practices: value }); // NEW
+  const handleUpdateInsightThemes = (value: string[]) => updateMutation.mutateAsync({ insight_themes: value }); // NEW
   const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
   const handleUpdateIsMetadataConfirmed = (checked: boolean) => updateMutation.mutateAsync({ is_metadata_confirmed: checked });
+  const handleUpdateDescription = (value: string) => updateMutation.mutateAsync({ description: value }); // NEW
   
   // NEW HANDLERS FOR SUBMISSION STATUS
   const handleUpdateIsSubmittedToDistroKid = (checked: boolean) => updateMutation.mutateAsync({ is_submitted_to_distrokid: checked });
@@ -543,6 +547,22 @@ const ImprovisationDetails: React.FC = () => {
           aiGeneratedDescription={aiGeneratedDescription}
           handleAIPopulateMetadata={handleAIPopulateMetadata}
           setAiGeneratedDescription={setAiGeneratedDescription}
+          // NEW: Pass pending state and all Insight Timer handlers
+          isPending={updateMutation.isPending}
+          handleUpdateDescription={handleUpdateDescription}
+          handleUpdateInsightContentType={handleUpdateInsightContentType}
+          handleUpdateInsightLanguage={handleUpdateInsightLanguage}
+          handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
+          handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
+          handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
+          handleUpdateInsightBenefits={handleUpdateInsightBenefits}
+          handleUpdateInsightPractices={handleUpdateInsightPractices}
+          handleUpdateInsightThemes={handleUpdateInsightThemes}
+          handleUpdateInsightVoice={handleUpdateInsightVoice}
+          handleUpdateIsPiano={handleUpdateIsPiano} // Pass this down for DistributionTogglesCard
+          handleUpdateIsInstrumental={handleUpdateIsInstrumental} // Pass this down for DistributionTogglesCard
+          handleUpdateIsOriginalSong={handleUpdateIsOriginalSong} // Pass this down for DistributionTogglesCard
+          handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics} // Pass this down for DistributionTogglesCard
         />
       </Tabs>
     </div>

@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
 import ArtworkUpload from './ArtworkUpload';
+import DistributionTogglesCard from './DistributionTogglesCard'; // NEW: Import DistributionTogglesCard
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -98,6 +99,22 @@ interface ImprovisationTabsProps {
   aiGeneratedDescription: string;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
+  // NEW: Pass pending state and all Insight Timer handlers
+  isPending: boolean;
+  handleUpdateDescription: (value: string) => Promise<void>;
+  handleUpdateInsightContentType: (value: string) => Promise<void>;
+  handleUpdateInsightLanguage: (value: string) => Promise<void>;
+  handleUpdateInsightPrimaryUse: (value: string) => Promise<void>;
+  handleUpdateInsightAudienceLevel: (value: string) => Promise<void>;
+  handleUpdateInsightAudienceAge: (value: string[]) => Promise<void>;
+  handleUpdateInsightBenefits: (value: string[]) => Promise<void>;
+  handleUpdateInsightPractices: (value: string) => Promise<void>;
+  handleUpdateInsightThemes: (value: string[]) => Promise<void>;
+  handleUpdateInsightVoice: (value: string) => Promise<void>;
+  handleUpdateIsPiano: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
+  handleUpdateIsInstrumental: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
+  handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
+  handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>; // Pass this down for DistributionTogglesCard
 }
 
 const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: string }> = ({ href, icon: Icon, label }) => (
@@ -130,6 +147,22 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   aiGeneratedDescription,
   handleAIPopulateMetadata,
   setAiGeneratedDescription,
+  // NEW: Destructure passed props
+  isPending,
+  handleUpdateDescription,
+  handleUpdateInsightContentType,
+  handleUpdateInsightLanguage,
+  handleUpdateInsightPrimaryUse,
+  handleUpdateInsightAudienceLevel,
+  handleUpdateInsightAudienceAge,
+  handleUpdateInsightBenefits,
+  handleUpdateInsightPractices,
+  handleUpdateInsightThemes,
+  handleUpdateInsightVoice,
+  handleUpdateIsPiano, // Destructure for DistributionTogglesCard
+  handleUpdateIsInstrumental, // Destructure for DistributionTogglesCard
+  handleUpdateIsOriginalSong, // Destructure for DistributionTogglesCard
+  handleUpdateHasExplicitLyrics, // Destructure for DistributionTogglesCard
 }) => {
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
@@ -458,6 +491,20 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
           </CardContent>
         </Card>
         
+        {/* Distribution Toggles Card (Moved here from Metadata Dialog for better visibility) */}
+        <DistributionTogglesCard
+            improvisationId={imp.id}
+            isPiano={imp.is_piano}
+            isInstrumental={imp.is_instrumental}
+            isOriginalSong={imp.is_original_song}
+            hasExplicitLyrics={imp.has_explicit_lyrics}
+            isPending={isPending} // Pass pending state
+            handleUpdateIsPiano={handleUpdateIsPiano}
+            handleUpdateIsInstrumental={handleUpdateIsInstrumental}
+            handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
+            handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
+        />
+
         {/* External Tools Card */}
         <Card>
           <CardHeader>
@@ -493,6 +540,18 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                   setAiGeneratedDescription={setAiGeneratedDescription}
                   handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
                   handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer} // NEW
+                  // NEW: Pass pending state and all Insight Timer handlers
+                  isPending={isPending}
+                  handleUpdateDescription={handleUpdateDescription}
+                  handleUpdateInsightContentType={handleUpdateInsightContentType}
+                  handleUpdateInsightLanguage={handleUpdateInsightLanguage}
+                  handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
+                  handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
+                  handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
+                  handleUpdateInsightBenefits={handleUpdateInsightBenefits}
+                  handleUpdateInsightPractices={handleUpdateInsightPractices}
+                  handleUpdateInsightThemes={handleUpdateInsightThemes}
+                  handleUpdateInsightVoice={handleUpdateInsightVoice}
               />
             </TabsContent>
           </Tabs>

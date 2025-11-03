@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Clock, Users, Info, CheckCircle, XCircle, Music, Globe, Volume2, Sparkles, Loader2, Copy, Check } from 'lucide-react'; // NEW: Import Check
+import { BookOpen, Clock, Users, Info, CheckCircle, XCircle, Music, Globe, Volume2, Sparkles, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
+// Removed useUpdateImprovisation as handlers are now passed from parent
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -42,10 +42,22 @@ interface InsightTimerTabProps {
   imp: ImprovisationData;
   aiGeneratedDescription: string;
   isPopulating: boolean;
+  isPending: boolean; // NEW: Pass pending state from parent
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
   handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
   handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>; // NEW
+  // NEW: Handlers for Insight Timer fields
+  handleUpdateDescription: (value: string) => Promise<void>;
+  handleUpdateInsightContentType: (value: string) => Promise<void>;
+  handleUpdateInsightLanguage: (value: string) => Promise<void>;
+  handleUpdateInsightPrimaryUse: (value: string) => Promise<void>;
+  handleUpdateInsightAudienceLevel: (value: string) => Promise<void>;
+  handleUpdateInsightAudienceAge: (value: string[]) => Promise<void>;
+  handleUpdateInsightBenefits: (value: string[]) => Promise<void>;
+  handleUpdateInsightPractices: (value: string) => Promise<void>;
+  handleUpdateInsightThemes: (value: string[]) => Promise<void>;
+  handleUpdateInsightVoice: (value: string) => Promise<void>;
 }
 
 // Helper function to get the benefit with its category
@@ -62,15 +74,26 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     imp,
     aiGeneratedDescription, 
     isPopulating, 
+    isPending, // NEW
     handleAIPopulateMetadata,
     setAiGeneratedDescription,
     handleUpdateIsMetadataConfirmed,
     handleUpdateIsSubmittedToInsightTimer, // NEW
+    handleUpdateDescription, // NEW
+    handleUpdateInsightContentType, // NEW
+    handleUpdateInsightLanguage, // NEW
+    handleUpdateInsightPrimaryUse, // NEW
+    handleUpdateInsightAudienceLevel, // NEW
+    handleUpdateInsightAudienceAge, // NEW
+    handleUpdateInsightBenefits, // NEW
+    handleUpdateInsightPractices, // NEW
+    handleUpdateInsightThemes, // NEW
+    handleUpdateInsightVoice, // NEW
 }) => {
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(imp.description || '');
-  const updateMutation = useUpdateImprovisation(imp.id);
+  // Removed updateMutation, now using passed handlers
 
   // Sync local state when DB description changes (e.g., after AI population or manual save)
   useEffect(() => {
@@ -94,7 +117,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         return;
     }
     try {
-        await updateMutation.mutateAsync({ description: description });
+        await handleUpdateDescription(description); // Use passed handler
         showSuccess("Description saved successfully.");
     } catch (error) {
         console.error("Failed to save description:", error);
@@ -130,12 +153,12 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
       newBenefits = newBenefits.slice(0, 3);
     }
     
-    updateMutation.mutate({ insight_benefits: newBenefits });
+    handleUpdateInsightBenefits(newBenefits); // Use passed handler
   };
 
   // --- Practices (Single Select) ---
   const handlePracticeChange = (practice: string) => {
-    updateMutation.mutate({ insight_practices: practice });
+    handleUpdateInsightPractices(practice); // Use passed handler
   };
 
   // --- Themes (Multi-Select) ---
@@ -145,23 +168,19 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
       ? [...currentThemes, theme]
       : currentThemes.filter(t => t !== theme);
       
-    updateMutation.mutate({ insight_themes: newThemes });
+    handleUpdateInsightThemes(newThemes); // Use passed handler
   };
   
   // --- Core Field Handlers (Re-implementing logic from ImprovisationMetadataDialog) ---
-  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
-  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
-  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
-  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
-  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
+  // These are now directly passed from ImprovisationDetails
   
-  const handleAudienceAgeChange = (age: string, checked: boolean) => {
+  const handleAudienceAgeChangeInternal = (age: string, checked: boolean) => { // Renamed to avoid conflict
     const currentAudienceAges = imp.insight_audience_age || [];
     const newAges = checked
       ? [...currentAudienceAges, age]
       : currentAudienceAges.filter(a => a !== age);
       
-    updateMutation.mutate({ insight_audience_age: newAges });
+    handleUpdateInsightAudienceAge(newAges); // Use passed handler
   };
   
   // --- Rendering Functions ---
@@ -172,7 +191,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         <CardTitle className="text-base font-semibold">
           {title} 
           {maxSelection && <span className="text-sm font-normal text-muted-foreground ml-2"> (Select up to {maxSelection})</span>}
-          {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
+          {isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 space-y-4">
@@ -190,7 +209,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                       id={item}
                       checked={isChecked}
                       onCheckedChange={(checked) => onChange(item, !!checked)}
-                      disabled={updateMutation.isPending || isDisabled}
+                      disabled={isPending || isDisabled}
                     />
                     <Label htmlFor={item} className="text-sm font-normal cursor-pointer">
                       {item}
@@ -211,14 +230,14 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         <CardTitle className="text-base font-semibold">
           {title} 
           <span className="text-sm font-normal text-muted-foreground ml-2"> (Select one option)</span>
-          {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
+          {isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 space-y-4">
         <RadioGroup 
           value={selectedValue || ''} 
           onValueChange={onChange}
-          disabled={updateMutation.isPending}
+          disabled={isPending}
           className="space-y-4"
         >
           {Object.entries(options).map(([category, items]) => (
@@ -294,7 +313,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
           options={options}
           onSave={onSave}
           placeholder={`Select ${label}`}
-          disabled={updateMutation.isPending}
+          disabled={isPending}
           allowCustom={false}
         />
       </div>
@@ -422,7 +441,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                 id="metadata-confirm"
                 checked={!!imp.is_metadata_confirmed}
                 onCheckedChange={handleUpdateIsMetadataConfirmed}
-                disabled={updateMutation.isPending || !isCategorizationComplete}
+                disabled={isPending || !isCategorizationComplete}
             />
         </div>
         {!isCategorizationComplete && (
@@ -448,7 +467,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                 <CardHeader className="py-3 px-4 border-b">
                     <CardTitle className="text-base font-semibold">
                         Required Single-Select Fields
-                        {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
+                        {isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-2">
@@ -470,8 +489,8 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                                     <Checkbox
                                         id={`age-${age}`}
                                         checked={(imp.insight_audience_age || []).includes(age)}
-                                        onCheckedChange={(checked) => handleAudienceAgeChange(age, !!checked)}
-                                        disabled={updateMutation.isPending}
+                                        onCheckedChange={(checked) => handleAudienceAgeChangeInternal(age, !!checked)}
+                                        disabled={isPending}
                                     />
                                     <Label htmlFor={`age-${age}`} className="text-sm font-normal">{age}</Label>
                                 </div>
@@ -527,7 +546,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
             id="insight-timer-submitted"
             checked={!!imp.is_submitted_to_insight_timer}
             onCheckedChange={handleUpdateIsSubmittedToInsightTimer}
-            disabled={updateMutation.isPending || !imp.is_metadata_confirmed} // Only allow marking as submitted if metadata is confirmed
+            disabled={isPending || !imp.is_metadata_confirmed} // Only allow marking as submitted if metadata is confirmed
         />
       </div>
     </div>

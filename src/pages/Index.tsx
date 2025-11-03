@@ -115,6 +115,7 @@ const Index = () => {
     enabled: !isSessionLoading && !!session?.user,
     staleTime: 86400000,
     refetchOnWindowFocus: false,
+    refetchInterval: 60000, // NEW: Refetch every 1 minute for streak tracking
   });
 
   const { streak, todayActivity } = useStreakTracker(improvisationDates); // Updated variable name

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Piano, Music, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
+// Removed useUpdateImprovisation as handlers are now passed from parent
 
 interface DistributionTogglesCardProps {
   improvisationId: string; // Renamed prop
@@ -10,6 +10,12 @@ interface DistributionTogglesCardProps {
   isInstrumental: boolean | null;
   isOriginalSong: boolean | null;
   hasExplicitLyrics: boolean | null;
+  isPending: boolean; // NEW: Pass pending state from parent
+  // NEW: Handlers passed from parent
+  handleUpdateIsPiano: (checked: boolean) => Promise<void>;
+  handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
+  handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
+  handleUpdateHasExplicitLyrics: (checked: boolean) => Promise<void>;
 }
 
 const DistributionTogglesCard: React.FC<DistributionTogglesCardProps> = ({
@@ -18,16 +24,15 @@ const DistributionTogglesCard: React.FC<DistributionTogglesCardProps> = ({
   isInstrumental,
   isOriginalSong,
   hasExplicitLyrics,
+  isPending, // NEW
+  handleUpdateIsPiano, // NEW
+  handleUpdateIsInstrumental, // NEW
+  handleUpdateIsOriginalSong, // NEW
+  handleUpdateHasExplicitLyrics, // NEW
 }) => {
-  const updateMutation = useUpdateImprovisation(improvisationId); // Updated hook
-  const isPending = updateMutation.isPending;
-
-  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutate({ is_piano: checked });
-  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutate({ is_instrumental: checked });
-  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutate({ is_original_song: checked });
-  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutate({ has_explicit_lyrics: checked });
-
-  const renderToggleItem = (Icon: React.ElementType, label: string, checked: boolean | null, onCheckedChange: (checked: boolean) => void) => (
+  // Removed updateMutation and its related logic, now using passed handlers
+  
+  const renderToggleItem = (Icon: React.ElementType, label: string, checked: boolean | null, onCheckedChange: (checked: boolean) => Promise<void>) => (
     <div className="flex items-center justify-between pr-4 py-2 border-b last:border-b-0">
       <div className="flex items-center">
         <Icon className="h-5 w-5 mr-2 text-muted-foreground" />

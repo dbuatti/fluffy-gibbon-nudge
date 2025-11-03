@@ -171,7 +171,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
     queryKey: ['improvisations'],
     queryFn: () => fetchImprovisations(supabase, session!.user.id),
     enabled: !isSessionLoading && !!session?.user,
-    refetchInterval: 5000,
+    refetchInterval: 15000, // Changed from 5000 to 15000 (15 seconds)
   });
 
   const handleSelectImprovisation = (id: string, checked: boolean) => {
