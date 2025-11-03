@@ -414,7 +414,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                     key={imp.id} 
                     className={cn(
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
-                      isStalled ? 'border-l-4 border-error dark:border-error-foreground bg-error/5 dark:bg-error/10' : 'border-l-4 border-transparent',
+                      isStalled ? 'border-l-4 border-red-500 dark:border-red-400 bg-red-50/50 dark:bg-red-950/30' : 'border-l-4 border-transparent', // Updated stalled colors
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
@@ -442,7 +442,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                       
                       <div className="flex-grow space-y-1">
                         <h3 className="font-semibold text-lg leading-tight flex items-center">
-                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-error flex-shrink-0" />}
+                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-red-600 dark:text-red-400 flex-shrink-0" />} {/* Updated stalled icon color */}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
                         <p className="text-sm text-muted-foreground">
@@ -455,27 +455,11 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                         <Button 
                             variant="ghost" 
                             size="sm" 
-                            className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
+                            className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit")} 
                             onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
-                            <Icon className={cn(
-                                nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
-                                nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',
-                                nextAction.label.includes('Ready') && 'text-success dark:text-success-foreground',
-                                nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
-                                nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
-                                nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
-                                nextAction.label.includes('View Submissions') && 'text-green-700 dark:text-green-500',
-                            )} />
-                            <span className={cn(
-                                nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
-                                nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',
-                                nextAction.label.includes('Ready') && 'text-success dark:text-success-foreground',
-                                nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
-                                nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
-                                nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
-                                nextAction.label.includes('View Submissions') && 'text-green-700 dark:text-green-500',
-                            )}>
+                            <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
+                            <span className={cn("text-sm", nextAction.color)}>
                                 {nextAction.label}
                             </span>
                             <ArrowRight className="w-3 h-3 ml-2" />

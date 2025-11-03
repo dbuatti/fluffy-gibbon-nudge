@@ -78,11 +78,6 @@ const getPublicAudioUrl = (storagePath: string | null): string | null => {
     return getPublicAudioUrlHelper(storagePath);
 };
 
-// Removed unused getPublicArtworkDisplayUrl function
-// const getPublicArtworkDisplayUrl = (artworkUrl: string | null): string | null => {
-//     return artworkUrl;
-// };
-
 
 const ImprovisationDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();

@@ -58,40 +58,40 @@ const ImprovisationPipeline: React.FC = () => {
       label: 'Idea Captured',
       count: totalUploaded, 
       icon: Edit2, 
-      color: 'text-info dark:text-info-foreground', // Use info for neutral/initial
+      color: 'text-blue-600 dark:text-blue-400', // Updated color
       description: 'Awaiting audio file upload.',
-      bg: 'bg-info/10 dark:bg-info/20',
-      border: 'border-info',
+      bg: 'bg-blue-50/50 dark:bg-blue-950/30', // Updated background
+      border: 'border-blue-500', // Updated border
     },
     { 
       status: 'analyzing', 
       label: 'Processing File',
       count: totalAnalyzing, 
       icon: Clock, 
-      color: 'text-warning dark:text-warning-foreground', // Use warning for in-progress
+      color: 'text-orange-600 dark:text-orange-400', // Updated color
       description: 'Title/Artwork generation in progress.',
-      bg: 'bg-warning/10 dark:bg-warning/20',
-      border: 'border-warning',
+      bg: 'bg-orange-50/50 dark:bg-orange-950/30', // Updated background
+      border: 'border-orange-500', // Updated border
     },
     { 
       status: 'failed', 
       label: 'Failed/Error',
       count: totalFailed, 
       icon: AlertTriangle, 
-      color: 'text-error dark:text-error-foreground', // Use error for failed
+      color: 'text-red-600 dark:text-red-400', // Updated color
       description: 'Processing failed. Check logs or re-upload.',
-      bg: 'bg-error/10 dark:bg-error/20', 
-      border: 'border-error', 
+      bg: 'bg-red-50/50 dark:bg-red-950/30', // Updated background
+      border: 'border-red-500', // Updated border
     },
     { 
       status: 'completed', 
       label: 'Ready for Prep',
       count: totalCompleted, 
       icon: CheckCircle, 
-      color: 'text-success dark:text-success-foreground', // Use success for completed
+      color: 'text-green-600 dark:text-green-400', // Updated color
       description: 'Ready for distribution prep.',
-      bg: 'bg-success/10 dark:bg-success/20',
-      border: 'border-success',
+      bg: 'bg-green-50/50 dark:bg-green-950/30', // Updated background
+      border: 'border-green-500', // Updated border
     },
   ];
 
