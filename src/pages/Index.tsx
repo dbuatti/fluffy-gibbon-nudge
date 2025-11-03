@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 import DailyPromptCard from '@/components/DailyPromptCard'; // NEW: Import DailyPromptCard
+import StreakCard from '@/components/StreakCard'; // NEW: Import StreakCard
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -106,7 +107,7 @@ const Index = () => {
 
   console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: improvisations } = useQuery<Improvisation[]>({
+  const { data: improvisationDates } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
     queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Pass supabase client and user ID to fetcher
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
@@ -114,7 +115,7 @@ const Index = () => {
     refetchOnWindowFocus: false,
   });
 
-  const { streak, todayActivity } = useStreakTracker(improvisations);
+  const { streak, todayActivity } = useStreakTracker(improvisationDates);
 
   const handleRefetch = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisations'] });
@@ -148,6 +149,9 @@ const Index = () => {
         
         {/* Daily Prompt Card */}
         <DailyPromptCard />
+
+        {/* Streak Card */}
+        <StreakCard streak={streak} todayActivity={todayActivity} />
 
         {/* Composition Pipeline (Now full width at the top) */}
         <CompositionPipeline />
