@@ -154,11 +154,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
       <CardContent className="p-0 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold truncate">{fileName}</h3>
-          {error && (
-            <Badge variant="destructive" className="flex items-center">
-              <AlertTriangle className="h-4 w-4 mr-1" /> Error
-            </Badge>
-          )}
+          <div className="flex items-center space-x-2">
+            {error && (
+              <Badge variant="destructive" className="flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-1" /> Error
+              </Badge>
+            )}
+            <Button 
+                onClick={onClearFile} 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                title="Clear Audio File"
+            >
+                <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Main Controls */}
@@ -217,14 +228,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
                     <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                     {error}
                 </p>
-                <Button 
-                    onClick={onClearFile} 
-                    variant="destructive" 
-                    size="sm" 
-                    className="flex-shrink-0 ml-4"
-                >
-                    <Trash2 className="h-4 w-4 mr-2" /> Clear Audio File
-                </Button>
+                {/* Removed redundant Clear Audio File button here, now using the icon in the header */}
             </div>
         )}
 
