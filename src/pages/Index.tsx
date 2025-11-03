@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import ImprovisationList from "@/components/ImprovisationList";
+import CompositionList from "@/components/CompositionList"; // FIX: Updated import from ImprovisationList to CompositionList
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
@@ -11,34 +11,35 @@ import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
-import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
-import DailyPromptCard from '@/components/DailyPromptCard'; // NEW: Import DailyPromptCard
-import StreakCard from '@/components/StreakCard'; // NEW: Import StreakCard
+import { useSession } from '@/integrations/supabase/session-context';
+import { supabase } from '@/integrations/supabase/client';
+import DailyPromptCard from '@/components/DailyPromptCard';
+import StreakCard from '@/components/StreakCard';
 
+// Define the missing URL constants
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const GEMINI_URL = "https://gemini.google.com/app/0569ed6eee7e8c1a";
 
-interface Improvisation {
+interface Composition { // Renamed from Improvisation to Composition for consistency
   created_at: string;
 }
 
-const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
-  console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
-  console.log("fetchImprovisationDates: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
+const fetchCompositionDates = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed function
+  console.log("fetchCompositionDates: Attempting to fetch dates for user:", sessionUserId);
+  console.log("fetchCompositionDates: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
-    .from('improvisations')
+    .from('compositions')
     .select('created_at')
-    .eq('user_id', sessionUserId) // Filter by user_id
+    .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchImprovisationDates: Fetched data:", data);
-  return data as Improvisation[];
+  console.log("fetchCompositionDates: Fetched data:", data);
+  return data as Composition[];
 };
 
-const useStreakTracker = (data: Improvisation[] | undefined) => {
+const useStreakTracker = (data: Composition[] | undefined) => { // Renamed type
   if (!data || data.length === 0) return { streak: 0, todayActivity: false };
 
   const activityDates = new Set(
@@ -48,7 +49,7 @@ const useStreakTracker = (data: Improvisation[] | undefined) => {
   let currentStreak = 0;
   const todayString = format(new Date(), 'yyyy-MM-dd');
   
-  const todayActivity = activityDates.has(todayString); // Define todayActivity here
+  const todayActivity = activityDates.has(todayString);
   
   let dateToCheck = new Date();
   
@@ -100,7 +101,7 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
+  const { session, isLoading: isSessionLoading } = useSession();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -108,20 +109,20 @@ const Index = () => {
 
   console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: improvisationDates } = useQuery<Improvisation[]>({
-    queryKey: ['improvisationDates'],
-    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Use directly imported supabase
-    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
+  const { data: compositionDates } = useQuery<Composition[]>({ // Renamed data variable
+    queryKey: ['compositionDates'], // Renamed query key
+    queryFn: () => fetchCompositionDates(supabase, session!.user.id), // Renamed function
+    enabled: !isSessionLoading && !!session?.user,
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,
   });
 
-  const { streak, todayActivity } = useStreakTracker(improvisationDates);
+  const { streak, todayActivity } = useStreakTracker(compositionDates); // Renamed data variable
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+    queryClient.invalidateQueries({ queryKey: ['compositions'] }); // FIX: Updated query key from 'improvisations' to 'compositions'
     queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
-    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] });
+    queryClient.invalidateQueries({ queryKey: ['compositionDates'] }); // Renamed query key
   };
   
   const streakMessage = streak > 0 
@@ -214,10 +215,10 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Improvisation List */}
-        <ImprovisationList 
+        {/* Composition List */}
+        <CompositionList
           viewMode={viewMode} 
-          setViewMode={setViewMode} // Pass setViewMode to ImprovisationList
+          setViewMode={setViewMode}
           searchTerm={searchTerm} 
           filterStatus={filterStatus} 
           sortOption={sortOption} 

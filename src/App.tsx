@@ -7,7 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import ImprovisationDetails from "./pages/ImprovisationDetails";
+import CompositionDetails from "./pages/CompositionDetails"; // FIX: Updated import from ImprovisationDetails to CompositionDetails
 import Improvisations from "./pages/Improvisations"; // Import new page
 import Settings from "./pages/Settings"; // Import new page
 import CompositionScript from "./pages/CompositionScript"; // Import new page
@@ -35,7 +35,7 @@ const App = () => (
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Index />} />
-                  <Route path="/improvisation/:id" element={<ImprovisationDetails />} />
+                  <Route path="/composition/:id" element={<CompositionDetails />} /> {/* FIX: Updated route path */}
                   <Route path="/improvisations" element={<Improvisations />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/composition-script" element={<CompositionScript />} />
