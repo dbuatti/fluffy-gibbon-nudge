@@ -10,28 +10,41 @@ interface ScriptStepProps {
     description: string;
     Icon: React.ElementType;
     isPrimary?: boolean;
-    colorClass: string; // New prop for color control
+    colorClass: 'blue-600' | 'green-600'; // Enforce specific colors for safety
 }
 
-const ScriptStep: React.FC<ScriptStepProps> = ({ stepNumber, title, description, Icon, isPrimary = false, colorClass }) => (
-    <li className={cn("flex items-start p-3 rounded-lg transition-colors", isPrimary ? `${colorClass}/10 border border-${colorClass}/50` : "hover:bg-muted/50")}>
-        <div className="flex items-center flex-shrink-0 mr-3 mt-1">
-            <div className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold",
-                isPrimary ? `bg-${colorClass} text-white` : "bg-primary text-primary-foreground"
-            )}>
-                {stepNumber}
+const ScriptStep: React.FC<ScriptStepProps> = ({ stepNumber, title, description, Icon, isPrimary = false, colorClass }) => {
+    const isBlue = colorClass === 'blue-600';
+    
+    // Define explicit classes for primary state to ensure Tailwind JIT picks them up
+    const primaryBg = isBlue ? 'bg-blue-600 dark:bg-blue-700' : 'bg-green-600 dark:bg-green-700';
+    const primaryBorder = isBlue ? 'border-blue-600/50 dark:border-blue-700/50' : 'border-green-600/50 dark:border-green-700/50';
+    const primaryText = isBlue ? 'text-blue-600 dark:text-blue-400' : 'text-green-600 dark:text-green-400';
+    const primaryContainerBg = isBlue ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'bg-green-50/50 dark:bg-green-900/20';
+
+    return (
+        <li className={cn(
+            "flex items-start p-3 rounded-lg transition-colors", 
+            isPrimary ? `border ${primaryBorder} ${primaryContainerBg} shadow-md` : "hover:bg-muted/50"
+        )}>
+            <div className="flex items-center flex-shrink-0 mr-3 mt-1">
+                <div className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold",
+                    isPrimary ? `${primaryBg} text-white` : "bg-primary text-primary-foreground"
+                )}>
+                    {stepNumber}
+                </div>
             </div>
-        </div>
-        <div>
-            <span className="font-semibold text-base flex items-center">
-                <Icon className={cn("w-4 h-4 mr-2", isPrimary ? `text-${colorClass} dark:text-${colorClass}/80` : "text-primary")} />
-                {title}
-            </span>
-            <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
-        </div>
-    </li>
-);
+            <div>
+                <span className="font-semibold text-base flex items-center">
+                    <Icon className={cn("w-4 h-4 mr-2", isPrimary ? primaryText : "text-primary")} />
+                    {title}
+                </span>
+                <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+            </div>
+        </li>
+    );
+};
 
 const CompositionScript: React.FC = () => {
   // Define color classes for the two sections
@@ -45,9 +58,9 @@ const CompositionScript: React.FC = () => {
         This is your definitive, step-by-step guide to turning an idea into a finished, distributable track. Follow the script!
       </p>
       
-      <Card className={cn("shadow-card-light dark:shadow-card-dark border-l-4", `border-${automatedColor}`)}>
+      <Card className={cn("shadow-card-light dark:shadow-card-dark border-l-4 border-blue-600 dark:border-blue-700")}>
         <CardHeader className="pb-3">
-          <CardTitle className={cn("text-xl font-bold flex items-center", `text-${automatedColor} dark:text-${automatedColor}/80`)}>
+          <CardTitle className={cn("text-xl font-bold flex items-center text-blue-600 dark:text-blue-400")}>
             <Code className="w-5 h-5 mr-2" /> Automated Project Setup (AppleScript)
           </CardTitle>
         </CardHeader>
@@ -90,9 +103,9 @@ const CompositionScript: React.FC = () => {
         </CardContent>
       </Card>
       
-      <Card className={cn("mt-8 shadow-card-light dark:shadow-card-dark border-l-4", `border-${manualColor}`)}>
+      <Card className={cn("mt-8 shadow-card-light dark:shadow-card-dark border-l-4 border-green-600 dark:border-green-700")}>
         <CardHeader className="pb-3">
-          <CardTitle className={cn("text-xl font-bold flex items-center", `text-${manualColor} dark:text-${manualColor}/80`)}>
+          <CardTitle className={cn("text-xl font-bold flex items-center text-green-600 dark:text-green-400")}>
             <ListOrdered className="w-5 h-5 mr-2" /> Post-Capture Workflow (Web App)
           </CardTitle>
         </CardHeader>
