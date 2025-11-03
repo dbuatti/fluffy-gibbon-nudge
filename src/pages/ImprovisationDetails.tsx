@@ -439,28 +439,7 @@ const ImprovisationDetails: React.FC = () => {
         handleUpdateInsightVoice={handleUpdateInsightVoice}
       />
       
-      {/* 2. AUDIO PLAYER */}
-      {audioPublicUrl && imp.file_name && imp.storage_path && (
-        <AudioPlayer 
-          publicUrl={audioPublicUrl} 
-          fileName={imp.file_name} 
-          storagePath={imp.storage_path} 
-          onClearFile={handleClearFile}
-        />
-      )}
-
-      {/* 3. PROGRESS CARD */}
-      <CompositionProgressCard
-        progressValue={progressValue}
-        progressMessage={progressMessage}
-        primaryAction={primaryAction}
-        isAnalyzing={isAnalyzing}
-        isMarkingReady={isMarkingReady}
-        isPopulating={isPopulating}
-        isReadyForRelease={isReadyForRelease}
-      />
-
-      {/* 4. TABS (Moved to the top of the tab content area) */}
+      {/* 2. TABS (MOVED HERE) */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
@@ -470,7 +449,28 @@ const ImprovisationDetails: React.FC = () => {
           </TabsTrigger>
         </TabsList>
         
-        {/* Tab Content is now rendered inside the Tabs wrapper */}
+        {/* 3. AUDIO PLAYER (MOVED BELOW TABS) */}
+        {audioPublicUrl && imp.file_name && imp.storage_path && (
+          <AudioPlayer 
+            publicUrl={audioPublicUrl} 
+            fileName={imp.file_name} 
+            storagePath={imp.storage_path} 
+            onClearFile={handleClearFile}
+          />
+        )}
+
+        {/* 4. PROGRESS CARD (MOVED BELOW AUDIO PLAYER) */}
+        <CompositionProgressCard
+          progressValue={progressValue}
+          progressMessage={progressMessage}
+          primaryAction={primaryAction}
+          isAnalyzing={isAnalyzing}
+          isMarkingReady={isMarkingReady}
+          isPopulating={isPopulating}
+          isReadyForRelease={isReadyForRelease}
+        />
+        
+        {/* 5. Tab Content */}
         <CompositionTabs
           imp={imp}
           currentTab={currentTab}
