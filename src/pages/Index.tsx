@@ -1,16 +1,17 @@
-import React, { useState } from 'react'; // Added useState
+import React, { useState } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import ImprovisationList from "@/components/ImprovisationList";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react"; // Added Grid3X3
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Removed CardDescription
+import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
 import { supabase } from '@/integrations/supabase/client';
 import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
@@ -73,13 +74,13 @@ const useStreakTracker = (data: Improvisation[] | undefined) => {
 const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: string, description: string, buttonText: string, variant?: "default" | "outline" }> = ({ href, icon: Icon, title, description, buttonText, variant = "outline" }) => (
   <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
     <CardHeader className="pb-2">
-      <CardTitle className="flex items-center text-xl"> {/* Adjusted typography */}
+      <CardTitle className="flex items-center text-xl">
         <Icon className="w-5 h-5 mr-2 text-primary" />
         {title}
       </CardTitle>
     </CardHeader>
     <CardContent className="space-y-3">
-      <p className="text-sm text-muted-foreground">{description}</p> {/* Adjusted typography */}
+      <p className="text-sm text-muted-foreground">{description}</p>
       <a href={href} target="_blank" rel="noopener noreferrer" className="w-full">
         <Button variant={variant} className="w-full">
           {buttonText} <ExternalLink className="w-4 h-4 ml-2" />
@@ -92,7 +93,10 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // State for view mode
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list'); // Corrected type to allow 'grid'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all'); // 'all', 'uploaded', 'analyzing', 'completed', 'failed'
+  const [sortOption, setSortOption] = useState<string>('created_at_desc'); // 'created_at_desc', 'created_at_asc', 'name_asc', 'name_desc'
 
   const { data: improvisations } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
@@ -117,19 +121,18 @@ const Index = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <header className="mb-8 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground"> {/* Larger, bolder H1 */}
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Dashboard
           </h1>
           <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
             <Button 
               variant="default" 
-              className="w-full sm:w-auto text-base h-11 px-5 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-shrink-0" // Larger button
+              className="w-full sm:w-auto text-base h-11 px-5 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex-shrink-0"
             >
               <Music className="w-5 h-5 mr-2" /> Capture New Idea
             </Button>
           </CaptureIdeaDialog>
         </div>
-        {/* Removed welcome message */}
       </header>
       
       <main className="max-w-6xl mx-auto space-y-10">
@@ -143,17 +146,47 @@ const Index = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search compositions..." 
-              className="pl-9 w-full h-10" // Taller input
-              disabled // Placeholder for now
+              className="pl-9 w-full h-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" disabled className="h-10 px-4"> {/* Taller buttons */}
-              <Filter className="h-4 w-4 mr-2" /> Filter
-            </Button>
-            <Button variant="outline" disabled className="h-10 px-4"> {/* Taller buttons */}
-              <ListOrdered className="h-4 w-4 mr-2" /> Sort
-            </Button>
+            {/* Filter Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-10 px-4">
+                  <Filter className="h-4 w-4 mr-2" /> Filter: {filterStatus === 'all' ? 'All' : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setFilterStatus('all')}>All</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('uploaded')}>Needs Audio</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('analyzing')}>Processing</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('completed')}>Ready</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('failed')}>Failed</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Sort Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-10 px-4">
+                  <ListOrdered className="h-4 w-4 mr-2" /> Sort: {sortOption.replace(/_/g, ' ').replace('created at', 'Date').replace('desc', '(Newest)').replace('asc', '(Oldest)').replace('name', 'Title')}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setSortOption('created_at_desc')}>Date (Newest First)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOption('created_at_asc')}>Date (Oldest First)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOption('name_asc')}>Title (A-Z)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOption('name_desc')}>Title (Z-A)</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* View Toggles */}
             <Button variant="outline" size="icon" onClick={() => setViewMode('grid')} className={cn("h-10 w-10", viewMode === 'grid' && 'bg-accent text-accent-foreground')}>
                 <Grid3X3 className="h-4 w-4" />
@@ -164,12 +197,18 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Improvisation List (Will be redesigned as cards) */}
-        <ImprovisationList />
+        {/* Improvisation List */}
+        <ImprovisationList 
+          viewMode={viewMode} 
+          setViewMode={setViewMode} // Pass setViewMode to ImprovisationList
+          searchTerm={searchTerm} 
+          filterStatus={filterStatus} 
+          sortOption={sortOption} 
+        />
         
-        {/* Quick Links (Simplified and moved to bottom) */}
+        {/* Quick Links */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground">Quick Tools & Links</h2> {/* Adjusted typography */}
+          <h2 className="text-2xl font-semibold text-foreground">Quick Tools & Links</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <QuickLinkCard 
               href={GEMINI_URL} 

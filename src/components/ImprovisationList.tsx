@@ -3,14 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3 } from 'lucide-react'; // Added ListOrdered, Grid3X3
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3 } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator'; // Added Separator
+import { Separator } from '@/components/ui/separator';
 
 interface NoteTab {
   id: string;
@@ -104,10 +104,17 @@ const getNextAction = (imp: Improvisation) => {
   return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
 };
 
-const ImprovisationList: React.FC = () => {
+interface ImprovisationListProps {
+  viewMode: 'grid' | 'list';
+  setViewMode: (mode: 'grid' | 'list') => void; // Added setViewMode prop
+  searchTerm: string;
+  filterStatus: string;
+  sortOption: string;
+}
+
+const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // New state for view mode
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
@@ -147,10 +154,47 @@ const ImprovisationList: React.FC = () => {
 
   const hasSelectedItems = selectedCompositions.size > 0;
 
+  // --- Filtering Logic ---
+  const filteredImprovisations = improvisations?.filter(imp => {
+    const matchesSearch = searchTerm === '' || 
+                          imp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilterStatus = filterStatus === 'all' || 
+                                (filterStatus === 'uploaded' && imp.status === 'uploaded' && !imp.storage_path) || // "Needs Audio"
+                                (filterStatus === 'analyzing' && imp.status === 'analyzing') ||
+                                (filterStatus === 'completed' && imp.status === 'completed') ||
+                                (filterStatus === 'failed' && imp.status === 'failed');
+    
+    return matchesSearch && matchesFilterStatus;
+  }) || [];
+
+  // --- Sorting Logic ---
+  const sortedImprovisations = [...filteredImprovisations].sort((a, b) => {
+    if (sortOption === 'created_at_desc') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+    if (sortOption === 'created_at_asc') {
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    }
+    if (sortOption === 'name_asc') {
+      const nameA = (a.generated_name || a.file_name || '').toLowerCase();
+      const nameB = (b.generated_name || b.file_name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+    if (sortOption === 'name_desc') {
+      const nameA = (a.generated_name || a.file_name || '').toLowerCase();
+      const nameB = (b.generated_name || b.file_name || '').toLowerCase();
+      return nameB.localeCompare(nameA);
+    }
+    return 0;
+  });
+
+
   return (
     <Card className="w-full shadow-card-light dark:shadow-card-dark">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold">Active Compositions</CardTitle> {/* Adjusted typography */}
+        <CardTitle className="text-2xl font-semibold">Active Compositions</CardTitle>
         <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={() => setViewMode('grid')} className={cn(viewMode === 'grid' && 'bg-accent text-accent-foreground')}>
                 <Grid3X3 className="h-4 w-4" />
@@ -158,11 +202,11 @@ const ImprovisationList: React.FC = () => {
             <Button variant="outline" size="sm" onClick={() => setViewMode('list')} className={cn(viewMode === 'list' && 'bg-accent text-accent-foreground')}>
                 <ListOrdered className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh</Button> {/* Smaller refresh button */}
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh</Button>
         </div>
       </CardHeader>
       <CardContent>
-        {improvisations && improvisations.length > 0 ? (
+        {sortedImprovisations && sortedImprovisations.length > 0 ? (
           <>
             {/* Bulk Action Toolbar */}
             {hasSelectedItems && (
@@ -170,9 +214,9 @@ const ImprovisationList: React.FC = () => {
                     <div className="flex items-center space-x-2">
                         <Checkbox 
                             id="select-all-toolbar"
-                            checked={selectedCompositions.size === improvisations.length}
+                            checked={selectedCompositions.size === sortedImprovisations.length}
                             onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                            className="h-5 w-5" // Larger checkbox
+                            className="h-5 w-5"
                         />
                         <label htmlFor="select-all-toolbar" className="text-sm font-medium leading-none text-primary-foreground">
                             {selectedCompositions.size} selected
@@ -192,9 +236,9 @@ const ImprovisationList: React.FC = () => {
                 <div className="flex items-center space-x-2 mb-4 px-2">
                     <Checkbox 
                         id="select-all"
-                        checked={selectedCompositions.size === improvisations.length && improvisations.length > 0}
+                        checked={selectedCompositions.size === sortedImprovisations.length && sortedImprovisations.length > 0}
                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                        className="h-5 w-5" // Larger checkbox
+                        className="h-5 w-5"
                     />
                     <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                         Select All
@@ -206,7 +250,7 @@ const ImprovisationList: React.FC = () => {
                 "grid gap-4",
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
-              {improvisations.map((imp) => {
+              {sortedImprovisations.map((imp) => {
                 const hasFile = !!imp.storage_path;
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
                 const nextAction = getNextAction(imp);
@@ -221,27 +265,27 @@ const ImprovisationList: React.FC = () => {
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
                       isStalled ? 'border-l-4 border-error dark:border-error-foreground bg-error/5 dark:bg-error/10' : 'border-l-4 border-transparent',
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
-                      viewMode === 'list' && 'flex items-center p-4' // List view styling
+                      viewMode === 'list' && 'flex items-center p-4'
                     )}
                     onClick={() => navigate(`/improvisation/${imp.id}`)}
                   >
                     <CardContent className={cn(
                         "p-4 flex items-center space-x-4",
-                        viewMode === 'list' && 'w-full' // Full width for list view content
+                        viewMode === 'list' && 'w-full'
                     )}>
                       <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
                             id={`select-${imp.id}`}
                             checked={isSelected}
                             onCheckedChange={(checked) => handleSelectComposition(imp.id, !!checked)}
-                            className="h-5 w-5" // Larger checkbox
+                            className="h-5 w-5"
                         />
                       </div>
                       
-                      <Avatar className="h-20 w-20 rounded-md border border-border/50 shadow-sm flex-shrink-0"> {/* Larger Avatar */}
+                      <Avatar className="h-20 w-20 rounded-md border border-border/50 shadow-sm flex-shrink-0">
                         <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
                         <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
-                          <ImageIcon className="h-10 w-10 text-muted-foreground" /> {/* Larger placeholder icon */}
+                          <ImageIcon className="h-10 w-10 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>
                       
@@ -250,21 +294,31 @@ const ImprovisationList: React.FC = () => {
                             {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-error flex-shrink-0" />}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
-                        <p className="text-sm text-muted-foreground"> {/* Adjusted typography */}
+                        <p className="text-sm text-muted-foreground">
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-2">
                             {getStatusBadge(imp.status, hasFile)}
-                            {notesBadge} {/* Render notes badge if it exists */}
+                            {notesBadge}
                         </div>
                         <Button 
                             variant="ghost" 
                             size="sm" 
-                            className={cn("mt-3 h-8 px-3 text-sm justify-start", nextAction.color)}
-                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }} // Ensure click on button navigates
+                            className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
+                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
                             <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
-                            {nextAction.label} <ArrowRight className="w-3 h-3 ml-2" />
+                            <span className={cn(
+                                nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
+                                nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('Ready') && 'text-success dark:text-success-foreground',
+                                nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
+                                nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
+                            )}>
+                                {nextAction.label}
+                            </span>
+                            <ArrowRight className="w-3 h-3 ml-2" />
                         </Button>
                       </div>
                     </CardContent>
@@ -275,8 +329,8 @@ const ImprovisationList: React.FC = () => {
           </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
-            <Music className="w-12 h-12 mx-auto mb-4" /> {/* Larger icon */}
-            <p className="text-lg font-medium">No ideas captured yet.</p> {/* Adjusted typography */}
+            <Music className="w-12 h-12 mx-auto mb-4" />
+            <p className="text-lg font-medium">No ideas captured yet.</p>
             <p className="text-sm mt-2">Use the "Capture New Idea" button above to start your creative journey!</p>
           </div>
         )}
