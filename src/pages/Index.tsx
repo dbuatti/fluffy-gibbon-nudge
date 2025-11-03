@@ -146,7 +146,7 @@ const Index = () => {
             
             {/* STREAK TRACKER (Motivation) */}
             <Card className={cn(
-                "p-4 border-2 shadow-card-light dark:shadow-card-dark",
+                "p-4 border-2 shadow-card-light dark:shadow-3xl",
                 "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
             )}>
                 <div className="flex items-center justify-between">
@@ -156,7 +156,7 @@ const Index = () => {
                     {todayActivity && <Badge className="bg-success hover:bg-success/90 text-success-foreground"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
                 </div>
                 <p className="mt-2 text-lg font-semibold text-foreground flex items-center">
-                    <Flame className="w-5 h-5 mr-2 text-orange-500" />
+                    <Flame className="w-5 h-5 mr-2 text-orange-500 flex-shrink-0" />
                     {streakMessage}
                 </p>
             </Card>
@@ -165,7 +165,7 @@ const Index = () => {
             <h3 className="text-lg font-bold text-muted-foreground pt-2">Quick Links</h3>
             <div className="space-y-4">
               
-              <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+              <Card className="shadow-card-light dark:shadow-3xl hover:shadow-xl transition-shadow">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center text-lg">
                     <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
@@ -183,7 +183,7 @@ const Index = () => {
                 </CardContent>
               </Card>
               
-              <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+              <Card className="shadow-card-light dark:shadow-3xl hover:shadow-xl transition-shadow">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center text-lg">
                     <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
@@ -201,7 +201,7 @@ const Index = () => {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
+              <Card className="shadow-card-light dark:shadow-3xl hover:shadow-xl transition-shadow">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center text-lg">
                     <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer
