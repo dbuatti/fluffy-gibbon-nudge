@@ -72,6 +72,7 @@ interface Improvisation { // Renamed interface
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
+  description: string | null; // NEW: Added description field
 }
 
 interface ImprovisationTabsProps {
