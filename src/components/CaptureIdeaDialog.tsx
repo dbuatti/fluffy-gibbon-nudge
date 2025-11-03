@@ -13,13 +13,15 @@ import { useCaptureIdea } from '@/hooks/useCaptureIdea'; // Import new hook
 
 interface CaptureIdeaDialogProps {
   onIdeaCaptured: () => void;
+  defaultTitle?: string; // NEW PROP
+  children: React.ReactNode; // ADDED children prop
 }
 
-const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured }) => {
+const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured, defaultTitle, children }) => {
   const { session } = useSession();
   const { captureIdea, isCapturing } = useCaptureIdea(); // Use new hook
   const [isOpen, setIsOpen] = useState(false);
-  const [ideaName, setIdeaName] = useState(''); // Start empty for quick capture
+  const [ideaName, setIdeaName] = useState(defaultTitle || ''); // Initialize with defaultTitle
   const [isImprovisation, setIsImprovisation] = useState('true'); // Default to improvisation
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
@@ -32,7 +34,8 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (open) {
-        setIdeaName('');
+        // If opening, set ideaName to the default title passed in, or empty string
+        setIdeaName(defaultTitle || '');
         setIsImprovisation('true');
         setIsAdvancedOpen(false);
     }
@@ -44,6 +47,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
       return;
     }
 
+    // Use the current ideaName state, which defaults to the prompt or 'Quick Capture'
     const newId = await captureIdea({
         title: ideaName,
         isImprovisation: isImprovisation === 'true',
@@ -59,12 +63,7 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured })
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button 
-          variant="default" 
-          className="w-full md:w-auto text-lg h-12 px-6 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
-        >
-          <Music className="w-5 h-5 mr-2" /> Capture New Idea
-        </Button>
+        {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

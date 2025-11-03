@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
-import { useCaptureIdea } from '@/hooks/useCaptureIdea'; // Import the new hook
+import { useCaptureIdea } from '@/hooks/useCaptureIdea'; 
+import CaptureIdeaDialog from './CaptureIdeaDialog'; // Import the dialog
 
 const fetchDailyPrompt = async (): Promise<string> => {
   // Note: We use the anon key here as this is a public function call
@@ -30,26 +31,16 @@ const DailyPromptCard: React.FC = () => {
     refetchOnWindowFocus: false,
   });
   
-  const { captureIdea, isCapturing } = useCaptureIdea();
-
+  // We no longer use useCaptureIdea directly here, but we need a way to trigger the dialog.
+  // We will wrap the button in the dialog trigger.
+  
   const handleRefetch = () => {
     refetch();
     showError("Generating a new prompt...");
   };
   
-  const handleStartIdea = () => {
-    if (prompt) {
-        // Remove surrounding quotes from the prompt before using it as a title
-        const cleanTitle = prompt.replace(/^"|"$/g, '').trim();
-        captureIdea({ title: cleanTitle, isImprovisation: true });
-    }
-  };
-
-  const buttonText = isLoading 
-    ? 'Generating Prompt...' 
-    : isCapturing 
-    ? 'Capturing Idea...' 
-    : 'Start Idea Based on Prompt';
+  // Clean the prompt for use as a title
+  const cleanTitle = prompt ? prompt.replace(/^"|"$/g, '').trim() : '';
 
   return (
     <Card className="shadow-xl dark:shadow-3xl border-purple-500/50 border-2">
@@ -61,7 +52,7 @@ const DailyPromptCard: React.FC = () => {
             variant="ghost" 
             size="icon" 
             onClick={handleRefetch} 
-            disabled={isLoading || isCapturing}
+            disabled={isLoading}
             title="Generate a new prompt"
         >
             {isLoading ? (
@@ -84,15 +75,22 @@ const DailyPromptCard: React.FC = () => {
           </p>
         )}
         
-        <Button 
-            onClick={handleStartIdea} 
-            disabled={isLoading || isCapturing || !prompt}
-            className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+        <CaptureIdeaDialog 
+            defaultTitle={cleanTitle} 
+            onIdeaCaptured={() => { /* Refetch logic is handled by the parent Index component */ }}
         >
-            {(isLoading || isCapturing) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {!isLoading && !isCapturing && <Music className="h-4 w-4 mr-2" />}
-            {buttonText}
-        </Button>
+            <Button 
+                disabled={isLoading || !prompt}
+                className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+            >
+                {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                    <Music className="h-4 w-4 mr-2" />
+                )}
+                Start Idea Based on Prompt
+            </Button>
+        </CaptureIdeaDialog>
       </CardContent>
     </Card>
   );

@@ -117,7 +117,14 @@ const Index = () => {
         {/* ACTION ZONE: Capture Idea & Pipeline */}
         <div className="space-y-6">
             <div className="flex justify-start">
-                <CaptureIdeaDialog onIdeaCaptured={handleRefetch} /> 
+                <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
+                    <Button 
+                        variant="default" 
+                        className="w-full md:w-auto text-lg h-12 px-6 shadow-lg hover:shadow-xl transition-shadow bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
+                    >
+                        <Music className="w-5 h-5 mr-2" /> Capture New Idea
+                    </Button>
+                </CaptureIdeaDialog>
             </div>
             <CompositionPipeline />
         </div>
