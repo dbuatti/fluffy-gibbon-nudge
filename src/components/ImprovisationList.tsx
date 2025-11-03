@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download } from 'lucide-react';
@@ -11,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useSession } from '@/integrations/supabase/session-context';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 import { showSuccess, showError } from '@/utils/toast';
 
 interface NoteTab {
@@ -55,15 +54,19 @@ interface Improvisation {
   insight_voice: string | null;
 }
 
-const STALLED_THRESHOLD_HOURS = 48;
+const STALLED_THRESHOLD_HOURS = 24; // Define the constant here
 
-const fetchImprovisations = async (): Promise<Improvisation[]> => {
+const fetchImprovisations = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
+  console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
+  console.log("fetchImprovisations: Supabase client session:", supabase.auth.currentSession); // Add this line
   const { data, error } = await supabase
     .from('improvisations')
     .select('*') // Select all fields for potential export
+    .eq('user_id', sessionUserId) // Filter by user_id
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
+  console.log("fetchImprovisations: Fetched data:", data);
   return data as Improvisation[];
 };
 
@@ -138,16 +141,18 @@ interface ImprovisationListProps {
 
 const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading } = useSession();
+  const { session, isLoading: isSessionLoading, supabase: supabaseClientFromContext } = useSession(); // Use useSession
   const queryClient = useQueryClient();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isExportingBulk, setIsExportingBulk] = useState(false);
 
+  console.log("ImprovisationList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
-    queryFn: fetchImprovisations,
-    enabled: !isSessionLoading && !!session?.user?.id,
+    queryFn: () => fetchImprovisations(supabaseClientFromContext, session!.user.id), // Pass supabase client and user ID to fetcher
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
 
@@ -187,7 +192,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
         if (impToDelete) {
           // 1. Delete audio file from Supabase Storage (if exists)
           if (impToDelete.storage_path) {
-            const { error: storageError } = await supabase.storage
+            const { error: storageError } = await supabaseClientFromContext.storage
               .from('piano_improvisations')
               .remove([impToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
@@ -197,7 +202,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
           //    If manual artwork upload is implemented to a Supabase bucket, this logic would need to be updated.
 
           // 3. Delete record from database
-          const { error: dbError } = await supabase
+          const { error: dbError } = await supabaseClientFromContext
             .from('improvisations')
             .delete()
             .eq('id', id);
@@ -226,7 +231,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
     showSuccess(`Exporting ${selectedCompositions.size} compositions' metadata...`);
 
     try {
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await supabaseClientFromContext
         .from('improvisations')
         .select('*') // Fetch all details for selected compositions
         .in('id', Array.from(selectedCompositions));
@@ -284,7 +289,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortOption === 'created_at_asc') {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(a.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortOption === 'name_asc') {
       const nameA = (a.generated_name || a.file_name || '').toLowerCase();
@@ -440,7 +445,15 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
                             onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
-                            <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
+                            <Icon className={cn(
+                                "w-4 h-4 mr-2", 
+                                nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
+                                nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('Ready') && 'text-success dark:text-success-foreground',
+                                nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
+                                nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
+                            )} />
                             <span className={cn(
                                 nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
                                 nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',

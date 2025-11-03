@@ -1,9 +1,9 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 
 interface StatusCount {
@@ -11,29 +11,39 @@ interface StatusCount {
   count: number;
 }
 
-const fetchStatusCounts = async (): Promise<StatusCount[]> => {
+const fetchStatusCounts = async (supabase: any, sessionUserId: string): Promise<StatusCount[]> => {
+  console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
+  console.log("fetchStatusCounts: Supabase client session:", supabase.auth.currentSession); // Add this line
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabase
       .from('improvisations')
       .select('*', { count: 'exact', head: true })
-      .eq('status', status);
+      .eq('status', status)
+      .eq('user_id', sessionUserId); // Ensure we only count for the current user
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
+      // Log the full error object for more details
+      console.error(`Full Supabase error for status ${status}:`, error); 
       return { status, count: 0 };
     }
     return { status, count: count || 0 };
   });
 
   const results = await Promise.all(promises);
+  console.log("fetchStatusCounts: Fetched counts:", results);
   return results;
 };
 
 const CompositionPipeline: React.FC = () => {
+  const { session, isLoading: isSessionLoading, supabase: supabaseClientFromContext } = useSession(); // Use useSession
+  console.log("CompositionPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
-    queryFn: fetchStatusCounts,
+    queryFn: () => fetchStatusCounts(supabaseClientFromContext, session!.user.id), // Pass supabase client and user ID to fetcher
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
 
@@ -89,7 +99,7 @@ const CompositionPipeline: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></div>;
+    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading compositions...</p></div>;
   }
 
   if (error) {
@@ -118,7 +128,7 @@ const CompositionPipeline: React.FC = () => {
                   "hover:shadow-md dark:hover:shadow-lg"
                 )}
               >
-                <div className={cn("h-12 w-12 flex items-center justify-center rounded-full mb-2", stage.bg)}> {/* Larger icon container */}
+                <div className="h-12 w-12 flex items-center justify-center rounded-full mb-2"> {/* Larger icon container */}
                   <Icon className={cn("h-7 w-7 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} /> {/* Larger icon */}
                 </div>
                 
