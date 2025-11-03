@@ -10,6 +10,7 @@ import Signup from "./pages/Signup";
 import ImprovisationDetails from "./pages/ImprovisationDetails";
 import Improvisations from "./pages/Improvisations"; // Import new page
 import Settings from "./pages/Settings"; // Import new page
+import CompositionScript from "./pages/CompositionScript"; // Import new page
 import { SessionContextProvider } from "./integrations/supabase/session-context";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DragDropOverlay from "./components/DragDropOverlay";
@@ -37,6 +38,7 @@ const App = () => (
                   <Route path="/improvisation/:id" element={<ImprovisationDetails />} />
                   <Route path="/improvisations" element={<Improvisations />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/composition-script" element={<CompositionScript />} />
                 </Route>
               </Route>
 

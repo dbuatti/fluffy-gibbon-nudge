@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu } from 'lucide-react';
+import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/improvisations', icon: Music, label: 'Compositions' }, // Placeholder route for future list view
+  { to: '/composition-script', icon: FileText, label: 'Local Script' }, // NEW: Composition Script link
   { to: '/settings', icon: Settings, label: 'Settings' }, // Placeholder route
 ];
 
