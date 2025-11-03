@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info, Music, Clock, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,12 +21,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
+import { supabase, getPublicArtworkUrl } from '@/integrations/supabase/client'; // Import getPublicArtworkUrl
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 // External Links for Quick Access
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
-const VISUALGPT_NANO_BANANA_URL = "https://visualgpt.io/ai-models/nano-banana"; // Updated to Nano Banana link
+const VISUALGPT_NANO_BANANA_URL = "https://visualgpt.io/ai-models/nano-banana";
 
 interface NoteTab {
   id: string;
@@ -48,7 +50,7 @@ interface Improvisation {
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
-  artwork_prompt: string | null; // NEW FIELD
+  artwork_prompt: string | null;
   is_piano: boolean | null;
   is_improvisation: boolean | null;
   primary_genre: string | null;
@@ -76,9 +78,9 @@ interface Improvisation {
 interface CompositionTabsProps {
   imp: Improvisation;
   currentTab: string;
-  handleTabChange: (newTab: string) => void; // Still needed for internal links/actions
+  handleTabChange: (newTab: string) => void;
   handleRefetch: () => void;
-  handleRegenerateArtwork: () => Promise<void>; // This now triggers full image generation
+  handleRegenerateArtwork: () => Promise<void>;
   handleClearFile: () => Promise<void>;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
@@ -87,7 +89,6 @@ interface CompositionTabsProps {
   isAnalyzing: boolean;
   isRegenerating: boolean;
   audioPublicUrl: string | null;
-  // AI Augmentation Props
   isPopulating: boolean;
   aiGeneratedDescription: string;
   handleAIPopulateMetadata: () => Promise<void>;
@@ -123,13 +124,17 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
   handleAIPopulateMetadata,
   setAiGeneratedDescription,
 }) => {
+  const { session } = useSession();
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isUploadingArtwork, setIsUploadingArtwork] = useState(false);
+  const dragCounter = useRef(0);
+
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
   const hasArtwork = !!imp.artwork_url; // Check if artwork_url is set
 
   const handleDownloadArtwork = () => {
     if (imp.artwork_url) {
-      // The artwork_url is now the direct public URL
       const link = document.createElement('a');
       link.href = imp.artwork_url;
       link.download = `${imp.generated_name || 'artwork'}_3000x3000.jpg`; 
@@ -159,6 +164,97 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
       showError('No prompt generated yet.');
     }
   };
+
+  // --- Drag and Drop Handlers for Artwork ---
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingImage(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setIsDraggingImage(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+    dragCounter.current = 0;
+
+    if (!session) {
+        showError("Please sign in to upload artwork.");
+        return;
+    }
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    const acceptedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    
+    if (!acceptedMimeTypes.includes(file.type)) {
+      showError('Only JPG, PNG, or WebP image files are supported for artwork upload.');
+      return;
+    }
+
+    setIsUploadingArtwork(true);
+    showSuccess(`Uploading artwork: ${file.name}...`);
+
+    const userId = session.user.id;
+    const fileExtension = file.name.split('.').pop();
+    const filePath = `${userId}/${imp.id}/artwork_${Date.now()}.${fileExtension}`; // Store under user_id/improvisation_id
+    const bucketName = 'artwork';
+
+    try {
+      // 1. Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true, // Allow overwriting if same path
+        });
+
+      if (uploadError) throw uploadError;
+      
+      // 2. Get public URL
+      const publicUrl = getPublicArtworkUrl(filePath);
+
+      // 3. Update the improvisation record with the new artwork_url
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .update({ artwork_url: publicUrl })
+        .eq('id', imp.id);
+
+      if (dbError) {
+        // If DB update fails, try to clean up the uploaded file
+        await supabase.storage.from(bucketName).remove([filePath]);
+        throw dbError;
+      }
+
+      showSuccess('Artwork uploaded and saved successfully!');
+      handleRefetch(); // Refetch to update the UI with the new artwork
+    } catch (error) {
+      console.error('Artwork upload failed:', error);
+      showError(`Failed to upload artwork: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUploadingArtwork(false);
+    }
+  }, [session, imp.id, handleRefetch]);
+  // --- End Drag and Drop Handlers ---
 
   // A composition is blocked if any critical asset or confirmation is missing.
   const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
@@ -268,11 +364,19 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
           </CardHeader>
           <CardContent className="space-y-4">
             
-            {/* Artwork Preview */}
-            <div className={cn(
-                "relative w-full aspect-square rounded-lg overflow-hidden border-2",
-                hasArtwork ? "border-primary/50" : "border-dashed border-red-500/50 bg-red-50/50 dark:bg-red-950/50"
-            )}>
+            {/* Artwork Preview - Now a Drop Zone */}
+            <div 
+                className={cn(
+                    "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                    hasArtwork ? "border-primary/50" : "border-dashed border-red-500/50 bg-red-50/50 dark:bg-red-950/50",
+                    isDraggingImage && "border-blue-500 bg-blue-50/50 dark:bg-blue-950/50",
+                    isUploadingArtwork && "border-green-500 bg-green-50/50 dark:bg-green-950/50"
+                )}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+            >
                 {hasArtwork ? (
                     <img 
                         src={imp.artwork_url!} 
@@ -283,12 +387,19 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                     <div className="flex flex-col items-center justify-center h-full text-center text-red-600 dark:text-red-400 p-4">
                         <AlertTriangle className="w-12 h-12 mb-3" />
                         <p className="text-lg font-bold">No Artwork Uploaded</p>
-                        <p className="text-sm mt-1">Generate a prompt below, use an external AI tool, then manually upload your artwork.</p>
+                        <p className="text-sm mt-1">Drag & drop an image here, or generate a prompt below, use an external AI tool, then manually upload your artwork.</p>
                     </div>
                 )}
-                {isRegenerating && (
+                {(isRegenerating || isUploadingArtwork) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
                         <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                        <p className="ml-2 text-lg font-semibold">{isRegenerating ? 'Generating Prompt...' : 'Uploading Artwork...'}</p>
+                    </div>
+                )}
+                {isDraggingImage && !isUploadingArtwork && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm text-blue-700 dark:text-blue-300">
+                        <Upload className="w-16 h-16" />
+                        <p className="ml-4 text-2xl font-bold">Drop Image Here</p>
                     </div>
                 )}
             </div>
@@ -311,7 +422,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                 <Button 
                     onClick={handleRegenerateArtwork} // This now triggers prompt generation
                     className="w-full h-10 text-base bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
-                    disabled={isRegenerating || isAnalyzing || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
+                    disabled={isRegenerating || isAnalyzing || isUploadingArtwork || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
                 >
                     {isRegenerating ? (
                         <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -345,24 +456,20 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
             <p className="text-sm text-muted-foreground">
                 Use the generated prompt above with an external AI tool to create your unique 3000x3000 album cover.
             </p>
-            <QuickLinkButton href={VISUALGPT_NANO_BANANA_URL} icon={ImageIcon} label="Open Nano Banana" /> {/* Updated link */}
+            <QuickLinkButton href={VISUALGPT_NANO_BANANA_URL} icon={ImageIcon} label="Open Nano Banana" />
             <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
             
             <Separator />
             
-            {/* Manual Artwork Upload (Still useful for custom uploads) */}
+            {/* Manual Artwork Upload (Still useful for custom uploads) - Simplified as drag/drop is primary */}
             <div className="p-4 border rounded-lg bg-yellow-50/50 dark:bg-yellow-950/50 space-y-2">
                 <h3 className="text-lg font-semibold flex items-center text-yellow-700 dark:text-yellow-300">
-                    <Upload className="h-5 w-5 mr-2" /> Manual Artwork Upload
+                    <Upload className="h-5 w-5 mr-2" /> Manual Artwork Upload (Drag & Drop Above)
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                    If you have custom artwork, upload it here. This will override any AI-generated artwork.
+                    You can drag and drop an image directly into the preview area above.
                 </p>
-                {/* Placeholder for future manual upload component */}
-                <Input type="file" accept=".jpg, .png" disabled={true} className="mt-2" />
-                <Button variant="secondary" disabled className="w-full">
-                    Upload Custom Artwork (Coming Soon)
-                </Button>
+                {/* Removed file input and button as drag & drop is now primary */}
             </div>
           </CardContent>
         </Card>
@@ -377,7 +484,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         {audioPublicUrl && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl flex items-center text-red-500"> {/* Added text-red-500 for debug */}
+              <CardTitle className="text-xl flex items-center text-red-500">
                 <ExternalLink className="w-5 h-5 mr-2" /> Audio URL (Debug)
               </CardTitle>
             </CardHeader>
@@ -396,7 +503,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                     size="icon" 
                     onClick={handleCopyUrl} 
                     title="Copy Public URL"
-                    className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10" // Dark, square button
+                    className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10"
                 >
                   <Copy className="h-5 w-5" />
                 </Button>

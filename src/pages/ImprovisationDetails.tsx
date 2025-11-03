@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
+import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper, getPublicArtworkUrl } from '@/integrations/supabase/client'; // Added getPublicArtworkUrl
 import { Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -199,7 +199,7 @@ const ImprovisationDetails: React.FC = () => {
     showSuccess("Deleting composition...");
 
     try {
-      // 1. Delete file from Supabase Storage (only if a file exists)
+      // 1. Delete audio file from Supabase Storage (only if a file exists)
       if (imp.storage_path) {
         const { error: storageError } = await supabase.storage
           .from('piano_improvisations')
@@ -210,9 +210,22 @@ const ImprovisationDetails: React.FC = () => {
         }
       }
       
-      // 2. Artwork is no longer directly uploaded by AI, so no need to delete from 'artwork' bucket.
-      //    If manual upload is implemented later, this logic would need to be revisited.
-      //    For now, we assume artwork_url is just a URL and not a path in our storage.
+      // 2. Delete artwork from Supabase Storage (only if artwork_url is present and it's a path in our 'artwork' bucket)
+      if (imp.artwork_url) {
+        // Assuming artwork_url is a full public URL, we need to extract the path
+        // Example: https://rqesjpnhrjdjnrzdhzgw.supabase.co/storage/v1/object/public/artwork/improvisation_id/artwork_timestamp.jpg
+        const artworkPathMatch = imp.artwork_url.match(/\/public\/artwork\/(.*)/);
+        if (artworkPathMatch && artworkPathMatch[1]) {
+            const artworkPath = artworkPathMatch[1];
+            const { error: artworkStorageError } = await supabase.storage
+                .from('artwork')
+                .remove([artworkPath]);
+
+            if (artworkStorageError) {
+                console.error("Failed to delete artwork from storage:", artworkStorageError);
+            }
+        }
+      }
 
       // 3. Delete record from database
       const { error: dbError } = await supabase
