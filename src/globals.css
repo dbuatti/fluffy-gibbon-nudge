@@ -27,6 +27,9 @@
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+    
+    --success: 142.1 76.2% 36.3%; /* Green for success */
+    --success-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
@@ -68,6 +71,9 @@
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+    
+    --success: 142.1 70.2% 40.3%; /* Slightly brighter green for dark mode */
+    --success-foreground: 210 40% 98%;
 
     --border: 240 5% 20%;
     --input: 240 5% 15%;

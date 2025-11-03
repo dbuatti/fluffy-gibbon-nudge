@@ -62,10 +62,10 @@ const CompositionPipeline: React.FC = () => {
       label: 'Ready for Prep',
       count: totalCompleted, 
       icon: Sparkles, 
-      color: 'text-purple-600 dark:text-purple-400',
+      color: 'text-success dark:text-success', // Use new success color
       description: 'Ready for distribution prep.',
-      bg: 'bg-purple-500/10 dark:bg-purple-900/20',
-      border: 'border-purple-500',
+      bg: 'bg-success/10 dark:bg-success/20', // Use new success color background
+      border: 'border-success', // Use new success color border
     },
   ];
 
@@ -78,7 +78,7 @@ const CompositionPipeline: React.FC = () => {
   }
 
   return (
-    <Card className="shadow-xl dark:shadow-3xl w-full">
+    <Card className="shadow-card-light dark:shadow-card-dark w-full">
       <CardHeader className="pb-3">
         <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
       </CardHeader>

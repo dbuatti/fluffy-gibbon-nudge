@@ -103,7 +103,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
-      <header className="mb-8">
+      <header className="mb-8 max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           Dashboard
         </h1>
@@ -112,7 +112,7 @@ const Index = () => {
         </p>
       </header>
       
-      <main className="max-w-5xl mx-auto space-y-10">
+      <main className="max-w-6xl mx-auto space-y-10">
         
         {/* ACTION ZONE: Capture Idea & Pipeline */}
         <div className="space-y-6">
@@ -127,14 +127,14 @@ const Index = () => {
 
         {/* STREAK TRACKER (Motivation) */}
         <Card className={cn(
-            "p-4 border-2 shadow-lg",
+            "p-4 border-2 shadow-card-light dark:shadow-card-dark", // Use new shadow classes
             "border-yellow-400/50 bg-yellow-50/50 dark:bg-yellow-950/50"
         )}>
             <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold flex items-center text-yellow-700 dark:text-yellow-300">
                     <Flame className="w-6 h-6 mr-2" /> Consistency Tracker
                 </h3>
-                {todayActivity && <Badge className="bg-green-600 hover:bg-green-600 text-white"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
+                {todayActivity && <Badge className="bg-success hover:bg-success/90 text-success-foreground"><CalendarCheck className="w-4 h-4 mr-1" /> Today's Goal Met</Badge>}
             </div>
             <p className="mt-2 text-lg font-semibold text-foreground">
                 {streakMessage}
@@ -144,7 +144,7 @@ const Index = () => {
         {/* QUICK LINKS (Reduced Cognitive Load) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          <Card className="hover:shadow-xl transition-shadow">
+          <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg">
                 <Zap className="w-5 h-5 mr-2 text-purple-500" /> AI Assistant
@@ -162,7 +162,7 @@ const Index = () => {
             </CardContent>
           </Card>
           
-          <Card className="hover:shadow-xl transition-shadow">
+          <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg">
                 <Music className="w-5 h-5 mr-2 text-primary" /> DistroKid
@@ -173,14 +173,14 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <a href={DISTROKID_URL} target="_blank" rel="noopener noreferrer">
-                <Button variant="default" className="w-full">
+                <Button variant="default" className="w-full bg-primary hover:bg-primary/90">
                   Go to DistroKid <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
               </a>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-xl transition-shadow">
+          <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center text-lg">
                 <Clock className="w-5 h-5 mr-2 text-primary" /> Insight Timer

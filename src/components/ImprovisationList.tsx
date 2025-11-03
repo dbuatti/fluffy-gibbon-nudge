@@ -51,7 +51,7 @@ const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
     case 'analyzing':
       return <Badge variant="secondary" className="bg-yellow-400 text-gray-900 dark:bg-yellow-600 dark:text-gray-900"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
     case 'completed':
-      return <Badge className="bg-green-600 hover:bg-green-600 text-white dark:bg-green-700 dark:hover:bg-green-700">✅ Ready</Badge>;
+      return <Badge className="bg-success hover:bg-success/90 text-success-foreground">✅ Ready</Badge>;
     case 'failed':
       return <Badge variant="destructive">❌ Failed</Badge>;
     default:
@@ -88,9 +88,9 @@ const getNextAction = (imp: Improvisation) => {
       return { label: 'Generate Artwork', icon: Palette, color: 'text-orange-500', type: 'ai' };
     }
     if (!isReady) {
-      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-green-600', type: 'manual' };
+      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success', type: 'manual' };
     }
-    return { label: 'Submit to DistroKid', icon: Send, color: 'text-green-700', type: 'manual' };
+    return { label: 'Submit to DistroKid', icon: Send, color: 'text-success', type: 'manual' };
   }
   
   return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
@@ -113,7 +113,7 @@ const ImprovisationList: React.FC = () => {
   }
 
   return (
-    <Card className="w-full shadow-xl dark:shadow-3xl">
+    <Card className="w-full shadow-card-light dark:shadow-card-dark">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-2xl font-bold">My Ideas & Compositions</CardTitle>
         <Button variant="outline" onClick={() => refetch()}>Refresh List</Button>
@@ -173,7 +173,8 @@ const ImprovisationList: React.FC = () => {
                                 nextAction.color,
                                 nextAction.label.includes('Analyzing') && 'bg-yellow-100 dark:bg-yellow-900/50',
                                 nextAction.label.includes('Upload Audio') && 'bg-blue-100 dark:bg-blue-900/50',
-                                nextAction.label.includes('Ready') && 'bg-green-100 dark:bg-green-900/50',
+                                nextAction.label.includes('Ready') && 'bg-success/10 dark:bg-success/20',
+                                nextAction.label.includes('Submit') && 'bg-success/10 dark:bg-success/20',
                             )}
                         >
                             {nextAction.type === 'ai' ? (
