@@ -3,13 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3 } from 'lucide-react'; // Added ListOrdered, Grid3X3
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator'; // Added Separator
 
 interface NoteTab {
   id: string;
@@ -43,30 +44,32 @@ const fetchImprovisations = async (): Promise<Improvisation[]> => {
   return data as Improvisation[];
 };
 
+// Unified Status Badge Function
 const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
   if (!hasFile && status === 'uploaded') {
-    return <Badge className="bg-blue-500 hover:bg-blue-500 text-white dark:bg-blue-700 dark:hover:bg-blue-700">💡 Needs Audio</Badge>;
+    return <Badge variant="outline" className="bg-info text-info-foreground border-info">💡 Needs Audio</Badge>;
   }
   
   switch (status) {
     case 'analyzing':
-      return <Badge variant="secondary" className="bg-yellow-400 text-gray-900 dark:bg-yellow-600 dark:text-gray-900"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
+      return <Badge variant="outline" className="bg-warning text-warning-foreground border-warning"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
     case 'completed':
-      return <Badge className="bg-success hover:bg-success/90 text-success-foreground">✅ Ready</Badge>;
+      return <Badge variant="default" className="bg-success text-success-foreground">✅ Ready</Badge>;
     case 'failed':
-      return <Badge variant="destructive">❌ Failed</Badge>;
+      return <Badge variant="destructive" className="bg-error text-error-foreground">❌ Failed</Badge>;
     default:
-      return <Badge variant="outline">Uploaded</Badge>;
+      return <Badge variant="outline" className="text-muted-foreground">Uploaded</Badge>;
   }
 };
 
-const getNotesStatus = (notes: NoteTab[] | null) => {
+// Notes Status Badge - less prominent
+const getNotesStatusBadge = (notes: NoteTab[] | null) => {
   const hasContent = notes?.some(n => n.content && n.content.trim().length > 0);
   
   if (hasContent) {
-    return <Badge variant="default" className="bg-purple-500 hover:bg-purple-500 dark:bg-purple-700 dark:hover:bg-purple-700">✍️ Notes Added</Badge>;
+    return <Badge variant="secondary" className="text-neutral-foreground">✍️ Notes</Badge>; // Neutral color
   }
-  return <Badge variant="outline" className="text-muted-foreground border-dashed">📝 No Notes</Badge>;
+  return null; // Don't show if no notes
 };
 
 const getNextAction = (imp: Improvisation) => {
@@ -77,20 +80,20 @@ const getNextAction = (imp: Improvisation) => {
   const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
-    return { label: 'Upload Audio', icon: Upload, color: 'text-blue-500', type: 'manual' };
+    return { label: 'Upload Audio', icon: Upload, color: 'text-primary', type: 'manual' };
   }
   if (imp.status === 'analyzing') {
-    return { label: 'AI Analyzing...', icon: Clock, color: 'text-yellow-500', type: 'ai' };
+    return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning', type: 'ai' };
   }
   if (imp.status === 'completed') {
     if (!hasNotes) {
-      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-purple-500', type: 'manual' };
+      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary', type: 'manual' };
     }
     if (!hasArtworkPrompt) {
-      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-orange-500', type: 'ai' };
+      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary', type: 'ai' };
     }
     if (!hasArtworkUrl) {
-      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-orange-500', type: 'manual' };
+      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary', type: 'manual' };
     }
     if (!isReady) {
       return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success', type: 'manual' };
@@ -104,6 +107,7 @@ const getNextAction = (imp: Improvisation) => {
 const ImprovisationList: React.FC = () => {
   const navigate = useNavigate();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // New state for view mode
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
@@ -138,92 +142,130 @@ const ImprovisationList: React.FC = () => {
   }
 
   if (error) {
-    return <div className="text-center p-8 text-red-500">Error loading data: {error.message}</div>;
+    return <div className="text-center p-8 text-error dark:text-error-foreground">Error loading data: {error.message}</div>;
   }
+
+  const hasSelectedItems = selectedCompositions.size > 0;
 
   return (
     <Card className="w-full shadow-card-light dark:shadow-card-dark">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-xl font-bold">Active Compositions</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Active Compositions</CardTitle> {/* Adjusted typography */}
         <div className="flex items-center space-x-2">
-            {selectedCompositions.size > 0 && (
-                <Button variant="outline" disabled>
-                    Bulk Actions ({selectedCompositions.size})
-                </Button>
-            )}
-            <Button variant="outline" onClick={() => refetch()}>Refresh List</Button>
+            <Button variant="outline" size="sm" onClick={() => setViewMode('grid')} className={cn(viewMode === 'grid' && 'bg-accent text-accent-foreground')}>
+                <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setViewMode('list')} className={cn(viewMode === 'list' && 'bg-accent text-accent-foreground')}>
+                <ListOrdered className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh</Button> {/* Smaller refresh button */}
         </div>
       </CardHeader>
       <CardContent>
         {improvisations && improvisations.length > 0 ? (
           <>
-            <div className="flex items-center space-x-2 mb-4 px-2">
-                <Checkbox 
-                    id="select-all"
-                    checked={selectedCompositions.size === improvisations.length && improvisations.length > 0}
-                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                />
-                <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Select All ({selectedCompositions.size} selected)
-                </label>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Bulk Action Toolbar */}
+            {hasSelectedItems && (
+                <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 dark:bg-primary/20 border border-primary/30 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox 
+                            id="select-all-toolbar"
+                            checked={selectedCompositions.size === improvisations.length}
+                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                            className="h-5 w-5" // Larger checkbox
+                        />
+                        <label htmlFor="select-all-toolbar" className="text-sm font-medium leading-none text-primary-foreground">
+                            {selectedCompositions.size} selected
+                        </label>
+                    </div>
+                    <div className="flex space-x-2">
+                        <Button variant="secondary" size="sm" disabled>Delete</Button>
+                        <Button variant="secondary" size="sm" disabled>Export</Button>
+                        <Button variant="secondary" size="sm" disabled>Move</Button>
+                        {/* Add more bulk actions here */}
+                    </div>
+                </div>
+            )}
+
+            {/* Main Select All Checkbox (only if no items selected for toolbar) */}
+            {!hasSelectedItems && (
+                <div className="flex items-center space-x-2 mb-4 px-2">
+                    <Checkbox 
+                        id="select-all"
+                        checked={selectedCompositions.size === improvisations.length && improvisations.length > 0}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        className="h-5 w-5" // Larger checkbox
+                    />
+                    <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Select All
+                    </label>
+                </div>
+            )}
+
+            <div className={cn(
+                "grid gap-4",
+                viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+            )}>
               {improvisations.map((imp) => {
                 const hasFile = !!imp.storage_path;
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
                 const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
                 const isSelected = selectedCompositions.has(imp.id);
+                const notesBadge = getNotesStatusBadge(imp.notes);
                 
                 return (
                   <Card 
                     key={imp.id} 
                     className={cn(
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
-                      isStalled ? 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/50' : 'border-l-4 border-transparent',
-                      isSelected && 'border-2 border-primary ring-2 ring-primary/50'
+                      isStalled ? 'border-l-4 border-error dark:border-error-foreground bg-error/5 dark:bg-error/10' : 'border-l-4 border-transparent',
+                      isSelected && 'border-2 border-primary ring-2 ring-primary/50',
+                      viewMode === 'list' && 'flex items-center p-4' // List view styling
                     )}
                     onClick={() => navigate(`/improvisation/${imp.id}`)}
                   >
-                    <CardContent className="p-4 flex items-start space-x-4">
-                      <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
+                    <CardContent className={cn(
+                        "p-4 flex items-center space-x-4",
+                        viewMode === 'list' && 'w-full' // Full width for list view content
+                    )}>
+                      <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
                             id={`select-${imp.id}`}
                             checked={isSelected}
                             onCheckedChange={(checked) => handleSelectComposition(imp.id, !!checked)}
+                            className="h-5 w-5" // Larger checkbox
                         />
                       </div>
                       
-                      <Avatar className="h-16 w-16 rounded-md border border-border/50 shadow-sm flex-shrink-0 mt-1">
+                      <Avatar className="h-20 w-20 rounded-md border border-border/50 shadow-sm flex-shrink-0"> {/* Larger Avatar */}
                         <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
                         <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
-                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          <ImageIcon className="h-10 w-10 text-muted-foreground" /> {/* Larger placeholder icon */}
                         </AvatarFallback>
                       </Avatar>
                       
                       <div className="flex-grow space-y-1">
                         <h3 className="font-semibold text-lg leading-tight flex items-center">
-                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-red-500 flex-shrink-0" />}
+                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-error flex-shrink-0" />}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground"> {/* Adjusted typography */}
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-2">
                             {getStatusBadge(imp.status, hasFile)}
-                            {getNotesStatus(imp.notes)}
+                            {notesBadge} {/* Render notes badge if it exists */}
                         </div>
-                        <div className="mt-3 flex items-center text-sm font-medium">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={cn("mt-3 h-8 px-3 text-sm justify-start", nextAction.color)}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }} // Ensure click on button navigates
+                        >
                             <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
-                            <span className={cn(
-                                nextAction.label.includes('Analyzing') && 'text-yellow-600 dark:text-yellow-400',
-                                nextAction.label.includes('Upload Audio') && 'text-blue-600 dark:text-blue-400',
-                                nextAction.label.includes('Ready') && 'text-green-600 dark:text-green-400',
-                                nextAction.label.includes('Submit') && 'text-green-600 dark:text-green-400',
-                            )}>
-                                {nextAction.label}
-                            </span>
-                        </div>
+                            {nextAction.label} <ArrowRight className="w-3 h-3 ml-2" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -233,8 +275,9 @@ const ImprovisationList: React.FC = () => {
           </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">
-            <Music className="w-10 h-10 mx-auto mb-4" />
-            <p>No ideas captured yet. Use the "Capture New Idea" button above to start!</p>
+            <Music className="w-12 h-12 mx-auto mb-4" /> {/* Larger icon */}
+            <p className="text-lg font-medium">No ideas captured yet.</p> {/* Adjusted typography */}
+            <p className="text-sm mt-2">Use the "Capture New Idea" button above to start your creative journey!</p>
           </div>
         )}
       </CardContent>

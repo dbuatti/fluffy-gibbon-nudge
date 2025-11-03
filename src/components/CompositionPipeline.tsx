@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Clock, ArrowRight, Edit2, Sparkles, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react'; // Removed ArrowRight, Sparkles
 import { cn } from '@/lib/utils';
 
 
@@ -51,37 +51,37 @@ const CompositionPipeline: React.FC = () => {
       label: 'Idea Captured',
       count: totalUploaded, 
       icon: Edit2, 
-      color: 'text-blue-500 dark:text-blue-400',
+      color: 'text-info dark:text-info-foreground', // Use info for neutral/initial
       description: 'Awaiting audio file upload.',
-      bg: 'bg-blue-500/10 dark:bg-blue-900/20',
-      border: 'border-blue-500',
+      bg: 'bg-info/10 dark:bg-info/20',
+      border: 'border-info',
     },
     { 
       status: 'analyzing', 
       label: 'Processing File',
       count: totalAnalyzing, 
       icon: Clock, 
-      color: 'text-yellow-500 dark:text-yellow-400',
+      color: 'text-warning dark:text-warning-foreground', // Use warning for in-progress
       description: 'Title/Artwork generation in progress.',
-      bg: 'bg-yellow-500/10 dark:bg-yellow-900/20',
-      border: 'border-yellow-500',
+      bg: 'bg-warning/10 dark:bg-warning/20',
+      border: 'border-warning',
     },
     { 
       status: 'failed', 
       label: 'Failed/Error',
       count: totalFailed, 
       icon: AlertTriangle, 
-      color: 'text-destructive dark:text-destructive', 
+      color: 'text-error dark:text-error-foreground', // Use error for failed
       description: 'Processing failed. Check logs or re-upload.',
-      bg: 'bg-destructive/10 dark:bg-destructive/20', 
-      border: 'border-destructive', 
+      bg: 'bg-error/10 dark:bg-error/20', 
+      border: 'border-error', 
     },
     { 
       status: 'completed', 
       label: 'Ready for Prep',
       count: totalCompleted, 
-      icon: CheckCircle, // Changed icon to CheckCircle for 'completed'
-      color: 'text-success dark:text-success',
+      icon: CheckCircle, 
+      color: 'text-success dark:text-success-foreground', // Use success for completed
       description: 'Ready for distribution prep.',
       bg: 'bg-success/10 dark:bg-success/20',
       border: 'border-success',
@@ -89,11 +89,11 @@ const CompositionPipeline: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>;
+    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></div>;
   }
 
   if (error) {
-    return <div className="text-center p-4 text-red-500">Error loading pipeline status. Please check your network connection.</div>;
+    return <div className="text-center p-4 text-error dark:text-error-foreground">Error loading pipeline status. Please check your network connection.</div>;
   }
 
   return (
@@ -102,7 +102,7 @@ const CompositionPipeline: React.FC = () => {
         <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"> {/* Changed to responsive grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {pipelineStages.map((stage) => {
             const Icon = stage.icon;
             const isActive = stage.count > 0;
@@ -112,18 +112,18 @@ const CompositionPipeline: React.FC = () => {
               <div 
                 key={stage.status}
                 className={cn(
-                  "flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-32 text-center", // Increased height, centered content
+                  "flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-36 text-center", // Increased height
                   stage.bg,
-                  isActive ? `border-2 ${stage.border}` : 'border-gray-200 dark:border-gray-700',
+                  isActive ? `border-2 ${stage.border}` : 'border-border', // Use border-border for inactive
                   "hover:shadow-md dark:hover:shadow-lg"
                 )}
               >
-                <div className={cn("h-10 w-10 flex items-center justify-center rounded-full mb-2", stage.bg)}>
-                  <Icon className={cn("h-6 w-6 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
+                <div className={cn("h-12 w-12 flex items-center justify-center rounded-full mb-2", stage.bg)}> {/* Larger icon container */}
+                  <Icon className={cn("h-7 w-7 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} /> {/* Larger icon */}
                 </div>
                 
-                <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3>
-                <p className="text-3xl font-extrabold leading-none">{stage.count}</p>
+                <p className="text-5xl font-extrabold leading-none mb-1">{stage.count}</p> {/* Much larger count */}
+                <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3> {/* Smaller label */}
               </div>
             );
           })}
