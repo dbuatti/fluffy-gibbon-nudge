@@ -257,16 +257,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         </CardContent>
       </Card>
       
-      {/* Complex Categorization Fields */}
-      <h3 className="text-xl font-bold mt-8">Detailed Categorization</h3>
-      <InsightTimerFormFields 
-        improvisationId={imp.id}
-        initialBenefits={imp.insight_benefits}
-        initialPractices={imp.insight_practices}
-        initialThemes={imp.insight_themes}
-      />
-      
-      {/* Metadata Confirmation Toggle */}
+      {/* Metadata Confirmation Toggle (MOVED HERE) */}
       <Card id="insight-timer-confirmation" className="p-4 border-2 border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/50">
         <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -291,6 +282,15 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
             </p>
         )}
       </Card>
+      
+      {/* Complex Categorization Fields */}
+      <h3 className="text-xl font-bold mt-8">Detailed Categorization</h3>
+      <InsightTimerFormFields 
+        improvisationId={imp.id}
+        initialBenefits={imp.insight_benefits}
+        initialPractices={imp.insight_practices}
+        initialThemes={imp.insight_themes}
+      />
     </div>
   );
 };
