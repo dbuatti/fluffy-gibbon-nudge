@@ -48,7 +48,7 @@ const useStreakTracker = (data: Improvisation[] | undefined) => { // Updated typ
   
   const todayActivity = activityDates.has(todayString);
   
-  let dateToCheck = new Date();
+  let dateToCheck = new Date(); // Initialize dateToCheck here
   
   if (todayActivity) {
     currentStreak = 1;
@@ -208,6 +208,7 @@ const Index = () => {
             </Button>
           </div>
         </div>
+
         {/* Improvisation List */}
         <ImprovisationList // Renamed component
           viewMode={viewMode} 

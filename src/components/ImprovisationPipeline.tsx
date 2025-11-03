@@ -23,8 +23,7 @@ const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Pr
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
-      // Log the full error object for more details
-      console.error(`Full Supabase error for status ${status}:`, error); 
+      // Removed redundant console.error(`Full Supabase error for status ${status}:`, error); 
       return { status, count: 0 };
     }
     return { status, count: count || 0 };
