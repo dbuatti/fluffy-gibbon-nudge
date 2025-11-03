@@ -338,8 +338,8 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         {audioPublicUrl && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl flex items-center">
-                <ExternalLink className="w-5 h-5 mr-2 text-red-500" /> Audio URL (Debug)
+              <CardTitle className="text-xl flex items-center text-red-500"> {/* Added text-red-500 for debug */}
+                <ExternalLink className="w-5 h-5 mr-2" /> Audio URL (Debug)
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -351,10 +351,15 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                   type="text" 
                   value={audioPublicUrl} 
                   readOnly 
-                  className="flex-grow font-mono text-xs bg-muted"
+                  className="flex-grow font-mono text-xs bg-muted h-10"
                 />
-                <Button size="icon" onClick={handleCopyUrl} title="Copy Public URL">
-                  <Copy className="h-4 w-4" />
+                <Button 
+                    size="icon" 
+                    onClick={handleCopyUrl} 
+                    title="Copy Public URL"
+                    className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10" // Dark, square button
+                >
+                  <Copy className="h-5 w-5" />
                 </Button>
               </div>
             </CardContent>

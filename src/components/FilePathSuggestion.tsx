@@ -48,10 +48,15 @@ const FilePathSuggestion: React.FC<FilePathSuggestionProps> = ({ generatedName, 
             type="text" 
             value={suggestedPath} 
             readOnly 
-            className="flex-grow font-mono text-sm bg-muted"
+            className="flex-grow font-mono text-sm bg-muted h-10"
           />
-          <Button size="icon" onClick={handleCopy} title="Copy Path">
-            <Copy className="h-4 w-4" />
+          <Button 
+            size="icon" 
+            onClick={handleCopy} 
+            title="Copy Path"
+            className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10" // Dark, square button
+          >
+            <Copy className="h-5 w-5" />
           </Button>
         </div>
       </CardContent>
