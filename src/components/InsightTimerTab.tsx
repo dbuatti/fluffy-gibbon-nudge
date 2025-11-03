@@ -193,7 +193,8 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
           {title} 
           <span className="text-sm font-normal text-muted-foreground ml-2"> (Select one option)</span>
           {updateMutation.isPending && <Loader2 className="h-4 w-4 ml-2 inline-block animate-spin text-primary" />}
-        </CardHeader>
+        </CardTitle>
+      </CardHeader>
       <CardContent className="p-4 space-y-4">
         <RadioGroup 
           value={selectedValue || ''} 
