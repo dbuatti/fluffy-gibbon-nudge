@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import { useQuery, useQueryClient, UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { MadeWithDyad } from '@/components/made-with-dyad';
@@ -78,20 +78,22 @@ const CompositionDetails: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('details');
   const [aiGeneratedDescription, setAiGeneratedDescription] = useState<string | null>(null);
 
-  // FIX: Explicitly provide generic types to useQuery
+  // FIX: Explicitly provide generic types to useQuery and cast the options object
   const { data: comp, isLoading, error, refetch } = useQuery<
     Composition,
     Error,
     Composition,
     readonly ['composition', string]
-  >({
-    queryKey: ['composition', id!] as const, // Non-null assertion here as enabled ensures id is present
-    queryFn: () => fetchCompositionDetails(supabase, id!),
-    enabled: !!id && !isSessionLoading && !!session?.user,
-    onSuccess: (data) => {
-      setAiGeneratedDescription(data.ai_generated_description);
-    },
-  });
+  >(
+    {
+      queryKey: ['composition', id!] as const, // Non-null assertion here as enabled ensures id is present
+      queryFn: () => fetchCompositionDetails(supabase, id!),
+      enabled: !!id && !isSessionLoading && !!session?.user,
+      onSuccess: (data) => {
+        setAiGeneratedDescription(data.ai_generated_description);
+      },
+    } as UseQueryOptions<Composition, Error, Composition, readonly ['composition', string]>
+  );
 
   const handleRefetch = useCallback(() => {
     refetch();
