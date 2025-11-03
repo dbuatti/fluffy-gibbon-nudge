@@ -300,140 +300,94 @@ const ImprovisationDetails: React.FC = () => {
   
   // --- Progress Logic (Gamification) ---
   let progressValue = 0;
-  let progressMessage = "Capture your idea first.";
-  let primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null = null;
+  let progressMessage = "Start by capturing your idea.";
+  let primaryAction: { label: string; onClick: () => void; variant: "default" | "secondary" | "outline" } | null = null;
 
   if (imp) {
-    // Base Step: Idea Captured (10%)
-    progressValue = 10;
-    progressMessage = "Idea captured. Now record and upload the audio file.";
-    
-    // Micro-Progress: Set Type (5%)
-    if (imp.is_improvisation !== null) {
-        progressValue += 5;
-    }
+    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
+    const hasUserTags = (imp.user_tags?.length || 0) > 0;
+    const hasInsightTimerCategorization = 
+        !!imp.insight_content_type &&
+        !!imp.insight_language &&
+        !!imp.insight_primary_use &&
+        !!imp.insight_audience_level &&
+        (imp.insight_benefits?.length || 0) > 0 &&
+        !!imp.insight_practices &&
+        (imp.insight_themes?.length || 0) > 0 &&
+        !!imp.insight_voice &&
+        !!imp.description; // Check for description as well
 
-    // Action 1: Upload Audio
-    if (!hasAudioFile) {
-        primaryAction = {
-            label: "Upload Audio (30% Progress Boost)",
+    // Define steps and their conditions
+    const steps: { 
+        condition: boolean; 
+        message: string; 
+        action: { label: string; onClick: () => void; variant: "default" | "secondary" | "outline" } | null 
+    }[] = [
+      { condition: true, message: "Idea captured. Set improvisation type.", action: null }, // Base step
+      { condition: imp.is_improvisation !== null, message: "Improvisation type set. Upload your audio file.", action: { label: "Upload Audio", onClick: () => document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' }), variant: "default" } },
+      { 
+        condition: hasAudioFile, 
+        message: "Audio uploaded. Set core musical metadata.", 
+        action: { 
+            label: "Edit Core Metadata", 
             onClick: () => {
-                document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' });
-            },
+                const button = document.querySelector('[title="Edit Improvisation Metadata"]');
+                if (button instanceof HTMLButtonElement) {
+                    button.click();
+                }
+            }, 
+            variant: "default" 
+        } 
+      },
+      { condition: isCoreMetadataComplete, message: "Core metadata set. Add creative notes.", action: { label: "Add Creative Notes", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } },
+      { condition: hasNotes, message: "Creative notes added. Add user tags.", action: { label: "Add User Tags", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } }, // Tags are in the same card as notes
+      { condition: hasUserTags, message: "User tags added. Generate AI artwork prompt.", action: { label: "Generate AI Artwork Prompt", onClick: handleRegenerateArtwork, variant: "outline" } },
+      { condition: !!imp.artwork_prompt, message: "Artwork prompt generated. Upload your artwork.", action: { label: "Upload Artwork", onClick: () => handleTabChange('assets-downloads'), variant: "default" } },
+      { condition: !!imp.artwork_url, message: "Artwork uploaded. Populate Insight Timer metadata.", action: { label: "AI Populate Metadata", onClick: handleAIPopulateMetadata, variant: "default" } },
+      { condition: hasInsightTimerCategorization, message: "Insight Timer metadata populated. Confirm metadata review.", action: { label: "Confirm Metadata Review", onClick: () => handleTabChange('analysis-distro'), variant: "default" } },
+      { condition: !!imp.is_metadata_confirmed, message: "All set! Ready for release. Go to Distribution Prep.", action: { label: "Go to Distribution Prep", onClick: () => handleTabChange('analysis-distro'), variant: "default" } },
+    ];
+
+    let completedSteps = 0;
+    for (let i = 0; i < steps.length; i++) {
+      if (steps[i].condition) {
+        completedSteps++;
+        progressMessage = steps[i].message;
+        primaryAction = steps[i].action;
+      } else {
+        // If a step is not met, its message and action become the current primary.
+        progressMessage = steps[i].message;
+        primaryAction = steps[i].action;
+        break; // Stop at the first uncompleted step
+      }
+    }
+    progressValue = Math.round((completedSteps / steps.length) * 100);
+    if (progressValue > 100) progressValue = 100; // Cap at 100%
+
+    // Override primary action if already ready for release
+    if (isReadyForRelease) {
+        progressValue = 100;
+        progressMessage = "Improvisation is 100% ready for release! Time to submit.";
+        primaryAction = {
+            label: "Go to Distribution Prep",
+            onClick: () => handleTabChange('analysis-distro'),
             variant: "default"
         };
     }
 
-    // Step 2: Audio Uploaded (30% total)
-    if (hasAudioFile) {
-      progressValue = 30; 
-      progressMessage = "Audio uploaded. Set core metadata and notes.";
-      primaryAction = null; 
-    }
+    // Post-readiness submission status
+    if (isReadyForRelease && (imp.is_submitted_to_distrokid || imp.is_submitted_to_insight_timer)) {
+        let submittedCount = 0;
+        if (imp.is_submitted_to_distrokid) submittedCount++;
+        if (imp.is_submitted_to_insight_timer) submittedCount++;
 
-    // Step 3: Core Metadata Set (60% total)
-    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
-    
-    if (hasAudioFile && isCoreMetadataComplete) {
-      progressValue = 60;
-      progressMessage = "Core metadata set. Add creative notes and tags.";
-      
-      // Action 2: Add Notes
-      if (!hasNotes) {
-          primaryAction = {
-              label: "Add Creative Notes (10% Progress Boost)",
-              onClick: () => {
-                  document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' });
-              },
-              variant: "secondary"
-          };
-      }
-    }
-    
-    // Step 4: Artwork Prompt Generated (70%)
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt) {
-        progressValue = 70;
-        progressMessage = "Notes added. Generate artwork prompt and populate distribution fields.";
-        
-        // Action 3: Generate Artwork Prompt
-        if (!imp.artwork_prompt) {
-            primaryAction = {
-                label: "Generate AI Artwork Prompt (10% Progress Boost)",
-                onClick: handleRegenerateArtwork,
-                variant: "outline"
-            };
-        }
-    }
-
-    // Step 5: AI Augmentation Complete (80%)
-    const hasInsightTimerPopulated = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices;
-    
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) {
-      progressValue = 80;
-      progressMessage = "AI artwork prompt generated. Use AI to populate distribution fields.";
-      
-      // Action 4: AI Populate Metadata
-      if (!hasInsightTimerPopulated) {
-          primaryAction = {
-              label: "AI Populate Distribution Metadata (10% Boost)",
-              onClick: handleAIPopulateMetadata,
-              variant: "default"
-          };
-      }
-    }
-    
-    // Step 6: AI Augmentation Complete (90%)
-    if (hasAudioFile && isCoreMetadataComplete && hasNotes && imp.artwork_prompt && hasInsightTimerPopulated) {
-        progressValue = 90;
-        progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
-        
-        // Action 5: Mark Ready
-        if (!isReadyForRelease) {
-            primaryAction = {
-                label: "Mark as Ready for Release (10% Progress Boost)",
-                onClick: handleMarkReady,
-                variant: "default"
-            };
-        }
-    }
-
-    // Step 7: Ready for Release (100%)
-    if (isReadyForRelease) {
-      progressValue = 100;
-      progressMessage = "Improvisation is 100% ready for release! Time to submit.";
-      primaryAction = {
-          label: "Go to Distribution Prep",
-          onClick: () => {
-              handleTabChange('analysis-distro');
-          },
-          variant: "default"
-      };
-    }
-    
-    // NEW: Submission Steps (after 100% ready)
-    if (isReadyForRelease) {
-        let submissionProgress = 0;
-        if (imp.is_submitted_to_distrokid) submissionProgress += 50;
-        if (imp.is_submitted_to_insight_timer) submissionProgress += 50;
-
-        if (submissionProgress > 0) {
-            progressValue = 100 + (submissionProgress / 2); // Add half of submission progress to overall
-            if (progressValue > 100) progressValue = 100; // Cap at 100 for display
-        }
-
-        if (imp.is_submitted_to_distrokid && imp.is_submitted_to_insight_timer) {
+        if (submittedCount === 2) {
             progressMessage = "Project fully submitted! Congratulations!";
             primaryAction = null; // No further action needed
-        } else if (imp.is_submitted_to_distrokid || imp.is_submitted_to_insight_timer) {
+        } else {
             progressMessage = "One submission complete. Finish the other!";
             primaryAction = {
                 label: "Complete Submissions",
-                onClick: () => handleTabChange('analysis-distro'),
-                variant: "default"
-            };
-        } else {
-            primaryAction = {
-                label: "Go to Distribution Prep",
                 onClick: () => handleTabChange('analysis-distro'),
                 variant: "default"
             };
