@@ -10,12 +10,12 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 /**
- * Generates the public URL for a file in the 'audio_compositions' bucket.
+ * Generates the public URL for a file in the 'piano_improvisations' bucket.
  * @param storagePath The path within the bucket (e.g., 'user_id/timestamp.m4a').
  * @returns The full public URL string.
  */
 export const getPublicAudioUrl = (storagePath: string): string => {
     // Use the client method for robustness, which handles URL encoding and base path construction.
-    const { data } = supabase.storage.from('audio_compositions').getPublicUrl(storagePath); // Updated bucket name
+    const { data } = supabase.storage.from('piano_improvisations').getPublicUrl(storagePath);
     return data.publicUrl;
 };

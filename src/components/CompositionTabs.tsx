@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
-const VISUALGPT_NANO_BANANA_URL = "https://visualgpt.io/ai-models/nano-banana";
+const VISUALGPT_NANO_BANANA_URL = "https://visualgpt.io/ai-models/nano-banana"; // Updated to Nano Banana link
 
 interface NoteTab {
   id: string;
@@ -42,13 +42,13 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Composition { // Renamed interface
+interface Improvisation {
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
-  artwork_prompt: string | null;
+  artwork_prompt: string | null; // NEW FIELD
   is_piano: boolean | null;
   is_improvisation: boolean | null;
   primary_genre: string | null;
@@ -74,11 +74,11 @@ interface Composition { // Renamed interface
 }
 
 interface CompositionTabsProps {
-  imp: Composition; // Updated prop name and type
+  imp: Improvisation;
   currentTab: string;
-  handleTabChange: (newTab: string) => void;
+  handleTabChange: (newTab: string) => void; // Still needed for internal links/actions
   handleRefetch: () => void;
-  handleRegenerateArtwork: () => Promise<void>;
+  handleRegenerateArtwork: () => Promise<void>; // This now triggers full image generation
   handleClearFile: () => Promise<void>;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
   handleUpdateSecondaryGenre: (v: string) => Promise<void>;
@@ -105,7 +105,7 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
 );
 
 const CompositionTabs: React.FC<CompositionTabsProps> = ({
-  imp, // Updated prop name
+  imp,
   currentTab,
   handleTabChange,
   handleRefetch,
@@ -125,7 +125,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
 }) => {
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
-  const hasArtwork = !!imp.artwork_url;
+  const hasArtwork = !!imp.artwork_url; // Check if artwork_url is set
 
   const handleDownloadArtwork = () => {
     if (imp.artwork_url) {
@@ -173,7 +173,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         
         {/* NEW: AI Creative Coach */}
         <AICreativeCoach 
-          compositionId={imp.id} // Updated prop name
+          improvisationId={imp.id} 
           hasAudioFile={hasAudioFile} 
         />
 
@@ -237,19 +237,19 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         {!hasAudioFile && imp.is_improvisation !== null && (
           <div id="audio-upload-cta">
               <AudioUploadForIdea 
-                compositionId={imp.id} // Updated prop name
-                isCompositionTypeImprovisation={imp.is_improvisation} // Updated prop name
+                improvisationId={imp.id} 
+                isImprovisation={imp.is_improvisation}
                 onUploadSuccess={handleRefetch}
               />
           </div>
         )}
 
         {/* NEW: Tag Generator */}
-        <TagGenerator compositionId={imp.id} initialTags={imp.user_tags} /> {/* Updated prop name */}
+        <TagGenerator improvisationId={imp.id} initialTags={imp.user_tags} />
 
         {/* 2. Composition Notes */}
         <div id="composition-notes">
-          <CompositionNotes compositionId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} /> {/* Updated prop name */}
+          <CompositionNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} />
         </div>
       </TabsContent>
     );
@@ -309,7 +309,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
             {/* Actions Column */}
             <div className="space-y-2">
                 <Button 
-                    onClick={handleRegenerateArtwork}
+                    onClick={handleRegenerateArtwork} // This now triggers prompt generation
                     className="w-full h-10 text-base bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
                     disabled={isRegenerating || isAnalyzing || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood}
                 >
@@ -345,7 +345,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
             <p className="text-sm text-muted-foreground">
                 Use the generated prompt above with an external AI tool to create your unique 3000x3000 album cover.
             </p>
-            <QuickLinkButton href={VISUALGPT_NANO_BANANA_URL} icon={ImageIcon} label="Open Nano Banana" />
+            <QuickLinkButton href={VISUALGPT_NANO_BANANA_URL} icon={ImageIcon} label="Open Nano Banana" /> {/* Updated link */}
             <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
             
             <Separator />
@@ -377,7 +377,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         {audioPublicUrl && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl flex items-center text-red-500">
+              <CardTitle className="text-xl flex items-center text-red-500"> {/* Added text-red-500 for debug */}
                 <ExternalLink className="w-5 h-5 mr-2" /> Audio URL (Debug)
               </CardTitle>
             </CardHeader>
@@ -396,7 +396,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                     size="icon" 
                     onClick={handleCopyUrl} 
                     title="Copy Public URL"
-                    className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10"
+                    className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10" // Dark, square button
                 >
                   <Copy className="h-5 w-5" />
                 </Button>

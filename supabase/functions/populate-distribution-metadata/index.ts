@@ -47,6 +47,11 @@ async function populateFieldsWithGemini(compositionData: any): Promise<any> {
     7. Practices: Select exactly 1 practice (e.g., "Sound Meditation").
     8. Themes: Select up to 3 relevant themes (e.g., ["Nature", "Spirituality"]).
     
+    Instructions for Description Generation:
+    1. The description must be 3 to 5 sentences long.
+    2. DO NOT include any promotional content, links, or mentions of other websites/platforms.
+    3. Focus on the mood, feeling, and intended use.
+    
     Respond ONLY with a single JSON object containing the following keys: "insight_content_type", "insight_language", "insight_primary_use", "insight_audience_level", "insight_voice", "insight_benefits" (array), "insight_practices" (string), "insight_themes" (array), and "description" (string).`;
 
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -107,32 +112,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use Service Role Key for secure data fetching
     );
 
-    const { compositionId } = await req.json(); // Updated parameter name
+    const { improvisationId } = await req.json();
 
-    if (!compositionId) {
-      return new Response(JSON.stringify({ error: 'Missing compositionId' }), { // Updated parameter name
+    if (!improvisationId) {
+      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // 1. Fetch the full record including notes, tags, and analysis data
-    const { data: comp, error: fetchError } = await supabase // Renamed variable
-        .from('compositions') // Updated table name
+    const { data: imp, error: fetchError } = await supabase
+        .from('improvisations')
         .select('*, notes, user_tags, analysis_data')
-        .eq('id', compositionId) // Updated parameter name
+        .eq('id', improvisationId)
         .single();
 
-    if (fetchError || !comp) { // Updated variable
-        console.error('Failed to fetch composition data:', fetchError);
-        return new Response(JSON.stringify({ error: 'Composition not found or access denied.' }), {
+    if (fetchError || !imp) {
+        console.error('Failed to fetch improvisation data:', fetchError);
+        return new Response(JSON.stringify({ error: 'Improvisation not found or access denied.' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
     // 2. Populate fields using AI
-    const aiResults = await populateFieldsWithGemini(comp); // Updated variable
+    const aiResults = await populateFieldsWithGemini(imp);
 
     if (aiResults.error) {
         return new Response(JSON.stringify({ error: aiResults.error }), {
@@ -157,9 +162,9 @@ serve(async (req) => {
     };
 
     const { error: updateError } = await supabase
-      .from('compositions') // Updated table name
+      .from('improvisations')
       .update(updates)
-      .eq('id', compositionId); // Updated parameter name
+      .eq('id', improvisationId);
 
     if (updateError) {
       console.error('Database update failed:', updateError);

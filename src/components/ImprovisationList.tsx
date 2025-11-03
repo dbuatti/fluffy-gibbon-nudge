@@ -10,8 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useSession } from '@/integrations/supabase/session-context';
-import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
 import { showSuccess, showError } from '@/utils/toast';
 
 interface NoteTab {
@@ -21,7 +21,7 @@ interface NoteTab {
   content: string;
 }
 
-interface Composition { // Renamed interface
+interface Improvisation {
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -55,24 +55,24 @@ interface Composition { // Renamed interface
   insight_voice: string | null;
 }
 
-const STALLED_THRESHOLD_HOURS = 24;
+const STALLED_THRESHOLD_HOURS = 24; // Define the constant here
 
-const fetchCompositions = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed fetch function
-  console.log("fetchCompositions: Attempting to fetch compositions for user:", sessionUserId);
-  console.log("fetchCompositions: Supabase client session:", supabaseClient.auth.currentSession);
+const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
+  console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
+  console.log("fetchImprovisations: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
   const { data, error } = await supabaseClient
-    .from('compositions') // Updated table name
-    .select('*')
-    .eq('user_id', sessionUserId)
+    .from('improvisations')
+    .select('*') // Select all fields for potential export
+    .eq('user_id', sessionUserId) // Filter by user_id
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchCompositions: Fetched data:", data);
-  return data as Composition[];
+  console.log("fetchImprovisations: Fetched data:", data);
+  return data as Improvisation[];
 };
 
 // Unified Status Badge Function
-const getStatusBadge = (status: Composition['status'], hasFile: boolean) => { // Updated type
+const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => {
   if (!hasFile && status === 'uploaded') {
     return <Badge variant="outline" className="bg-info text-info-foreground border-info">💡 Needs Audio</Badge>;
   }
@@ -94,25 +94,25 @@ const getNotesStatusBadge = (notes: NoteTab[] | null) => {
   const hasContent = notes?.some(n => n.content && n.content.trim().length > 0);
   
   if (hasContent) {
-    return <Badge variant="secondary" className="text-neutral-foreground">✍️ Notes</Badge>;
+    return <Badge variant="secondary" className="text-neutral-foreground">✍️ Notes</Badge>; // Neutral color
   }
-  return null;
+  return null; // Don't show if no notes
 };
 
-const getNextAction = (comp: Composition) => { // Updated parameter name and type
-  const hasFile = !!comp.storage_path;
-  const hasNotes = comp.notes?.some(n => n.content && n.content.trim().length > 0);
-  const hasArtworkPrompt = !!comp.artwork_prompt;
-  const hasArtworkUrl = !!comp.artwork_url;
-  const isReady = !!comp.is_ready_for_release;
+const getNextAction = (imp: Improvisation) => {
+  const hasFile = !!imp.storage_path;
+  const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
+  const hasArtworkPrompt = !!imp.artwork_prompt;
+  const hasArtworkUrl = !!imp.artwork_url; // This will be null unless manually uploaded
+  const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
     return { label: 'Upload Audio', icon: Upload, color: 'text-primary', type: 'manual' };
   }
-  if (comp.status === 'analyzing') {
+  if (imp.status === 'analyzing') {
     return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning', type: 'ai' };
   }
-  if (comp.status === 'completed') {
+  if (imp.status === 'completed') {
     if (!hasNotes) {
       return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary', type: 'manual' };
     }
@@ -132,28 +132,28 @@ const getNextAction = (comp: Composition) => { // Updated parameter name and typ
   return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
 };
 
-interface CompositionListProps { // Renamed interface
+interface ImprovisationListProps {
   viewMode: 'grid' | 'list';
-  setViewMode: (mode: 'grid' | 'list') => void;
+  setViewMode: (mode: 'grid' | 'list') => void; // Added setViewMode prop
   searchTerm: string;
   filterStatus: string;
   sortOption: string;
 }
 
-const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => { // Renamed component
+const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading } = useSession();
+  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
   const queryClient = useQueryClient();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isExportingBulk, setIsExportingBulk] = useState(false);
 
-  console.log("CompositionList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+  console.log("ImprovisationList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: compositions, isLoading, error, refetch } = useQuery<Composition[]>({ // Renamed variable and type
-    queryKey: ['compositions'], // Updated query key
-    queryFn: () => fetchCompositions(supabase, session!.user.id), // Updated fetch function
-    enabled: !isSessionLoading && !!session?.user,
+  const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
+    queryKey: ['improvisations'],
+    queryFn: () => fetchImprovisations(supabase, session!.user.id), // Use directly imported supabase
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
 
@@ -170,9 +170,9 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (!compositions) return; // Updated variable
+    if (!improvisations) return;
     if (checked) {
-      const allIds = new Set(compositions.map(comp => comp.id)); // Updated variable
+      const allIds = new Set(improvisations.map(imp => imp.id));
       setSelectedCompositions(allIds);
     } else {
       setSelectedCompositions(new Set());
@@ -189,13 +189,13 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
 
     try {
       for (const id of selectedCompositions) {
-        const compToDelete = compositions?.find(comp => comp.id === id); // Updated variable
-        if (compToDelete) {
+        const impToDelete = improvisations?.find(imp => imp.id === id);
+        if (impToDelete) {
           // 1. Delete audio file from Supabase Storage (if exists)
-          if (compToDelete.storage_path) {
-            const { error: storageError } = await supabase.storage
-              .from('audio_compositions') // Updated bucket name
-              .remove([compToDelete.storage_path]);
+          if (impToDelete.storage_path) {
+            const { error: storageError } = await supabase.storage // Use directly imported supabase
+              .from('piano_improvisations')
+              .remove([impToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
           }
           // 2. Delete artwork from Supabase Storage (if manually uploaded and artwork_url is a path)
@@ -203,16 +203,16 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
           //    If manual artwork upload is implemented to a Supabase bucket, this logic would need to be updated.
 
           // 3. Delete record from database
-          const { error: dbError } = await supabase
-            .from('compositions') // Updated table name
+          const { error: dbError } = await supabase // Use directly imported supabase
+            .from('improvisations')
             .delete()
             .eq('id', id);
           if (dbError) throw dbError;
         }
       }
       showSuccess(`${selectedCompositions.size} compositions deleted successfully.`);
-      setSelectedCompositions(new Set());
-      queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
+      setSelectedCompositions(new Set()); // Clear selection
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
     } catch (error) {
       console.error('Bulk deletion failed:', error);
@@ -232,9 +232,9 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
     showSuccess(`Exporting ${selectedCompositions.size} compositions' metadata...`);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('compositions') // Updated table name
-        .select('*')
+      const { data, error: fetchError } = await supabase // Use directly imported supabase
+        .from('improvisations')
+        .select('*') // Fetch all details for selected compositions
         .in('id', Array.from(selectedCompositions));
 
       if (fetchError) throw fetchError;
@@ -270,22 +270,22 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   const hasSelectedItems = selectedCompositions.size > 0;
 
   // --- Filtering Logic ---
-  const filteredCompositions = compositions?.filter(comp => { // Updated variable
+  const filteredImprovisations = improvisations?.filter(imp => {
     const matchesSearch = searchTerm === '' || 
-                          comp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          comp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                          imp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilterStatus = filterStatus === 'all' || 
-                                (filterStatus === 'uploaded' && comp.status === 'uploaded' && !comp.storage_path) ||
-                                (filterStatus === 'analyzing' && comp.status === 'analyzing') ||
-                                (filterStatus === 'completed' && comp.status === 'completed') ||
-                                (filterStatus === 'failed' && comp.status === 'failed');
+                                (filterStatus === 'uploaded' && imp.status === 'uploaded' && !imp.storage_path) || // "Needs Audio"
+                                (filterStatus === 'analyzing' && imp.status === 'analyzing') ||
+                                (filterStatus === 'completed' && imp.status === 'completed') ||
+                                (filterStatus === 'failed' && imp.status === 'failed');
     
     return matchesSearch && matchesFilterStatus;
   }) || [];
 
   // --- Sorting Logic ---
-  const sortedCompositions = [...filteredCompositions].sort((a, b) => { // Updated variable
+  const sortedImprovisations = [...filteredImprovisations].sort((a, b) => {
     if (sortOption === 'created_at_desc') {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
@@ -321,7 +321,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
         </div>
       </CardHeader>
       <CardContent>
-        {sortedCompositions && sortedCompositions.length > 0 ? ( // Updated variable
+        {sortedImprovisations && sortedImprovisations.length > 0 ? (
           <>
             {/* Bulk Action Toolbar */}
             {hasSelectedItems && (
@@ -329,7 +329,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                     <div className="flex items-center space-x-2">
                         <Checkbox 
                             id="select-all-toolbar"
-                            checked={selectedCompositions.size === sortedCompositions.length}
+                            checked={selectedCompositions.size === sortedImprovisations.length}
                             onCheckedChange={(checked) => handleSelectAll(!!checked)}
                             className="h-5 w-5"
                         />
@@ -375,7 +375,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                 <div className="flex items-center space-x-2 mb-4 px-2">
                     <Checkbox 
                         id="select-all"
-                        checked={selectedCompositions.size === sortedCompositions.length && sortedCompositions.length > 0}
+                        checked={selectedCompositions.size === sortedImprovisations.length && sortedImprovisations.length > 0}
                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                         className="h-5 w-5"
                     />
@@ -389,24 +389,24 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                 "grid gap-4",
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
-              {sortedCompositions.map((comp) => { // Updated variable
-                const hasFile = !!comp.storage_path;
-                const isStalled = comp.status === 'uploaded' && differenceInHours(new Date(), new Date(comp.created_at)) >= STALLED_THRESHOLD_HOURS;
-                const nextAction = getNextAction(comp); // Updated variable
+              {sortedImprovisations.map((imp) => {
+                const hasFile = !!imp.storage_path;
+                const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
+                const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
-                const isSelected = selectedCompositions.has(comp.id);
-                const notesBadge = getNotesStatusBadge(comp.notes);
+                const isSelected = selectedCompositions.has(imp.id);
+                const notesBadge = getNotesStatusBadge(imp.notes);
                 
                 return (
                   <Card 
-                    key={comp.id} 
+                    key={imp.id} 
                     className={cn(
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
                       isStalled ? 'border-l-4 border-error dark:border-error-foreground bg-error/5 dark:bg-error/10' : 'border-l-4 border-transparent',
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
-                    onClick={() => navigate(`/composition/${comp.id}`)} // Updated path
+                    onClick={() => navigate(`/improvisation/${imp.id}`)}
                   >
                     <CardContent className={cn(
                         "p-4 flex items-center space-x-4",
@@ -414,15 +414,15 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                     )}>
                       <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
-                            id={`select-${comp.id}`}
+                            id={`select-${imp.id}`}
                             checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectComposition(comp.id, !!checked)}
+                            onCheckedChange={(checked) => handleSelectComposition(imp.id, !!checked)}
                             className="h-5 w-5"
                         />
                       </div>
                       
                       <Avatar className="h-20 w-20 rounded-md border border-border/50 shadow-sm flex-shrink-0">
-                        <AvatarImage src={comp.artwork_url || undefined} alt={comp.generated_name || "Artwork"} />
+                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
                         <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
                           <ImageIcon className="h-10 w-10 text-muted-foreground" />
                         </AvatarFallback>
@@ -431,20 +431,20 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                       <div className="flex-grow space-y-1">
                         <h3 className="font-semibold text-lg leading-tight flex items-center">
                             {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-error flex-shrink-0" />}
-                            {comp.generated_name || comp.file_name || 'Untitled Idea'}
+                            {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                            {format(new Date(comp.created_at), 'MMM dd, yyyy')}
+                            {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {getStatusBadge(comp.status, hasFile)}
+                            {getStatusBadge(imp.status, hasFile)}
                             {notesBadge}
                         </div>
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
-                            onClick={(e) => { e.stopPropagation(); navigate(`/composition/${comp.id}`); }} // Updated path
+                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
                             <Icon className={cn(
                                 "w-4 h-4 mr-2", 
@@ -486,4 +486,4 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   );
 };
 
-export default CompositionList;
+export default ImprovisationList;

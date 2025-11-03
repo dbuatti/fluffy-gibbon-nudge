@@ -9,25 +9,22 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-interface CompositionData { // Renamed interface
-  id: string;
+interface ImprovisationData {
+  id: string; // Added ID for linking
   generated_name: string | null;
   primary_genre: string | null;
   secondary_genre: string | null;
   artwork_url: string | null;
   is_improvisation: boolean | null;
   is_piano: boolean | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
 }
 
 interface DistroKidTabProps {
-  imp: CompositionData; // Updated prop name and type
-  isReady: boolean;
+  imp: ImprovisationData;
+  isReady: boolean; // New prop for overall readiness
 }
 
-const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => { // Updated prop name
+const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => {
   const isCompleted = !!imp.generated_name;
   const hasArtwork = !!imp.artwork_url;
 
@@ -83,7 +80,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => { // Upd
                 You must generate or upload artwork before distribution.
               </p>
               {/* Link to the Assets tab and the specific card ID */}
-              <Link to={`/composition/${imp.id}?tab=assets-downloads#artwork-actions`}> {/* Updated path */}
+              <Link to={`/improvisation/${imp.id}?tab=assets-downloads#artwork-actions`}>
                 <Button variant="destructive" className="mt-4">
                   Go to Artwork Actions <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>

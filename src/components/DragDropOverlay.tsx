@@ -11,7 +11,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const navigate = useNavigate();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const dragCounter = useRef(0);
+  const dragCounter = useRef(0); // Ref to track nested dragenter/dragleave events
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    dragCounter.current = 0;
+    dragCounter.current = 0; // Reset counter on drop
 
     if (!session) {
         showError("Please sign in to upload files.");
@@ -66,13 +66,13 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const user = session.user;
     const fileExtension = file.name.split('.').pop();
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'audio_compositions'; // Updated bucket name
+    const bucketName = 'piano_improvisations';
     const generatedName = file.name.replace(`.${fileExtension}`, '').trim();
 
     try {
       // 1. Create placeholder record (assuming it's an improvisation by default for quick capture)
-      const { data: newCompData, error: dbError } = await supabase
-        .from('compositions') // Updated table name
+      const { data: newImpData, error: dbError } = await supabase
+        .from('improvisations')
         .insert({
           user_id: user.id,
           file_name: file.name,
@@ -85,7 +85,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         .single();
 
       if (dbError) throw dbError;
-      const compositionId = newCompData.id; // Renamed variable
+      const improvisationId = newImpData.id;
 
       // 2. Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -100,15 +100,15 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
       // 3. Trigger the analysis Edge Function (asynchronously)
       await supabase.functions.invoke('analyze-improvisation', {
         body: {
-          compositionId: compositionId, // Updated parameter name
+          improvisationId: improvisationId,
           storagePath: filePath,
-          fileName: file.name,
+          fileName: file.name, // <-- ADDED file.name
           isImprovisation: true,
         },
       });
 
       showSuccess(`Composition created and analysis started! Redirecting...`);
-      navigate(`/composition/${compositionId}`); // Updated path
+      navigate(`/improvisation/${improvisationId}`);
 
     } catch (error) {
       console.error('Instant upload failed:', error);

@@ -41,30 +41,28 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Composition { // Renamed interface
-  id: string;
-  generated_name: string | null;
-  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-  is_ready_for_release: boolean | null;
-  is_improvisation: boolean | null;
-  is_piano: boolean | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  analysis_data: AnalysisData | null;
-  // NEW INSIGHT TIMER FIELDS
-  insight_content_type: string | null;
-  insight_language: string | null;
-  insight_primary_use: string | null;
-  insight_audience_level: string | null;
-  insight_audience_age: string[] | null;
-  insight_voice: string | null;
-}
-
 interface CompositionMetadataDialogProps {
-  imp: Composition; // Updated prop name and type
+  imp: {
+    id: string;
+    generated_name: string | null;
+    status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
+    is_ready_for_release: boolean | null;
+    is_improvisation: boolean | null;
+    is_piano: boolean | null;
+    is_instrumental: boolean | null;
+    is_original_song: boolean | null;
+    has_explicit_lyrics: boolean | null;
+    primary_genre: string | null;
+    secondary_genre: string | null;
+    analysis_data: AnalysisData | null;
+    // NEW INSIGHT TIMER FIELDS
+    insight_content_type: string | null;
+    insight_language: string | null;
+    insight_primary_use: string | null;
+    insight_audience_level: string | null;
+    insight_audience_age: string[] | null;
+    insight_voice: string | null;
+  };
   isPending: boolean;
   isCoreMetadataComplete: boolean;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
@@ -85,7 +83,7 @@ interface CompositionMetadataDialogProps {
 }
 
 const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
-  imp, // Updated prop name
+  imp,
   isPending,
   isCoreMetadataComplete,
   handleUpdatePrimaryGenre,

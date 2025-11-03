@@ -2,28 +2,28 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
-interface UpdateCompositionPayload { // Renamed interface
+interface UpdatePayload {
   id: string;
   updates: { [key: string]: any };
 }
 
-const updateComposition = async ({ id, updates }: UpdateCompositionPayload) => { // Renamed function
+const updateImprovisation = async ({ id, updates }: UpdatePayload) => {
   const { error } = await supabase
-    .from('compositions') // Updated table name
+    .from('improvisations')
     .update(updates)
     .eq('id', id);
 
   if (error) throw new Error(error.message);
 };
 
-export const useUpdateComposition = (compositionId: string) => { // Renamed hook and parameter
+export const useUpdateImprovisation = (improvisationId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (updates: { [key: string]: any }) => updateComposition({ id: compositionId, updates }), // Updated function call
+    mutationFn: (updates: { [key: string]: any }) => updateImprovisation({ id: improvisationId, updates }),
     onSuccess: (data, variables) => {
-      // Invalidate the specific composition query to refetch the latest data
-      queryClient.invalidateQueries({ queryKey: ['composition', compositionId] }); // Updated query key
+      // Invalidate the specific improvisation query to refetch the latest data
+      queryClient.invalidateQueries({ queryKey: ['improvisation', improvisationId] });
       
       // Show success message based on the updated field
       const fieldName = Object.keys(variables)[0];

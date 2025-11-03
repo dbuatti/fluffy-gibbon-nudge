@@ -8,13 +8,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import ThemeToggle from './ThemeToggle';
+import ThemeToggle from './ThemeToggle'; // Import ThemeToggle
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/compositions', icon: Music, label: 'Compositions' }, // Updated route and label
-  { to: '/composition-script', icon: FileText, label: 'Local Script' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/improvisations', icon: Music, label: 'Compositions' }, // Placeholder route for future list view
+  { to: '/composition-script', icon: FileText, label: 'Local Script' }, // NEW: Composition Script link
+  { to: '/settings', icon: Settings, label: 'Settings' }, // Placeholder route
 ];
 
 const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick }) => {
@@ -28,12 +28,12 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
 
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6"> {/* Added justify-between */}
         <div className="flex items-center space-x-2">
           <Sparkles className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-bold tracking-tight">AI Composer Hub</h1>
         </div>
-        <ThemeToggle />
+        <ThemeToggle /> {/* Added ThemeToggle here */}
       </div>
 
       <nav className="flex-grow space-y-1">

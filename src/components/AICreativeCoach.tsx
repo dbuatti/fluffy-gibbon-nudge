@@ -7,11 +7,11 @@ import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
-  compositionId: string; // Renamed prop
+  improvisationId: string;
   hasAudioFile: boolean;
 }
 
-const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAudioFile }) => { // Renamed prop
+const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasAudioFile }) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,7 +27,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAud
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-creative-suggestions', {
-        body: { compositionId }, // Updated parameter name
+        body: { improvisationId },
       });
 
       if (error) throw error;
@@ -45,7 +45,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAud
     } finally {
       setIsLoading(false);
     }
-  }, [compositionId, hasAudioFile]); // Updated dependency
+  }, [improvisationId, hasAudioFile]);
 
   return (
     <Card className="shadow-lg dark:shadow-xl border-purple-500/50 border-2">

@@ -9,13 +9,13 @@ const corsHeaders = {
 }
 
 // Function to invoke the artwork generation function
-async function triggerArtworkGeneration(supabaseClient: any, compositionId: string, generatedName: string, primaryGenre: string, secondaryGenre: string, mood: string) { // Updated parameter name
-    console.log(`Invoking generate-artwork for ID: ${compositionId}`); // Updated parameter name
+async function triggerArtworkGeneration(supabaseClient: any, improvisationId: string, generatedName: string, primaryGenre: string, secondaryGenre: string, mood: string) {
+    console.log(`Invoking generate-artwork for ID: ${improvisationId}`);
     
     // NOTE: We pass the current (potentially user-set) metadata to the artwork generator.
     const { data, error } = await supabaseClient.functions.invoke('generate-artwork', {
         body: {
-            compositionId: compositionId, // Updated parameter name
+            improvisationId: improvisationId,
             generatedName: generatedName,
             primaryGenre: primaryGenre,
             secondaryGenre: secondaryGenre,
@@ -93,31 +93,31 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { compositionId, storagePath, fileName } = await req.json(); // Updated parameter name
+    const { improvisationId, storagePath, fileName } = await req.json();
 
-    if (!compositionId || !storagePath || !fileName) {
+    if (!improvisationId || !storagePath || !fileName) {
       return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Starting file processing for ID: ${compositionId} at path: ${storagePath}.`); // Updated parameter name
+    console.log(`Starting file processing for ID: ${improvisationId} at path: ${storagePath}.`);
 
     // 1. Fetch existing record to get current metadata (like is_improvisation, genres, etc.)
-    const { data: comp, error: fetchError } = await supabase // Renamed variable
-        .from('compositions') // Updated table name
+    const { data: imp, error: fetchError } = await supabase
+        .from('improvisations')
         .select('generated_name, primary_genre, secondary_genre, analysis_data, is_improvisation')
-        .eq('id', compositionId) // Updated parameter name
+        .eq('id', improvisationId)
         .single();
 
-    if (fetchError || !comp) { // Updated variable
-        console.error('Failed to fetch composition data:', fetchError);
-        throw new Error('Failed to fetch composition data.');
+    if (fetchError || !imp) {
+        console.error('Failed to fetch improvisation data:', fetchError);
+        throw new Error('Failed to fetch improvisation data.');
     }
 
     // 2. Generate Name (if not already set by user during quick capture)
-    let generatedName = comp.generated_name; // Updated variable
+    let generatedName = imp.generated_name;
     if (!generatedName || generatedName.includes('Quick Capture')) {
         generatedName = await generateNameWithGemini(fileName);
     }
@@ -125,12 +125,12 @@ serve(async (req) => {
     // 3. Update the database record with the generated name and set status to completed
     // NOTE: We are NOT setting analysis_data, genres, or is_piano here.
     const { error: updateError } = await supabase
-      .from('compositions') // Updated table name
+      .from('improvisations')
       .update({ 
         status: 'completed', 
         generated_name: generatedName,
       })
-      .eq('id', compositionId); // Updated parameter name
+      .eq('id', improvisationId);
 
     if (updateError) {
       console.error('Database update failed:', updateError);
@@ -140,12 +140,12 @@ serve(async (req) => {
       });
     }
 
-    console.log(`File processing completed for ID: ${compositionId}. Name: ${generatedName}`); // Updated parameter name
+    console.log(`File processing completed for ID: ${improvisationId}. Name: ${generatedName}`);
     
     // 4. Trigger Artwork Generation (asynchronously) using existing/default metadata
     // We use existing genres/moods, which might be null/default, but the function handles that.
-    const currentMood = comp.analysis_data?.mood || 'Ambient'; // Updated variable
-    triggerArtworkGeneration(supabase, compositionId, generatedName, comp.primary_genre || 'Ambient', comp.secondary_genre || 'Ambient', currentMood); // Updated variable
+    const currentMood = imp.analysis_data?.mood || 'Ambient';
+    triggerArtworkGeneration(supabase, improvisationId, generatedName, imp.primary_genre || 'Ambient', imp.secondary_genre || 'Ambient', currentMood);
 
 
     return new Response(JSON.stringify({ success: true, generatedName }), {

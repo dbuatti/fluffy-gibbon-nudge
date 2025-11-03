@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError } from '@/utils/toast';
-import CaptureIdeaDialog from './CaptureIdeaDialog';
+import CaptureIdeaDialog from './CaptureIdeaDialog'; // Import the dialog
 import { cn } from '@/lib/utils';
 
 const fetchDailyPrompt = async (): Promise<string> => {

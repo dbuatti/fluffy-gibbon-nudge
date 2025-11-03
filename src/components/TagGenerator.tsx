@@ -9,11 +9,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface TagGeneratorProps {
-  compositionId: string; // Renamed prop
+  improvisationId: string;
   initialTags: string[] | null;
 }
 
-const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags }) => { // Renamed prop
+const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTags }) => {
   const [tags, setTags] = useState<string[]>(initialTags || []);
   const [inputValue, setInputValue] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved'>('idle');
@@ -25,9 +25,9 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags 
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('compositions') // Updated table name
+        .from('improvisations')
         .update({ user_tags: currentTags })
-        .eq('id', compositionId); // Updated variable
+        .eq('id', improvisationId);
 
       if (error) throw error;
 
@@ -38,7 +38,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags 
       showError('Failed to autosave tags.');
       setSaveStatus('idle');
     }
-  }, [compositionId]); // Updated dependency
+  }, [improvisationId]);
 
   // Effect to trigger save when tags change
   useEffect(() => {
@@ -68,8 +68,8 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags 
     if (newTag && !tags.includes(newTag)) {
       setTags(prev => [...prev, newTag]);
       setInputValue('');
-      setSaveStatus('unsaved');
-      inputRef.current?.focus();
+      setSaveStatus('unsaved'); // Indicate change
+      inputRef.current?.focus(); // Focus for rapid entry
     }
   }, [inputValue, tags]);
 
@@ -93,8 +93,6 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags 
       textToCopy = tags.map(tag => `#${tag}`).join(' ');
     } else {
       textToCopy = tags.join(', ');
-      // FIX: Commented out the problematic line
-      // To copy the text, you can use the `navigator.clipboard.writeText()` method.
     }
 
     if (textToCopy) {

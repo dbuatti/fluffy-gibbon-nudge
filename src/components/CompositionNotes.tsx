@@ -15,9 +15,9 @@ interface NoteTab {
 }
 
 interface CompositionNotesProps {
-  compositionId: string; // Renamed prop
+  improvisationId: string;
   initialNotes: NoteTab[] | null;
-  hasAudioFile: boolean;
+  hasAudioFile: boolean; // This prop will no longer affect locking, but is still passed
 }
 
 // Updated color definitions for a cleaner, more defined look
@@ -28,7 +28,7 @@ const defaultNotes: NoteTab[] = [
   { id: 'zone4', title: 'Zone 4: Next Steps (Single most actionable task)', color: 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/30', content: '' },
 ];
 
-const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, initialNotes, hasAudioFile }) => { // Renamed prop
+const CompositionNotes: React.FC<CompositionNotesProps> = ({ improvisationId, initialNotes, hasAudioFile }) => {
   // Ensure we use the initial notes if they exist, otherwise use defaults
   const initialData = initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes;
   const [notes, setNotes] = useState<NoteTab[]>(initialData);
@@ -39,9 +39,9 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('compositions') // Updated table name
+        .from('improvisations')
         .update({ notes: currentNotes })
-        .eq('id', compositionId); // Updated variable
+        .eq('id', improvisationId);
 
       if (error) throw error;
 
@@ -53,8 +53,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
       showError('Failed to autosave notes.');
       setSaveStatus('idle'); // Revert to idle on error
     }
-  }, [compositionId]); // Updated dependency
-
+  }, [improvisationId]);
 
   // Effect to debounce saving whenever notes change
   useEffect(() => {
@@ -135,6 +134,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
       </CardHeader>
       <CardContent className="space-y-6">
         {notes.map((note) => {
+          // Removed the `isLocked` condition, all zones are now always editable.
           
           return (
             <div key={note.id} className={cn("p-4 rounded-lg border border-border shadow-inner-lg", note.color)}>
@@ -146,7 +146,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
                           placeholder="The single most important next task (10-15 words)"
                           value={note.content}
                           onChange={(e) => handleContentChange(note.id, e.target.value)}
-                          maxLength={100}
+                          maxLength={100} // Enforce short length
                           className="bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
@@ -155,7 +155,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
                   </>
               ) : (
                   <Textarea
-                      placeholder={`Jot down your thoughts for ${note.title.split(': ')[1].toLowerCase()} here...`}
+                      placeholder={`Jot down your thoughts for ${note.title.split(': ')[1].toLowerCase()} here...`} // Dynamic placeholder
                       value={note.content}
                       onChange={(e) => handleContentChange(note.id, e.target.value)}
                       rows={5}

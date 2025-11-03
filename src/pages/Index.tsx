@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import CompositionList from "@/components/CompositionList";
+import ImprovisationList from "@/components/ImprovisationList";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
@@ -11,35 +11,34 @@ import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useSession } from '@/integrations/supabase/session-context';
-import { supabase } from '@/integrations/supabase/client';
-import DailyPromptCard from '@/components/DailyPromptCard';
-import StreakCard from '@/components/StreakCard';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
+import DailyPromptCard from '@/components/DailyPromptCard'; // NEW: Import DailyPromptCard
+import StreakCard from '@/components/StreakCard'; // NEW: Import StreakCard
 
-// Define the missing URL constants
 const DISTROKID_URL = "https://distrokid.com/new/";
 const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
 const GEMINI_URL = "https://gemini.google.com/app/0569ed6eee7e8c1a";
 
-interface Composition {
+interface Improvisation {
   created_at: string;
 }
 
-const fetchCompositionDates = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => {
-  console.log("fetchCompositionDates: Attempting to fetch dates for user:", sessionUserId);
-  console.log("fetchCompositionDates: Supabase client session:", supabaseClient.auth.currentSession);
+const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
+  console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
+  console.log("fetchImprovisationDates: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
   const { data, error } = await supabaseClient
-    .from('compositions')
+    .from('improvisations')
     .select('created_at')
-    .eq('user_id', sessionUserId)
+    .eq('user_id', sessionUserId) // Filter by user_id
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchCompositionDates: Fetched data:", data);
-  return data as Composition[];
+  console.log("fetchImprovisationDates: Fetched data:", data);
+  return data as Improvisation[];
 };
 
-const useStreakTracker = (data: Composition[] | undefined) => {
+const useStreakTracker = (data: Improvisation[] | undefined) => {
   if (!data || data.length === 0) return { streak: 0, todayActivity: false };
 
   const activityDates = new Set(
@@ -49,7 +48,7 @@ const useStreakTracker = (data: Composition[] | undefined) => {
   let currentStreak = 0;
   const todayString = format(new Date(), 'yyyy-MM-dd');
   
-  const todayActivity = activityDates.has(todayString);
+  const todayActivity = activityDates.has(todayString); // Define todayActivity here
   
   let dateToCheck = new Date();
   
@@ -101,7 +100,7 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const { session, isLoading: isSessionLoading } = useSession();
+  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -109,20 +108,20 @@ const Index = () => {
 
   console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: compositionDates } = useQuery<Composition[]>({
-    queryKey: ['compositionDates'],
-    queryFn: () => fetchCompositionDates(supabase, session!.user.id),
-    enabled: !isSessionLoading && !!session?.user,
+  const { data: improvisationDates } = useQuery<Improvisation[]>({
+    queryKey: ['improvisationDates'],
+    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Use directly imported supabase
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,
   });
 
-  const { streak, todayActivity } = useStreakTracker(compositionDates);
+  const { streak, todayActivity } = useStreakTracker(improvisationDates);
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries({ queryKey: ['compositions'] });
+    queryClient.invalidateQueries({ queryKey: ['improvisations'] });
     queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
-    queryClient.invalidateQueries({ queryKey: ['compositionDates'] });
+    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] });
   };
   
   const streakMessage = streak > 0 
@@ -215,10 +214,10 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Composition List */}
-        <CompositionList
+        {/* Improvisation List */}
+        <ImprovisationList 
           viewMode={viewMode} 
-          setViewMode={setViewMode}
+          setViewMode={setViewMode} // Pass setViewMode to ImprovisationList
           searchTerm={searchTerm} 
           filterStatus={filterStatus} 
           sortOption={sortOption} 
