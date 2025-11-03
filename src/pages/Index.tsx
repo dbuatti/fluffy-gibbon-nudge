@@ -10,7 +10,7 @@ import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
 import DailyPromptCard from "@/components/DailyPromptCard";
 import { supabase } from '@/integrations/supabase/client';
 import { isToday, isYesterday, parseISO, format, subDays } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
 
 const DISTROKID_URL = "https://distrokid.com/new/";
@@ -119,9 +119,8 @@ const Index = () => {
           {/* Left Column (Main Content: Pipeline & List) - Takes 2/3 width on large screens */}
           <div className="lg:col-span-2 space-y-6">
             
-            {/* Primary Action & Pipeline */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <CompositionPipeline />
+            {/* Primary Action (Aligned Right) */}
+            <div className="flex justify-end">
                 <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
                   <Button 
                     variant="default" 
@@ -131,6 +130,9 @@ const Index = () => {
                   </Button>
                 </CaptureIdeaDialog>
             </div>
+            
+            {/* Composition Pipeline (Full Width) */}
+            <CompositionPipeline />
             
             {/* Improvisation List */}
             <ImprovisationList />
