@@ -150,7 +150,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : Volume2;
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 shadow-card-light dark:shadow-card-dark">
       <CardContent className="p-0 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold truncate">{fileName}</h3>
@@ -228,7 +228,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
                     <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                     {error}
                 </p>
-                {/* Removed redundant Clear Audio File button here, now using the icon in the header */}
             </div>
         )}
 

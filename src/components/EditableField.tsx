@@ -107,7 +107,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
 
   return (
     <div className={cn("flex items-center group", className)}>
-      <span className={cn("truncate", !value && "text-muted-foreground italic")}>
+      <span className={cn("truncate text-foreground", !value && "text-muted-foreground italic")}>
         {value || placeholder}
       </span>
       {!disabled && (
