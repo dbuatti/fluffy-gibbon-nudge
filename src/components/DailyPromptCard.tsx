@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,9 +31,17 @@ const DailyPromptCard: React.FC = () => {
     refetchOnWindowFocus: false,
   });
   
+  const [cooldown, setCooldown] = useState(false); // New state for cooldown
+
   const handleRefetch = () => {
+    if (cooldown) return; // Prevent refetch if on cooldown
+
+    setCooldown(true);
     refetch();
     showError("Generating a new prompt...");
+    setTimeout(() => {
+      setCooldown(false);
+    }, 15000); // 15-second cooldown
   };
   
   // Clean the prompt for use as a title
@@ -52,11 +60,11 @@ const DailyPromptCard: React.FC = () => {
             variant="ghost" 
             size="icon" 
             onClick={handleRefetch} 
-            disabled={isLoading}
-            title="Generate a new prompt"
+            disabled={isLoading || cooldown} // Disable button during loading or cooldown
+            title={cooldown ? "Please wait before generating a new prompt" : "Generate a new prompt"}
             className="text-muted-foreground hover:text-primary"
         >
-            {isLoading ? (
+            {isLoading || cooldown ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
                 <RefreshCw className="h-4 w-4" />
@@ -69,7 +77,7 @@ const DailyPromptCard: React.FC = () => {
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <p className="text-sm text-red-500">Error loading prompt.</p>
+          <p className="text-sm text-red-500">Error loading prompt. Please wait a moment and try again.</p>
         ) : (
           <p className="text-xl font-semibold italic text-foreground">
             "{prompt}"
