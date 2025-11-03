@@ -78,8 +78,13 @@ const CompositionDetails: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('details');
   const [aiGeneratedDescription, setAiGeneratedDescription] = useState<string | null>(null);
 
-  // FIX: Removed explicit UseQueryResult type annotation from destructuring
-  const { data: comp, isLoading, error, refetch } = useQuery({
+  // FIX: Explicitly provide generic types to useQuery
+  const { data: comp, isLoading, error, refetch } = useQuery<
+    Composition,
+    Error,
+    Composition,
+    readonly ['composition', string]
+  >({
     queryKey: ['composition', id!] as const, // Non-null assertion here as enabled ensures id is present
     queryFn: () => fetchCompositionDetails(supabase, id!),
     enabled: !!id && !isSessionLoading && !!session?.user,
