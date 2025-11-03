@@ -39,7 +39,8 @@ const Login = () => {
             },
           }}
           theme="light"
-          redirectTo={window.location.origin + '/login'}
+          // Changed redirect to '/' for successful login to go to dashboard
+          redirectTo={window.location.origin + '/'}
         />
 
         <div className="text-center pt-4">
