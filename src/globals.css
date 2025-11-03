@@ -1,3 +1,131 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Colors */
+    --primary: 217.2 91.2% 59.8%; /* Blue - primary actions */
+    --primary-foreground: 210 40% 98%;
+
+    --success: 142.1 76.2% 36.3%; /* Green - completed states */
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38.5 92.7% 50.9%; /* Amber - needs attention */
+    --warning-foreground: 222.2 84% 4.9%;
+
+    --error: 0 84.2% 60.2%; /* Red - errors */
+    --error-foreground: 210 40% 98%;
+
+    --info: 210 40% 96.1%; /* Light gray/blue for neutral/in-progress */
+    --info-foreground: 222.2 47.4% 11.2%;
+
+    --neutral: 215.4 16.3% 46.9%; /* Slate - secondary content */
+    --neutral-foreground: 210 40% 98%;
+
+    /* Shadcn defaults, adjusted for new palette */
+    --background: 0 0% 100%; /* White */
+    --foreground: 222.2 84% 4.9%; /* Near Black */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217.2 91.2% 59.8%; /* Primary blue */
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Colors */
+    --primary: 224 76.3% 58%; /* Vibrant Blue/Purple for primary actions */
+    --primary-foreground: 210 40% 98%;
+
+    --success: 142.1 70.2% 40.3%; /* Slightly brighter green for dark mode */
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38.5 92.7% 50.9%; /* Amber */
+    --warning-foreground: 222.2 84% 4.9%;
+
+    --error: 0 62.8% 30.6%; /* Red */
+    --error-foreground: 210 40% 98%;
+
+    --info: 240 5% 15%; /* Darker neutral/in-progress */
+    --info-foreground: 210 40% 98%;
+
+    --neutral: 215 20.2% 65.1%; /* Lighter slate for dark mode */
+    --neutral-foreground: 210 40% 98%;
+
+    /* Shadcn defaults, adjusted for new palette */
+    --background: 240 10% 3.9%; /* Deep Charcoal/Blue background */
+    --foreground: 210 40% 98%; /* Near White */
+    --card: 240 10% 5%; /* Slightly darker card background */
+    --card-foreground: 210 40% 98%;
+    --popover: 240 10% 5%;
+    --popover-foreground: 210 40% 98%;
+    --secondary: 240 5% 15%; /* Darker secondary/muted elements */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 240 5% 15%;
+    --accent-foreground: 210 40% 98%;
+    --border: 240 5% 20%;
+    --input: 240 5% 15%;
+    --ring: 224 76.3% 58%; /* Primary blue */
+    
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Typography Hierarchy */
+  h1 {
+    @apply text-3xl font-bold leading-tight; /* text-h1 */
+  }
+  h2 {
+    @apply text-2xl font-semibold leading-snug; /* text-h2 */
+  }
+  h3 {
+    @apply text-xl font-semibold leading-normal; /* text-h3 */
+  }
+  p {
+    @apply text-base leading-relaxed; /* text-body */
+  }
+  .text-sm {
+    @apply text-sm leading-normal; /* text-small */
+  }
+  .text-xs {
+    @apply text-xs leading-snug;
+  }
+}
