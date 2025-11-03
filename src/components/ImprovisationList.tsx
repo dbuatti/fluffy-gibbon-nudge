@@ -54,10 +54,11 @@ interface Improvisation {
   insight_voice: string | null;
 }
 
-const STALLED_THRESHOLD_HOURS = 48;
+const STALLED_THRESHOLD_HOURS = 24; // Define the constant here
 
 const fetchImprovisations = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
+  console.log("fetchImprovisations: Supabase client session:", supabase.auth.currentSession); // Add this line
   const { data, error } = await supabase
     .from('improvisations')
     .select('*') // Select all fields for potential export

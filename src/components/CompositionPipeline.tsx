@@ -13,6 +13,7 @@ interface StatusCount {
 
 const fetchStatusCounts = async (supabase: any, sessionUserId: string): Promise<StatusCount[]> => {
   console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
+  console.log("fetchStatusCounts: Supabase client session:", supabase.auth.currentSession); // Add this line
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabase
@@ -98,7 +99,7 @@ const CompositionPipeline: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></div>;
+    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading compositions...</p></div>;
   }
 
   if (error) {
@@ -127,7 +128,7 @@ const CompositionPipeline: React.FC = () => {
                   "hover:shadow-md dark:hover:shadow-lg"
                 )}
               >
-                <div className={cn("h-12 w-12 flex items-center justify-center rounded-full mb-2", stage.bg)}> {/* Larger icon container */}
+                <div className="h-12 w-12 flex items-center justify-center rounded-full mb-2"> {/* Larger icon container */}
                   <Icon className={cn("h-7 w-7 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} /> {/* Larger icon */}
                 </div>
                 

@@ -40,7 +40,13 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
         console.error("Error fetching initial session:", error);
       }
       setSession(initialSession);
+      // Explicitly set the session on the client after fetching it.
+      // This might help ensure the client's internal state is fully synchronized.
+      if (initialSession) {
+        supabaseClient.auth.setSession(initialSession);
+      }
       setIsLoading(false);
+      console.log("SessionContextProvider: Initial session loaded. Session:", initialSession, "isLoading:", false);
     };
 
     getInitialSession();
@@ -48,7 +54,8 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, currentSession) => {
       console.log("SessionContextProvider: Auth state changed. Event:", event, "Session:", currentSession);
       setSession(currentSession);
-      // Removed explicit supabaseClient.auth.setSession() calls as onAuthStateChange handles internal client state.
+      // The onAuthStateChange listener automatically updates the client's internal session.
+      // No need for explicit supabaseClient.auth.setSession() here.
     });
 
     return () => {
