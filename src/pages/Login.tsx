@@ -25,7 +25,8 @@ const Login = () => {
         
         <Auth
           supabaseClient={supabase}
-          providers={[]}
+          // Added 'google' provider
+          providers={['google']} 
           appearance={{
             theme: ThemeSupa,
             variables: {
@@ -38,7 +39,6 @@ const Login = () => {
             },
           }}
           theme="light"
-          // Changed redirect to /login to display the password reset form
           redirectTo={window.location.origin + '/login'}
         />
 

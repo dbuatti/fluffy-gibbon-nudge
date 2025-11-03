@@ -32,7 +32,8 @@ const Signup = () => {
         
         <Auth
           supabaseClient={supabase}
-          providers={[]}
+          // Added 'google' provider
+          providers={['google']} 
           appearance={{
             theme: ThemeSupa,
             variables: {
