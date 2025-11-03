@@ -59,8 +59,7 @@ const STALLED_THRESHOLD_HOURS = 48;
 
 const fetchImprovisations = async (sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
-  const { data: { session } } = await supabase.auth.getSession(); // Get current session from client
-  console.log("fetchImprovisations: Supabase client session at call time:", session); // Log it
+  // Removed redundant supabase.auth.getSession() call
   const { data, error } = await supabase
     .from('improvisations')
     .select('*') // Select all fields for potential export

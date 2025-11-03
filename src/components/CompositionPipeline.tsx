@@ -14,8 +14,7 @@ interface StatusCount {
 
 const fetchStatusCounts = async (sessionUserId: string): Promise<StatusCount[]> => {
   console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
-  const { data: { session } } = await supabase.auth.getSession(); // Get current session from client
-  console.log("fetchStatusCounts: Supabase client session at call time:", session); // Log it
+  // Removed redundant supabase.auth.getSession() call
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabase
@@ -26,7 +25,7 @@ const fetchStatusCounts = async (sessionUserId: string): Promise<StatusCount[]> 
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
-      // Log the full error object, not just message
+      // Log the full error object for more details
       console.error(`Full Supabase error for status ${status}:`, error); 
       return { status, count: 0 };
     }

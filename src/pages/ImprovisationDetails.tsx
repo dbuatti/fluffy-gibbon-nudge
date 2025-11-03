@@ -61,8 +61,7 @@ interface Improvisation {
 
 const fetchImprovisationDetails = async (id: string, sessionUserId: string): Promise<Improvisation> => {
   console.log("fetchImprovisationDetails: Attempting to fetch details for ID:", id, "user:", sessionUserId);
-  const { data: { session } } = await supabase.auth.getSession(); // Get current session from client
-  console.log("fetchImprovisationDetails: Supabase client session at call time:", session); // Log it
+  // Removed redundant supabase.auth.getSession() call
   const { data, error } = await supabase
     .from('improvisations')
     .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')

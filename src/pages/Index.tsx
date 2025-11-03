@@ -24,8 +24,7 @@ interface Improvisation {
 
 const fetchImprovisationDates = async (sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
-  const { data: { session } } = await supabase.auth.getSession(); // Get current session from client
-  console.log("fetchImprovisationDates: Supabase client session at call time:", session); // Log it
+  // Removed redundant supabase.auth.getSession() call
   const { data, error } = await supabase
     .from('improvisations')
     .select('created_at')
