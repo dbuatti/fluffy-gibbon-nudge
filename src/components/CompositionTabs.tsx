@@ -231,7 +231,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
       if (uploadError) throw uploadError;
       
       // 2. Get public URL
-      const publicUrl = getPublicArtworkUrl(filePath);
+      const publicUrl = getPublicArtworkUrl(supabase, filePath);
 
       // 3. Update the improvisation record with the new artwork_url
       const { error: dbError } = await supabase
