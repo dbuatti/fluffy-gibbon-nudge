@@ -110,22 +110,24 @@
   }
 
   /* Typography Hierarchy */
+  /*
   h1 {
-    @apply text-3xl font-bold leading-tight; /* text-h1 */
+    @apply text-3xl font-bold leading-tight; 
   }
   h2 {
-    @apply text-2xl font-semibold leading-snug; /* text-h2 */
+    @apply text-2xl font-semibold leading-snug; 
   }
   h3 {
-    @apply text-xl font-semibold leading-normal; /* text-h3 */
+    @apply text-xl font-semibold leading-normal; 
   }
   p {
-    @apply text-base leading-relaxed; /* text-body */
+    @apply text-base leading-relaxed; 
   }
   .text-sm {
-    @apply text-sm leading-normal; /* text-small */
+    @apply text-sm leading-normal; 
   }
   .text-xs {
     @apply text-xs leading-snug;
   }
+  */
 }
