@@ -138,7 +138,7 @@ interface ImprovisationListProps {
 
 const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading } = useSession();
+  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
   const queryClient = useQueryClient();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
@@ -147,7 +147,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
     queryFn: fetchImprovisations,
-    enabled: !isSessionLoading && !!session?.user?.id,
+    enabled: !isSessionLoading && !!session?.user, // Changed to !!session?.user
     refetchInterval: 5000,
   });
 
@@ -440,7 +440,15 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
                             onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
-                            <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
+                            <Icon className={cn(
+                                "w-4 h-4 mr-2", 
+                                nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
+                                nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('Ready') && 'text-success dark:text-success-foreground',
+                                nextAction.label.includes('Submit') && 'text-success dark:text-success-foreground',
+                                nextAction.label.includes('Notes') && 'text-primary dark:text-primary-foreground',
+                                nextAction.label.includes('Artwork') && 'text-primary dark:text-primary-foreground',
+                            )} />
                             <span className={cn(
                                 nextAction.label.includes('Analyzing') && 'text-warning dark:text-warning-foreground',
                                 nextAction.label.includes('Upload Audio') && 'text-primary dark:text-primary-foreground',

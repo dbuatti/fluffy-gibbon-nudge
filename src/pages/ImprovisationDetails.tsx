@@ -105,7 +105,7 @@ const ImprovisationDetails: React.FC = () => {
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
     queryFn: () => fetchImprovisationDetails(id!),
-    enabled: !!id && !isSessionLoading && !!session?.user?.id, // Only enable query if ID, session is NOT loading, and user session is available
+    enabled: !!id && !isSessionLoading && !!session?.user, // Changed to !!session?.user
     refetchInterval: 5000,
   });
 
