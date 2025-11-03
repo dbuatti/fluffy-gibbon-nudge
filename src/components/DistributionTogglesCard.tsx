@@ -2,10 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Piano, Music, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
 
 interface DistributionTogglesCardProps {
-  compositionId: string; // Renamed prop
+  improvisationId: string; // Renamed prop
   isPiano: boolean | null;
   isInstrumental: boolean | null;
   isOriginalSong: boolean | null;
@@ -13,13 +13,13 @@ interface DistributionTogglesCardProps {
 }
 
 const DistributionTogglesCard: React.FC<DistributionTogglesCardProps> = ({
-  compositionId, // Renamed prop
+  improvisationId, // Renamed prop
   isPiano,
   isInstrumental,
   isOriginalSong,
   hasExplicitLyrics,
 }) => {
-  const updateMutation = useUpdateComposition(compositionId); // Updated hook
+  const updateMutation = useUpdateImprovisation(improvisationId); // Updated hook
   const isPending = updateMutation.isPending;
 
   const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutate({ is_piano: checked });

@@ -8,7 +8,7 @@ interface AIAugmentationResult {
   updates: { [key: string]: any };
 }
 
-export const useAIAugmentation = (compositionId: string) => { // Renamed parameter
+export const useAIAugmentation = (improvisationId: string) => { // Renamed parameter
   const queryClient = useQueryClient();
   const [isPopulating, setIsPopulating] = useState(false);
   const [aiGeneratedDescription, setAiGeneratedDescription] = useState('');
@@ -22,7 +22,7 @@ export const useAIAugmentation = (compositionId: string) => { // Renamed paramet
 
     try {
       const { data, error } = await supabase.functions.invoke('populate-distribution-metadata', {
-        body: { compositionId }, // Updated parameter name
+        body: { improvisationId }, // Updated parameter name
       });
 
       if (error) throw error;
@@ -32,8 +32,8 @@ export const useAIAugmentation = (compositionId: string) => { // Renamed paramet
       if (result.description && result.updates) {
         setAiGeneratedDescription(result.description);
         
-        // Force refetch the composition details to show updated DB fields
-        queryClient.invalidateQueries({ queryKey: ['composition', compositionId] }); // Updated query key
+        // Force refetch the improvisation details to show updated DB fields
+        queryClient.invalidateQueries({ queryKey: ['improvisation', improvisationId] }); // Updated query key
         
         showSuccess("AI augmentation complete! All fields updated and description generated.");
       } else {
@@ -46,7 +46,7 @@ export const useAIAugmentation = (compositionId: string) => { // Renamed paramet
     } finally {
       setIsPopulating(false);
     }
-  }, [compositionId, queryClient, isPopulating]); // Updated dependency
+  }, [improvisationId, queryClient, isPopulating]); // Updated dependency
 
   return {
     isPopulating,

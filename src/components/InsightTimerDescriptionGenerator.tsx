@@ -7,10 +7,10 @@ import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface InsightTimerDescriptionGeneratorProps {
-  compositionId: string; // Renamed prop
+  improvisationId: string; // Renamed prop
 }
 
-const InsightTimerDescriptionGenerator: React.FC<InsightTimerDescriptionGeneratorProps> = ({ compositionId }) => { // Renamed prop
+const InsightTimerDescriptionGenerator: React.FC<InsightTimerDescriptionGeneratorProps> = ({ improvisationId }) => { // Renamed prop
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -21,7 +21,7 @@ const InsightTimerDescriptionGenerator: React.FC<InsightTimerDescriptionGenerato
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-description', {
-        body: { compositionId }, // Updated parameter name
+        body: { improvisationId }, // Updated parameter name
       });
 
       if (error) throw error;
@@ -39,7 +39,7 @@ const InsightTimerDescriptionGenerator: React.FC<InsightTimerDescriptionGenerato
     } finally {
       setIsLoading(false);
     }
-  }, [compositionId]); // Updated dependency
+  }, [improvisationId]); // Updated dependency
 
   const handleCopy = () => {
     if (description) {

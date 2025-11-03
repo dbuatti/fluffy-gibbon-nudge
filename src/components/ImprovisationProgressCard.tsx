@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Zap, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface CompositionProgressCardProps {
+interface ImprovisationProgressCardProps {
   progressValue: number;
   progressMessage: string;
   primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null;
@@ -15,7 +15,7 @@ interface CompositionProgressCardProps {
   isReadyForRelease: boolean | null;
 }
 
-const CompositionProgressCard: React.FC<CompositionProgressCardProps> = ({
+const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
   progressValue,
   progressMessage,
   primaryAction,
@@ -31,7 +31,7 @@ const CompositionProgressCard: React.FC<CompositionProgressCardProps> = ({
     )}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold flex items-center">
-          <Zap className="h-5 w-5 mr-2 text-yellow-500" /> Composition Readiness
+          <Zap className="h-5 w-5 mr-2 text-yellow-500" /> Improvisation Readiness
         </h3>
         <span className="text-sm font-bold text-primary">{progressValue}%</span>
       </div>
@@ -60,4 +60,4 @@ const CompositionProgressCard: React.FC<CompositionProgressCardProps> = ({
   );
 };
 
-export default CompositionProgressCard;
+export default ImprovisationProgressCard;

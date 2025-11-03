@@ -5,28 +5,28 @@ import { Menu, Trash2, Loader2, Settings, AlertTriangle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 
-interface CompositionSettingsSheetProps {
-  compositionId: string; // Renamed prop
-  compositionName: string; // Renamed prop
+interface ImprovisationSettingsSheetProps {
+  improvisationId: string; // Renamed prop
+  improvisationName: string; // Renamed prop
   handleDelete: () => void;
   isDeleting: boolean;
 }
 
-const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ compositionId, compositionName, handleDelete, isDeleting }) => { // Renamed props
+const ImprovisationSettingsSheet: React.FC<ImprovisationSettingsSheetProps> = ({ improvisationId, improvisationName, handleDelete, isDeleting }) => { // Renamed props
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" title="Composition Settings">
+        <Button variant="outline" size="icon" title="Improvisation Settings">
           <Settings className="h-5 w-5" />
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="sm:max-w-md">
         <SheetHeader>
           <SheetTitle className="flex items-center">
-            <Settings className="h-5 w-5 mr-2" /> Composition Settings
+            <Settings className="h-5 w-5 mr-2" /> Improvisation Settings
           </SheetTitle>
           <SheetDescription>
-            Manage advanced settings and perform destructive actions for this composition.
+            Manage advanced settings and perform destructive actions for this improvisation.
           </SheetDescription>
         </SheetHeader>
         
@@ -47,14 +47,14 @@ const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ com
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="w-full justify-start">
-                <Trash2 className="h-4 w-4 mr-2" /> Delete Composition
+                <Trash2 className="h-4 w-4 mr-2" /> Delete Improvisation
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the composition record "{compositionName}" and the uploaded audio file (if attached).
+                  This action cannot be undone. This will permanently delete the improvisation record "{improvisationName}" and the uploaded audio file (if attached).
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -63,7 +63,7 @@ const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ com
                   {isDeleting ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    'Delete Composition Permanently'
+                    'Delete Improvisation Permanently'
                   )}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -75,4 +75,4 @@ const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ com
   );
 };
 
-export default CompositionSettingsSheet;
+export default ImprovisationSettingsSheet;

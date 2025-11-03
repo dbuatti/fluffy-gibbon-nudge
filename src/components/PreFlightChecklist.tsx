@@ -103,7 +103,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
                   </Badge>
                 </div>
                 {check.actionLink && (
-                    <Link to={`/composition/${imp.id}${check.actionLink.includes('#') ? '?tab=' + (check.actionLink.includes('artwork') ? 'assets-downloads' : 'analysis-distro') + check.actionLink : ''}`}> {/* Updated path */}
+                    <Link to={`/improvisation/${imp.id}${check.actionLink.includes('#') ? '?tab=' + (check.actionLink.includes('artwork') ? 'assets-downloads' : 'analysis-distro') + check.actionLink : ''}`}> {/* Updated path */}
                         <Button variant="link" size="sm" className="h-6 p-0 text-xs justify-start">
                             {check.actionLabel} &rarr;
                         </Button>

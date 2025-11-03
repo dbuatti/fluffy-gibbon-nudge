@@ -37,12 +37,12 @@ const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Pr
   return results;
 };
 
-const CompositionPipeline: React.FC = () => {
+const ImprovisationPipeline: React.FC = () => {
   const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
-  console.log("CompositionPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+  console.log("ImprovisationPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
-    queryKey: ['compositionStatusCounts'],
+    queryKey: ['improvisationStatusCounts'],
     queryFn: () => fetchStatusCounts(supabase, session!.user.id), // Use directly imported supabase
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
@@ -54,7 +54,7 @@ const CompositionPipeline: React.FC = () => {
   const totalAnalyzing = getCount('analyzing');
   const totalUploaded = getCount('uploaded');
   const totalFailed = getCount('failed');
-  const totalCompositions = totalCompleted + totalAnalyzing + totalUploaded + totalFailed;
+  const totalImprovisations = totalCompleted + totalAnalyzing + totalUploaded + totalFailed;
 
   const pipelineStages = [
     { 
@@ -100,7 +100,7 @@ const CompositionPipeline: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading compositions...</p></div>;
+    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading improvisations...</p></div>;
   }
 
   if (error) {
@@ -110,7 +110,7 @@ const CompositionPipeline: React.FC = () => {
   return (
     <Card className="shadow-card-light dark:shadow-card-dark w-full">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-2xl font-semibold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Improvisation Pipeline ({totalImprovisations} Total)</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -144,4 +144,4 @@ const CompositionPipeline: React.FC = () => {
   );
 };
 
-export default CompositionPipeline;
+export default ImprovisationPipeline;

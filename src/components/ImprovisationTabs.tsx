@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import AudioUploadForIdea from './AudioUploadForIdea';
-import CompositionNotes from './CompositionNotes';
+import AudioUploadForImprovisation from './AudioUploadForImprovisation';
+import ImprovisationNotes from './ImprovisationNotes';
 import TagGenerator from './TagGenerator';
 import AICreativeCoach from './AICreativeCoach';
 import FilePathSuggestion from './FilePathSuggestion';
@@ -42,7 +42,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Composition { // Renamed interface
+interface Improvisation { // Renamed interface
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -73,8 +73,8 @@ interface Composition { // Renamed interface
   insight_voice: string | null;
 }
 
-interface CompositionTabsProps {
-  imp: Composition; // Updated prop name and type
+interface ImprovisationTabsProps {
+  imp: Improvisation; // Updated prop name and type
   currentTab: string;
   handleTabChange: (newTab: string) => void;
   handleRefetch: () => void;
@@ -104,7 +104,7 @@ const QuickLinkButton: React.FC<{ href: string, icon: React.ElementType, label: 
   </a>
 );
 
-const CompositionTabs: React.FC<CompositionTabsProps> = ({
+const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   imp, // Updated prop name
   currentTab,
   handleTabChange,
@@ -160,7 +160,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
     }
   };
 
-  // A composition is blocked if any critical asset or confirmation is missing.
+  // A improvisation is blocked if any critical asset or confirmation is missing.
   const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
   // Artwork check now relies on the user having an artwork_url set
   const isBlocked = !hasAudioFile || !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
@@ -173,7 +173,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         
         {/* NEW: AI Creative Coach */}
         <AICreativeCoach 
-          compositionId={imp.id} // Updated prop name
+          improvisationId={imp.id} // Updated prop name
           hasAudioFile={hasAudioFile} 
         />
 
@@ -186,7 +186,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
           </CardHeader>
           <CardContent className="space-y-4">
               <div className="space-y-2 border-b pb-4">
-                  <Label className="font-semibold flex items-center"><Info className="h-4 w-4 mr-2" /> Composition Type</Label>
+                  <Label className="font-semibold flex items-center"><Info className="h-4 w-4 mr-2" /> Improvisation Type</Label>
                   <RadioGroup 
                       value={String(imp.is_improvisation)} 
                       onValueChange={handleUpdateIsImprovisation}
@@ -195,11 +195,11 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
                   >
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="true" id="main-improv" />
-                        <Label htmlFor="main-improv">Improvisation</Label>
+                        <Label htmlFor="main-improv">Spontaneous Improvisation</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="false" id="main-composition" />
-                        <Label htmlFor="main-composition">Composition</Label>
+                        <Label htmlFor="main-composition">Fixed Composition</Label>
                       </div>
                   </RadioGroup>
               </div>
@@ -236,20 +236,20 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
         {/* 1. Audio Upload (if needed) - Prominent CTA */}
         {!hasAudioFile && imp.is_improvisation !== null && (
           <div id="audio-upload-cta">
-              <AudioUploadForIdea 
-                compositionId={imp.id} // Updated prop name
-                isCompositionTypeImprovisation={imp.is_improvisation} // Updated prop name
+              <AudioUploadForImprovisation 
+                improvisationId={imp.id} // Updated prop name
+                isImprovisationTypeImprovisation={imp.is_improvisation} // Updated prop name
                 onUploadSuccess={handleRefetch}
               />
           </div>
         )}
 
         {/* NEW: Tag Generator */}
-        <TagGenerator compositionId={imp.id} initialTags={imp.user_tags} /> {/* Updated prop name */}
+        <TagGenerator improvisationId={imp.id} initialTags={imp.user_tags} /> {/* Updated prop name */}
 
-        {/* 2. Composition Notes */}
-        <div id="composition-notes">
-          <CompositionNotes compositionId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} /> {/* Updated prop name */}
+        {/* 2. Improvisation Notes */}
+        <div id="improvisation-notes">
+          <ImprovisationNotes improvisationId={imp.id} initialNotes={imp.notes} hasAudioFile={hasAudioFile} /> {/* Updated prop name */}
         </div>
       </TabsContent>
     );
@@ -509,4 +509,4 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
   return null;
 };
 
-export default CompositionTabs;
+export default ImprovisationTabs;

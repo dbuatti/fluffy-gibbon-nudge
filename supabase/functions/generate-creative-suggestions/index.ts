@@ -9,7 +9,7 @@ const corsHeaders = {
 }
 
 // Function to call Gemini API for creative suggestions
-async function generateSuggestionsWithGemini(compositionData: any): Promise<string[]> {
+async function generateSuggestionsWithGemini(improvisationData: any): Promise<string[]> {
     // @ts-ignore
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
@@ -17,15 +17,15 @@ async function generateSuggestionsWithGemini(compositionData: any): Promise<stri
         return ["AI Key Missing"];
     }
 
-    const notesContent = compositionData.notes?.map((n: any) => `${n.title}: ${n.content}`).join('; ') || 'No creative notes provided.';
-    const tags = compositionData.user_tags?.join(', ') || 'No user tags.';
-    const analysis = compositionData.analysis_data || {};
+    const notesContent = improvisationData.notes?.map((n: any) => `${n.title}: ${n.content}`).join('; ') || 'No creative notes provided.';
+    const tags = improvisationData.user_tags?.join(', ') || 'No user tags.';
+    const analysis = improvisationData.analysis_data || {};
 
-    const prompt = `You are an expert music producer and creative coach. Based on the following composition data, generate exactly three distinct, actionable, and inspiring suggestions for the user to develop this musical idea further. Focus on structure, instrumentation, mood, or arrangement.
+    const prompt = `You are an expert music producer and creative coach. Based on the following improvisation data, generate exactly three distinct, actionable, and inspiring suggestions for the user to develop this musical idea further. Focus on structure, instrumentation, mood, or arrangement.
     
-    Composition Data:
-    - Title: "${compositionData.generated_name || 'Untitled'}"
-    - Primary Genre: ${compositionData.primary_genre || 'Ambient'}
+    Improvisation Data:
+    - Title: "${improvisationData.generated_name || 'Untitled'}"
+    - Primary Genre: ${improvisationData.primary_genre || 'Ambient'}
     - Mood: ${analysis.mood || 'Calm'}
     - Tempo: ${analysis.simulated_tempo || 'Moderate'} BPM
     - Creative Notes: ${notesContent}
@@ -96,32 +96,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use Service Role Key for secure data fetching
     );
 
-    const { compositionId } = await req.json(); // Updated parameter name
+    const { improvisationId } = await req.json(); // Updated parameter name
 
-    if (!compositionId) {
-      return new Response(JSON.stringify({ error: 'Missing compositionId' }), { // Updated parameter name
+    if (!improvisationId) {
+      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), { // Updated parameter name
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Fetch the full record using the Service Role Key
-    const { data: comp, error: fetchError } = await supabase // Renamed variable
-        .from('compositions') // Updated table name
+    const { data: imp, error: fetchError } = await supabase // Renamed variable
+        .from('improvisations') // Updated table name
         .select('*, notes, user_tags, analysis_data')
-        .eq('id', compositionId) // Updated parameter name
+        .eq('id', improvisationId) // Updated parameter name
         .single();
 
-    if (fetchError || !comp) { // Updated variable
-        console.error('Failed to fetch composition data:', fetchError);
-        return new Response(JSON.stringify({ error: 'Composition not found or access denied.' }), {
+    if (fetchError || !imp) { // Updated variable
+        console.error('Failed to fetch improvisation data:', fetchError);
+        return new Response(JSON.stringify({ error: 'Improvisation not found or access denied.' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
     // Generate the suggestions
-    const suggestions = await generateSuggestionsWithGemini(comp); // Updated variable
+    const suggestions = await generateSuggestionsWithGemini(imp); // Updated variable
 
     return new Response(JSON.stringify({ success: true, suggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

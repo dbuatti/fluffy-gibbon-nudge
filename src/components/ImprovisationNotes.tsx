@@ -14,8 +14,8 @@ interface NoteTab {
   content: string;
 }
 
-interface CompositionNotesProps {
-  compositionId: string; // Renamed prop
+interface ImprovisationNotesProps {
+  improvisationId: string; // Renamed prop
   initialNotes: NoteTab[] | null;
   hasAudioFile: boolean;
 }
@@ -28,7 +28,7 @@ const defaultNotes: NoteTab[] = [
   { id: 'zone4', title: 'Zone 4: Next Steps (Single most actionable task)', color: 'border-l-4 border-red-500 bg-red-50/50 dark:bg-red-950/30', content: '' },
 ];
 
-const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, initialNotes, hasAudioFile }) => { // Renamed prop
+const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId, initialNotes, hasAudioFile }) => { // Renamed prop
   // Ensure we use the initial notes if they exist, otherwise use defaults
   const initialData = initialNotes && initialNotes.length === 4 ? initialNotes : defaultNotes;
   const [notes, setNotes] = useState<NoteTab[]>(initialData);
@@ -39,9 +39,9 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('compositions') // Updated table name
+        .from('improvisations') // Updated table name
         .update({ notes: currentNotes })
-        .eq('id', compositionId); // Updated variable
+        .eq('id', improvisationId); // Updated variable
 
       if (error) throw error;
 
@@ -53,7 +53,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
       showError('Failed to autosave notes.');
       setSaveStatus('idle'); // Revert to idle on error
     }
-  }, [compositionId]); // Updated dependency
+  }, [improvisationId]); // Updated dependency
 
 
   // Effect to debounce saving whenever notes change
@@ -126,7 +126,7 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
   };
   
   return (
-    <Card id="composition-notes" className="shadow-lg dark:shadow-xl">
+    <Card id="improvisation-notes" className="shadow-lg dark:shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center text-xl">
           <NotebookText className="w-5 h-5 mr-2 text-primary" /> Creative Notes Workspace
@@ -170,4 +170,4 @@ const CompositionNotes: React.FC<CompositionNotesProps> = ({ compositionId, init
   );
 };
 
-export default CompositionNotes;
+export default ImprovisationNotes;

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import CompositionList from "@/components/CompositionList"; // Renamed
+import ImprovisationList from "@/components/ImprovisationList"; // Renamed
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import CompositionPipeline from "@/components/CompositionPipeline";
+import ImprovisationPipeline from "@/components/ImprovisationPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
 import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -16,25 +16,30 @@ import { supabase } from '@/integrations/supabase/client';
 import DailyPromptCard from '@/components/DailyPromptCard';
 import StreakCard from '@/components/StreakCard';
 
-interface Composition { // Renamed interface
+// Define external URLs
+const GEMINI_URL = "https://gemini.google.com/";
+const DISTROKID_URL = "https://distrokid.com/new/";
+const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
+
+interface Improvisation { // Renamed interface
   created_at: string;
 }
 
-const fetchCompositionDates = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed fetch function
-  console.log("fetchCompositionDates: Attempting to fetch dates for user:", sessionUserId);
-  console.log("fetchCompositionDates: Supabase client session:", supabaseClient.auth.currentSession);
+const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => { // Renamed fetch function
+  console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
+  console.log("fetchImprovisationDates: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
-    .from('compositions') // Updated table name
+    .from('improvisations') // Updated table name
     .select('created_at')
     .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchCompositionDates: Fetched data:", data);
-  return data as Composition[];
+  console.log("fetchImprovisationDates: Fetched data:", data);
+  return data as Improvisation[];
 };
 
-const useStreakTracker = (data: Composition[] | undefined) => { // Updated type
+const useStreakTracker = (data: Improvisation[] | undefined) => { // Updated type
   if (!data || data.length === 0) return { streak: 0, todayActivity: false };
 
   const activityDates = new Set(
@@ -104,20 +109,20 @@ const Index = () => {
 
   console.log("Index: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: compositionDates } = useQuery<Composition[]>({ // Updated variable name and type
-    queryKey: ['compositionDates'], // Updated query key
-    queryFn: () => fetchCompositionDates(supabase, session!.user.id), // Updated fetch function
+  const { data: improvisationDates } = useQuery<Improvisation[]>({ // Updated variable name and type
+    queryKey: ['improvisationDates'], // Updated query key
+    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Updated fetch function
     enabled: !isSessionLoading && !!session?.user,
     staleTime: 86400000,
     refetchOnWindowFocus: false,
   });
 
-  const { streak, todayActivity } = useStreakTracker(compositionDates); // Updated variable name
+  const { streak, todayActivity } = useStreakTracker(improvisationDates); // Updated variable name
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
-    queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
-    queryClient.invalidateQueries({ queryKey: ['compositionDates'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
+    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] }); // Updated query key
   };
   
   const streakMessage = streak > 0 
@@ -150,15 +155,15 @@ const Index = () => {
         {/* Streak Card */}
         <StreakCard streak={streak} todayActivity={todayActivity} />
 
-        {/* Composition Pipeline (Now full width at the top) */}
-        <CompositionPipeline />
+        {/* Improvisation Pipeline (Now full width at the top) */}
+        <ImprovisationPipeline />
         
         {/* Search, Filter, and View Toggles */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-1/2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Search compositions..." 
+              placeholder="Search improvisations..." 
               className="pl-9 w-full h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -210,8 +215,8 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Composition List */}
-        <CompositionList // Renamed component
+        {/* Improvisation List */}
+        <ImprovisationList // Renamed component
           viewMode={viewMode} 
           setViewMode={setViewMode}
           searchTerm={searchTerm} 
@@ -235,7 +240,7 @@ const Index = () => {
               href={DISTROKID_URL} 
               icon={Music} 
               title="DistroKid" 
-              description="Submit your finished compositions to all major streaming platforms." 
+              description="Submit your finished improvisations to all major streaming platforms." 
               buttonText="Go to DistroKid" 
               variant="default"
             />

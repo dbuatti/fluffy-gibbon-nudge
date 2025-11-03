@@ -3,10 +3,10 @@ import { RefreshCw, Sparkles, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EditableField from './EditableField';
-import CompositionMetadataDialog from './CompositionMetadataDialog';
-import CompositionSettingsSheet from './CompositionSettingsSheet';
+import ImprovisationMetadataDialog from './ImprovisationMetadataDialog';
+import ImprovisationSettingsSheet from './ImprovisationSettingsSheet';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
 import { format } from 'date-fns';
 import TitleBar from './TitleBar';
 
@@ -17,7 +17,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Composition { // Renamed interface
+interface Improvisation { // Renamed interface
   id: string;
   generated_name: string | null;
   file_name: string | null;
@@ -40,8 +40,8 @@ interface Composition { // Renamed interface
   insight_voice: string | null;
 }
 
-interface CompositionHeaderProps {
-  imp: Composition; // Updated prop name and type
+interface ImprovisationHeaderProps {
+  imp: Improvisation; // Updated prop name and type
   isCoreMetadataComplete: boolean;
   handleDelete: () => void;
   isDeleting: boolean;
@@ -62,7 +62,7 @@ interface CompositionHeaderProps {
   handleUpdateInsightVoice: (value: string) => Promise<void>;
 }
 
-const CompositionHeader: React.FC<CompositionHeaderProps> = ({
+const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
   imp,
   isCoreMetadataComplete,
   handleDelete,
@@ -83,7 +83,7 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
   handleUpdateInsightAudienceAge,
   handleUpdateInsightVoice,
 }) => {
-  const updateMutation = useUpdateComposition(imp.id); // Updated hook
+  const updateMutation = useUpdateImprovisation(imp.id); // Updated hook
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
 
@@ -93,7 +93,7 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
         {/* EDITABLE TITLE */}
         <EditableField
           value={imp.generated_name}
-          label="Composition Title"
+          label="Improvisation Title"
           onSave={handleUpdateName}
           className="text-3xl font-bold p-0"
           placeholder="Click to set title"
@@ -133,7 +133,7 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
       >
         <Sparkles className="h-4 w-4 text-purple-500" />
       </Button>
-      <CompositionMetadataDialog
+      <ImprovisationMetadataDialog
         imp={imp} // Updated prop name
         isPending={updateMutation.isPending}
         isCoreMetadataComplete={isCoreMetadataComplete}
@@ -152,9 +152,9 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
         handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
         handleUpdateInsightVoice={handleUpdateInsightVoice}
       />
-      <CompositionSettingsSheet
-        compositionId={imp.id} // Updated prop name
-        compositionName={imp.generated_name || imp.file_name || 'Untitled Idea'} // Updated prop name
+      <ImprovisationSettingsSheet
+        improvisationId={imp.id} // Updated prop name
+        improvisationName={imp.generated_name || imp.file_name || 'Untitled Idea'} // Updated prop name
         handleDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -171,4 +171,4 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
   );
 };
 
-export default CompositionHeader;
+export default ImprovisationHeader;

@@ -41,7 +41,7 @@ interface AnalysisData {
   [key: string]: any;
 }
 
-interface Composition { // Renamed interface
+interface Improvisation { // Renamed interface
   id: string;
   generated_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -63,8 +63,8 @@ interface Composition { // Renamed interface
   insight_voice: string | null;
 }
 
-interface CompositionMetadataDialogProps {
-  imp: Composition; // Updated prop name and type
+interface ImprovisationMetadataDialogProps {
+  imp: Improvisation; // Updated prop name and type
   isPending: boolean;
   isCoreMetadataComplete: boolean;
   handleUpdatePrimaryGenre: (v: string) => Promise<void>;
@@ -84,7 +84,7 @@ interface CompositionMetadataDialogProps {
   handleUpdateInsightVoice: (value: string) => Promise<void>;
 }
 
-const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
+const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = ({
   imp, // Updated prop name
   isPending,
   isCoreMetadataComplete,
@@ -200,7 +200,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Edit Composition Metadata" className="h-8 w-8 relative">
+        <Button variant="ghost" size="icon" title="Edit Improvisation Metadata" className="h-8 w-8 relative">
           <Info className="h-5 w-5 text-primary" />
           {isCoreMetadataComplete && (
             <CheckCircle className="absolute -top-1 -right-1 h-4 w-4 text-green-500 bg-background rounded-full border border-background" />
@@ -211,10 +211,10 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
       <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center">
-            <Info className="h-6 w-6 mr-2" /> Composition Metadata
+            <Info className="h-6 w-6 mr-2" /> Improvisation Metadata
           </DialogTitle>
           <DialogDescription>
-            Edit technical analysis data and distribution toggles for your composition.
+            Edit technical analysis data and distribution toggles for your improvisation.
           </DialogDescription>
         </DialogHeader>
         
@@ -250,7 +250,7 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
                             <h3 className="text-lg font-semibold flex items-center"><Music className="h-5 w-5 mr-2" /> Type & Genre</h3>
                             
                             <div className="space-y-2 border-b pb-4">
-                                <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Composition Type</Label>
+                                <Label className="font-semibold flex items-center"><Piano className="h-4 w-4 mr-2" /> Improvisation Type</Label>
                                 <RadioGroup 
                                     value={String(imp.is_improvisation)} 
                                     onValueChange={handleUpdateIsImprovisation}
@@ -259,11 +259,11 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
                                 >
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem value="true" id="sheet-improv" />
-                                      <Label htmlFor="sheet-improv">Improvisation</Label>
+                                      <Label htmlFor="sheet-improv">Spontaneous Improvisation</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                       <RadioGroupItem value="false" id="sheet-composition" />
-                                      <Label htmlFor="sheet-composition">Composition</Label>
+                                      <Label htmlFor="sheet-composition">Fixed Composition</Label>
                                     </div>
                                 </RadioGroup>
                             </div>
@@ -355,4 +355,4 @@ const CompositionMetadataDialog: React.FC<CompositionMetadataDialogProps> = ({
   );
 };
 
-export default CompositionMetadataDialog;
+export default ImprovisationMetadataDialog;

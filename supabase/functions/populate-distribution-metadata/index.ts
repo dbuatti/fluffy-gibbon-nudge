@@ -16,7 +16,7 @@ const INSIGHT_AUDIENCE_LEVELS = ["Everyone", "Complete beginners", "Some prior e
 const INSIGHT_VOICES = ["Masculine", "Feminine", "None (Instrumental)"]; // Added None (Instrumental) for music tracks
 
 // Function to call Gemini API for intelligent field population and description
-async function populateFieldsWithGemini(compositionData: any): Promise<any> {
+async function populateFieldsWithGemini(improvisationData: any): Promise<any> {
     // @ts-ignore
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
@@ -24,15 +24,15 @@ async function populateFieldsWithGemini(compositionData: any): Promise<any> {
         return { error: "AI Key Missing" };
     }
 
-    const notesContent = compositionData.notes?.map((n: any) => `${n.title}: ${n.content}`).join('; ') || 'No creative notes provided.';
-    const tags = compositionData.user_tags?.join(', ') || 'No user tags.';
-    const analysis = compositionData.analysis_data || {};
+    const notesContent = improvisationData.notes?.map((n: any) => `${n.title}: ${n.content}`).join('; ') || 'No creative notes provided.';
+    const tags = improvisationData.user_tags?.join(', ') || 'No user tags.';
+    const analysis = improvisationData.analysis_data || {};
 
     const prompt = `You are an expert in wellness and meditation content categorization and copywriting for platforms like Insight Timer. Based on the user's input for this music track, select the best fit for the required metadata fields and generate a compliant description.
     
-    Composition Data:
-    - Title: "${compositionData.generated_name || 'Untitled'}"
-    - Primary Genre: ${compositionData.primary_genre || 'Ambient'}
+    Improvisation Data:
+    - Title: "${improvisationData.generated_name || 'Untitled'}"
+    - Primary Genre: ${improvisationData.primary_genre || 'Ambient'}
     - Mood: ${analysis.mood || 'Calm'}
     - Creative Notes: ${notesContent}
     - User Tags: ${tags}
@@ -107,32 +107,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use Service Role Key for secure data fetching
     );
 
-    const { compositionId } = await req.json(); // Updated parameter name
+    const { improvisationId } = await req.json(); // Updated parameter name
 
-    if (!compositionId) {
-      return new Response(JSON.stringify({ error: 'Missing compositionId' }), { // Updated parameter name
+    if (!improvisationId) {
+      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), { // Updated parameter name
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // 1. Fetch the full record including notes, tags, and analysis data
-    const { data: comp, error: fetchError } = await supabase // Renamed variable
-        .from('compositions') // Updated table name
+    const { data: imp, error: fetchError } = await supabase // Renamed variable
+        .from('improvisations') // Updated table name
         .select('*, notes, user_tags, analysis_data')
-        .eq('id', compositionId) // Updated parameter name
+        .eq('id', improvisationId) // Updated parameter name
         .single();
 
-    if (fetchError || !comp) { // Updated variable
-        console.error('Failed to fetch composition data:', fetchError);
-        return new Response(JSON.stringify({ error: 'Composition not found or access denied.' }), {
+    if (fetchError || !imp) { // Updated variable
+        console.error('Failed to fetch improvisation data:', fetchError);
+        return new Response(JSON.stringify({ error: 'Improvisation not found or access denied.' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
     // 2. Populate fields using AI
-    const aiResults = await populateFieldsWithGemini(comp); // Updated variable
+    const aiResults = await populateFieldsWithGemini(imp); // Updated variable
 
     if (aiResults.error) {
         return new Response(JSON.stringify({ error: aiResults.error }), {
@@ -157,9 +157,9 @@ serve(async (req) => {
     };
 
     const { error: updateError } = await supabase
-      .from('compositions') // Updated table name
+      .from('improvisations') // Updated table name
       .update(updates)
-      .eq('id', compositionId); // Updated parameter name
+      .eq('id', improvisationId); // Updated parameter name
 
     if (updateError) {
       console.error('Database update failed:', updateError);

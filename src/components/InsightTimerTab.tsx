@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
+import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation'; // Renamed hook
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -17,7 +17,7 @@ import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TY
 import { cn } from '@/lib/utils';
 import SelectField from './SelectField';
 
-interface CompositionData { // Renamed interface
+interface ImprovisationData { // Renamed interface
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
@@ -37,7 +37,7 @@ interface CompositionData { // Renamed interface
 }
 
 interface InsightTimerTabProps {
-  imp: CompositionData; // Updated prop name and type
+  imp: ImprovisationData; // Updated prop name and type
   aiGeneratedDescription: string;
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
@@ -56,7 +56,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(aiGeneratedDescription);
-  const updateMutation = useUpdateComposition(imp.id); // Updated hook
+  const updateMutation = useUpdateImprovisation(imp.id); // Updated hook
 
   // Sync local state when AI generates a new description
   useEffect(() => {
@@ -119,7 +119,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     updateMutation.mutate({ insight_themes: newThemes });
   };
   
-  // --- Core Field Handlers (Re-implementing logic from CompositionMetadataDialog) ---
+  // --- Core Field Handlers (Re-implementing logic from ImprovisationMetadataDialog) ---
   const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
   const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
   const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });

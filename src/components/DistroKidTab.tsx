@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-interface CompositionData { // Renamed interface
+interface ImprovisationData { // Renamed interface
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
@@ -23,7 +23,7 @@ interface CompositionData { // Renamed interface
 }
 
 interface DistroKidTabProps {
-  imp: CompositionData; // Updated prop name and type
+  imp: ImprovisationData; // Updated prop name and type
   isReady: boolean;
 }
 
@@ -83,7 +83,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady }) => { // Upd
                 You must generate or upload artwork before distribution.
               </p>
               {/* Link to the Assets tab and the specific card ID */}
-              <Link to={`/composition/${imp.id}?tab=assets-downloads#artwork-actions`}> {/* Updated path */}
+              <Link to={`/improvisation/${imp.id}?tab=assets-downloads#artwork-actions`}> {/* Updated path */}
                 <Button variant="destructive" className="mt-4">
                   Go to Artwork Actions <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>

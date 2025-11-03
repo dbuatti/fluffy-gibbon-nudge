@@ -7,8 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import CompositionDetails from "./pages/CompositionDetails"; // Renamed
-import Compositions from "./pages/Compositions"; // Renamed
+import ImprovisationDetails from "./pages/ImprovisationDetails"; // Renamed
+import Improvisations from "./pages/Improvisations"; // Renamed
 import Settings from "./pages/Settings";
 import CompositionScript from "./pages/CompositionScript";
 import { SessionContextProvider } from "./integrations/supabase/session-context";
@@ -35,8 +35,8 @@ const App = () => (
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Index />} />
-                  <Route path="/composition/:id" element={<CompositionDetails />} /> {/* Updated path */}
-                  <Route path="/compositions" element={<Compositions />} /> {/* Updated path */}
+                  <Route path="/improvisation/:id" element={<ImprovisationDetails />} /> {/* Updated path */}
+                  <Route path="/improvisations" element={<Improvisations />} /> {/* Updated path */}
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/composition-script" element={<CompositionScript />} />
                 </Route>

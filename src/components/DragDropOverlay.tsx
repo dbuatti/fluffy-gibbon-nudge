@@ -61,18 +61,18 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
 
     setIsProcessing(true);
-    showSuccess(`Processing file: ${file.name}. Creating new composition...`);
+    showSuccess(`Processing file: ${file.name}. Creating new improvisation...`);
 
     const user = session.user;
     const fileExtension = file.name.split('.').pop();
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'audio_compositions'; // Updated bucket name
+    const bucketName = 'audio_improvisations'; // Updated bucket name
     const generatedName = file.name.replace(`.${fileExtension}`, '').trim();
 
     try {
       // 1. Create placeholder record (assuming it's an improvisation by default for quick capture)
-      const { data: newCompData, error: dbError } = await supabase
-        .from('compositions') // Updated table name
+      const { data: newImpData, error: dbError } = await supabase
+        .from('improvisations') // Updated table name
         .insert({
           user_id: user.id,
           file_name: file.name,
@@ -85,7 +85,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         .single();
 
       if (dbError) throw dbError;
-      const compositionId = newCompData.id; // Renamed variable
+      const improvisationId = newImpData.id; // Renamed variable
 
       // 2. Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -100,15 +100,15 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
       // 3. Trigger the analysis Edge Function (asynchronously)
       await supabase.functions.invoke('analyze-improvisation', {
         body: {
-          compositionId: compositionId, // Updated parameter name
+          improvisationId: improvisationId, // Updated parameter name
           storagePath: filePath,
           fileName: file.name,
           isImprovisation: true,
         },
       });
 
-      showSuccess(`Composition created and analysis started! Redirecting...`);
-      navigate(`/composition/${compositionId}`); // Updated path
+      showSuccess(`Improvisation created and analysis started! Redirecting...`);
+      navigate(`/improvisation/${improvisationId}`); // Updated path
 
     } catch (error) {
       console.error('Instant upload failed:', error);
@@ -147,7 +147,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 <>
                     <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin" />
                     <h2 className="text-2xl font-bold">Processing Instant Upload...</h2>
-                    <p className="mt-2">Creating composition and starting AI analysis.</p>
+                    <p className="mt-2">Creating improvisation and starting AI analysis.</p>
                 </>
             ) : (
                 <>

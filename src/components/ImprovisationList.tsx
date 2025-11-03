@@ -21,7 +21,7 @@ interface NoteTab {
   content: string;
 }
 
-interface Composition { // Renamed interface
+interface Improvisation { // Renamed interface
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -57,22 +57,22 @@ interface Composition { // Renamed interface
 
 const STALLED_THRESHOLD_HOURS = 24;
 
-const fetchCompositions = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed fetch function
-  console.log("fetchCompositions: Attempting to fetch compositions for user:", sessionUserId);
-  console.log("fetchCompositions: Supabase client session:", supabaseClient.auth.currentSession);
+const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => { // Renamed fetch function
+  console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
+  console.log("fetchImprovisations: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
-    .from('compositions') // Updated table name
+    .from('improvisations') // Updated table name
     .select('*')
     .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  console.log("fetchCompositions: Fetched data:", data);
-  return data as Composition[];
+  console.log("fetchImprovisations: Fetched data:", data);
+  return data as Improvisation[];
 };
 
 // Unified Status Badge Function
-const getStatusBadge = (status: Composition['status'], hasFile: boolean) => { // Updated type
+const getStatusBadge = (status: Improvisation['status'], hasFile: boolean) => { // Updated type
   if (!hasFile && status === 'uploaded') {
     return <Badge variant="outline" className="bg-info text-info-foreground border-info">💡 Needs Audio</Badge>;
   }
@@ -99,20 +99,20 @@ const getNotesStatusBadge = (notes: NoteTab[] | null) => {
   return null;
 };
 
-const getNextAction = (comp: Composition) => { // Updated parameter name and type
-  const hasFile = !!comp.storage_path;
-  const hasNotes = comp.notes?.some(n => n.content && n.content.trim().length > 0);
-  const hasArtworkPrompt = !!comp.artwork_prompt;
-  const hasArtworkUrl = !!comp.artwork_url;
-  const isReady = !!comp.is_ready_for_release;
+const getNextAction = (imp: Improvisation) => { // Updated parameter name and type
+  const hasFile = !!imp.storage_path;
+  const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
+  const hasArtworkPrompt = !!imp.artwork_prompt;
+  const hasArtworkUrl = !!imp.artwork_url;
+  const isReady = !!imp.is_ready_for_release;
 
   if (!hasFile) {
     return { label: 'Upload Audio', icon: Upload, color: 'text-primary', type: 'manual' };
   }
-  if (comp.status === 'analyzing') {
+  if (imp.status === 'analyzing') {
     return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning', type: 'ai' };
   }
-  if (comp.status === 'completed') {
+  if (imp.status === 'completed') {
     if (!hasNotes) {
       return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary', type: 'manual' };
     }
@@ -132,7 +132,7 @@ const getNextAction = (comp: Composition) => { // Updated parameter name and typ
   return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
 };
 
-interface CompositionListProps { // Renamed interface
+interface ImprovisationListProps { // Renamed interface
   viewMode: 'grid' | 'list';
   setViewMode: (mode: 'grid' | 'list') => void;
   searchTerm: string;
@@ -140,25 +140,25 @@ interface CompositionListProps { // Renamed interface
   sortOption: string;
 }
 
-const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => { // Renamed component
+const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => { // Renamed component
   const navigate = useNavigate();
   const { session, isLoading: isSessionLoading } = useSession();
   const queryClient = useQueryClient();
-  const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
+  const [selectedImprovisations, setSelectedImprovisations] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isExportingBulk, setIsExportingBulk] = useState(false);
 
-  console.log("CompositionList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
+  console.log("ImprovisationList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: compositions, isLoading, error, refetch } = useQuery<Composition[]>({ // Renamed variable and type
-    queryKey: ['compositions'], // Updated query key
-    queryFn: () => fetchCompositions(supabase, session!.user.id), // Updated fetch function
+  const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({ // Renamed variable and type
+    queryKey: ['improvisations'], // Updated query key
+    queryFn: () => fetchImprovisations(supabase, session!.user.id), // Updated fetch function
     enabled: !isSessionLoading && !!session?.user,
     refetchInterval: 5000,
   });
 
-  const handleSelectComposition = (id: string, checked: boolean) => {
-    setSelectedCompositions(prev => {
+  const handleSelectImprovisation = (id: string, checked: boolean) => {
+    setSelectedImprovisations(prev => {
       const newSet = new Set(prev);
       if (checked) {
         newSet.add(id);
@@ -170,32 +170,32 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (!compositions) return; // Updated variable
+    if (!improvisations) return; // Updated variable
     if (checked) {
-      const allIds = new Set(compositions.map(comp => comp.id)); // Updated variable
-      setSelectedCompositions(allIds);
+      const allIds = new Set(improvisations.map(imp => imp.id)); // Updated variable
+      setSelectedImprovisations(allIds);
     } else {
-      setSelectedCompositions(new Set());
+      setSelectedImprovisations(new Set());
     }
   };
 
   const handleBulkDelete = async () => {
-    if (selectedCompositions.size === 0 || !window.confirm(`Are you sure you want to delete ${selectedCompositions.size} compositions? This action cannot be undone.`)) {
+    if (selectedImprovisations.size === 0 || !window.confirm(`Are you sure you want to delete ${selectedImprovisations.size} improvisations? This action cannot be undone.`)) {
       return;
     }
 
     setIsDeletingBulk(true);
-    showSuccess(`Deleting ${selectedCompositions.size} compositions...`);
+    showSuccess(`Deleting ${selectedImprovisations.size} improvisations...`);
 
     try {
-      for (const id of selectedCompositions) {
-        const compToDelete = compositions?.find(comp => comp.id === id); // Updated variable
-        if (compToDelete) {
+      for (const id of selectedImprovisations) {
+        const impToDelete = improvisations?.find(imp => imp.id === id); // Updated variable
+        if (impToDelete) {
           // 1. Delete audio file from Supabase Storage (if exists)
-          if (compToDelete.storage_path) {
+          if (impToDelete.storage_path) {
             const { error: storageError } = await supabase.storage
-              .from('audio_compositions') // Updated bucket name
-              .remove([compToDelete.storage_path]);
+              .from('audio_improvisations') // Updated bucket name
+              .remove([impToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
           }
           // 2. Delete artwork from Supabase Storage (if manually uploaded and artwork_url is a path)
@@ -204,38 +204,38 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
 
           // 3. Delete record from database
           const { error: dbError } = await supabase
-            .from('compositions') // Updated table name
+            .from('improvisations') // Updated table name
             .delete()
             .eq('id', id);
           if (dbError) throw dbError;
         }
       }
-      showSuccess(`${selectedCompositions.size} compositions deleted successfully.`);
-      setSelectedCompositions(new Set());
-      queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
-      queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
+      showSuccess(`${selectedImprovisations.size} improvisations deleted successfully.`);
+      setSelectedImprovisations(new Set());
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
+      queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
     } catch (error) {
       console.error('Bulk deletion failed:', error);
-      showError(`Failed to delete compositions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showError(`Failed to delete improvisations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDeletingBulk(false);
     }
   };
 
   const handleBulkExport = async () => {
-    if (selectedCompositions.size === 0) {
-      showError("No compositions selected for export.");
+    if (selectedImprovisations.size === 0) {
+      showError("No improvisations selected for export.");
       return;
     }
 
     setIsExportingBulk(true);
-    showSuccess(`Exporting ${selectedCompositions.size} compositions' metadata...`);
+    showSuccess(`Exporting ${selectedImprovisations.size} improvisations' metadata...`);
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('compositions') // Updated table name
+        .from('improvisations') // Updated table name
         .select('*')
-        .in('id', Array.from(selectedCompositions));
+        .in('id', Array.from(selectedImprovisations));
 
       if (fetchError) throw fetchError;
 
@@ -244,48 +244,48 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `compositions_export_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
+      link.download = `improvisations_export_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      showSuccess(`${selectedCompositions.size} compositions exported successfully.`);
+      showSuccess(`${selectedImprovisations.size} improvisations exported successfully.`);
     } catch (error) {
       console.error('Bulk export failed:', error);
-      showError(`Failed to export compositions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showError(`Failed to export improvisations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExportingBulk(false);
     }
   };
 
   if (isLoading) {
-    return <div className="text-center p-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading compositions...</p></div>;
+    return <div className="text-center p-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading improvisations...</p></div>;
   }
 
   if (error) {
     return <div className="text-center p-8 text-error dark:text-error-foreground">Error loading data: {error.message}</div>;
   }
 
-  const hasSelectedItems = selectedCompositions.size > 0;
+  const hasSelectedItems = selectedImprovisations.size > 0;
 
   // --- Filtering Logic ---
-  const filteredCompositions = compositions?.filter(comp => { // Updated variable
+  const filteredImprovisations = improvisations?.filter(imp => { // Updated variable
     const matchesSearch = searchTerm === '' || 
-                          comp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          comp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                          imp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilterStatus = filterStatus === 'all' || 
-                                (filterStatus === 'uploaded' && comp.status === 'uploaded' && !comp.storage_path) ||
-                                (filterStatus === 'analyzing' && comp.status === 'analyzing') ||
-                                (filterStatus === 'completed' && comp.status === 'completed') ||
-                                (filterStatus === 'failed' && comp.status === 'failed');
+                                (filterStatus === 'uploaded' && imp.status === 'uploaded' && !imp.storage_path) ||
+                                (filterStatus === 'analyzing' && imp.status === 'analyzing') ||
+                                (filterStatus === 'completed' && imp.status === 'completed') ||
+                                (filterStatus === 'failed' && imp.status === 'failed');
     
     return matchesSearch && matchesFilterStatus;
   }) || [];
 
   // --- Sorting Logic ---
-  const sortedCompositions = [...filteredCompositions].sort((a, b) => { // Updated variable
+  const sortedImprovisations = [...filteredImprovisations].sort((a, b) => { // Updated variable
     if (sortOption === 'created_at_desc') {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
@@ -309,7 +309,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   return (
     <Card className="w-full shadow-card-light dark:shadow-card-dark">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold">Active Compositions</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Active Improvisations</CardTitle>
         <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={() => setViewMode('grid')} className={cn(viewMode === 'grid' && 'bg-accent text-accent-foreground')}>
                 <Grid3X3 className="h-4 w-4" />
@@ -321,7 +321,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
         </div>
       </CardHeader>
       <CardContent>
-        {sortedCompositions && sortedCompositions.length > 0 ? ( // Updated variable
+        {sortedImprovisations && sortedImprovisations.length > 0 ? ( // Updated variable
           <>
             {/* Bulk Action Toolbar */}
             {hasSelectedItems && (
@@ -329,12 +329,12 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                     <div className="flex items-center space-x-2">
                         <Checkbox 
                             id="select-all-toolbar"
-                            checked={selectedCompositions.size === sortedCompositions.length}
+                            checked={selectedImprovisations.size === sortedImprovisations.length}
                             onCheckedChange={(checked) => handleSelectAll(!!checked)}
                             className="h-5 w-5"
                         />
                         <label htmlFor="select-all-toolbar" className="text-sm font-medium leading-none text-primary-foreground">
-                            {selectedCompositions.size} selected
+                            {selectedImprovisations.size} selected
                         </label>
                     </div>
                     <div className="flex space-x-2">
@@ -375,7 +375,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                 <div className="flex items-center space-x-2 mb-4 px-2">
                     <Checkbox 
                         id="select-all"
-                        checked={selectedCompositions.size === sortedCompositions.length && sortedCompositions.length > 0}
+                        checked={selectedImprovisations.size === sortedImprovisations.length && sortedImprovisations.length > 0}
                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                         className="h-5 w-5"
                     />
@@ -389,24 +389,24 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                 "grid gap-4",
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
-              {sortedCompositions.map((comp) => { // Updated variable
-                const hasFile = !!comp.storage_path;
-                const isStalled = comp.status === 'uploaded' && differenceInHours(new Date(), new Date(comp.created_at)) >= STALLED_THRESHOLD_HOURS;
-                const nextAction = getNextAction(comp); // Updated variable
+              {sortedImprovisations.map((imp) => { // Updated variable
+                const hasFile = !!imp.storage_path;
+                const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
+                const nextAction = getNextAction(imp); // Updated variable
                 const Icon = nextAction.icon;
-                const isSelected = selectedCompositions.has(comp.id);
-                const notesBadge = getNotesStatusBadge(comp.notes);
+                const isSelected = selectedImprovisations.has(imp.id);
+                const notesBadge = getNotesStatusBadge(imp.notes);
                 
                 return (
                   <Card 
-                    key={comp.id} 
+                    key={imp.id} 
                     className={cn(
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
                       isStalled ? 'border-l-4 border-error dark:border-error-foreground bg-error/5 dark:bg-error/10' : 'border-l-4 border-transparent',
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
-                    onClick={() => navigate(`/composition/${comp.id}`)} // Updated path
+                    onClick={() => navigate(`/improvisation/${imp.id}`)} // Updated path
                   >
                     <CardContent className={cn(
                         "p-4 flex items-center space-x-4",
@@ -414,15 +414,15 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                     )}>
                       <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Checkbox 
-                            id={`select-${comp.id}`}
+                            id={`select-${imp.id}`}
                             checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectComposition(comp.id, !!checked)}
+                            onCheckedChange={(checked) => handleSelectImprovisation(imp.id, !!checked)}
                             className="h-5 w-5"
                         />
                       </div>
                       
                       <Avatar className="h-20 w-20 rounded-md border border-border/50 shadow-sm flex-shrink-0">
-                        <AvatarImage src={comp.artwork_url || undefined} alt={comp.generated_name || "Artwork"} />
+                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
                         <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
                           <ImageIcon className="h-10 w-10 text-muted-foreground" />
                         </AvatarFallback>
@@ -431,20 +431,20 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                       <div className="flex-grow space-y-1">
                         <h3 className="font-semibold text-lg leading-tight flex items-center">
                             {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-error flex-shrink-0" />}
-                            {comp.generated_name || comp.file_name || 'Untitled Idea'}
+                            {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                            {format(new Date(comp.created_at), 'MMM dd, yyyy')}
+                            {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {getStatusBadge(comp.status, hasFile)}
+                            {getStatusBadge(imp.status, hasFile)}
                             {notesBadge}
                         </div>
                         <Button 
                             variant="ghost" 
                             size="sm" 
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
-                            onClick={(e) => { e.stopPropagation(); navigate(`/composition/${comp.id}`); }} // Updated path
+                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }} // Updated path
                         >
                             <Icon className={cn(
                                 "w-4 h-4 mr-2", 
@@ -486,4 +486,4 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   );
 };
 
-export default CompositionList;
+export default ImprovisationList;

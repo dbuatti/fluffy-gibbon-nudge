@@ -7,11 +7,11 @@ import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
-  compositionId: string; // Renamed prop
+  improvisationId: string; // Renamed prop
   hasAudioFile: boolean;
 }
 
-const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAudioFile }) => { // Renamed prop
+const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId, hasAudioFile }) => { // Renamed prop
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,7 +27,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAud
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-creative-suggestions', {
-        body: { compositionId }, // Updated parameter name
+        body: { improvisationId }, // Updated parameter name
       });
 
       if (error) throw error;
@@ -45,7 +45,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAud
     } finally {
       setIsLoading(false);
     }
-  }, [compositionId, hasAudioFile]); // Updated dependency
+  }, [improvisationId, hasAudioFile]); // Updated dependency
 
   return (
     <Card className="shadow-lg dark:shadow-xl border-purple-500/50 border-2">
@@ -81,7 +81,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ compositionId, hasAud
           <div className="text-center p-6 bg-muted rounded-lg">
             <Lightbulb className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Click 'Generate Suggestions' to get three actionable ideas for developing this composition. Requires audio file and notes.
+              Click 'Generate Suggestions' to get three actionable ideas for developing this improvisation. Requires audio file and notes.
             </p>
           </div>
         )}
