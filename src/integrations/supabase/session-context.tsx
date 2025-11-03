@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Session, SupabaseClient } from '@supabase/supabase-js';
-import { createClient, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './client'; // Import createClient and constants
+import { createClient, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './client';
 
 interface SessionContextType {
   session: Session | null;
   isLoading: boolean;
-  supabase: SupabaseClient; // Add supabase client to the context
+  supabase: SupabaseClient;
 }
 
 const SessionContext = React.createContext<SessionContextType | undefined>(undefined);
@@ -21,38 +21,49 @@ export const useSession = () => {
 export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Create the Supabase client once and keep it stable
-  const [supabaseClient] = useState(() => createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY));
+  const [supabaseClient] = useState(() =>
+    createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: true, // Ensure session persistence is enabled
+        autoRefreshToken: true, // Ensure auto refresh is enabled
+        detectSessionInUrl: true, // Detect session from URL hash
+      },
+    })
+  );
 
   useEffect(() => {
     console.log("SessionContextProvider: Initializing useEffect...");
 
-    // Set the initial session if available
-    supabaseClient.auth.getSession().then(({ data: { session: initialSession } }) => {
+    const getInitialSession = async () => {
+      const { data: { session: initialSession }, error } = await supabaseClient.auth.getSession();
+      if (error) {
+        console.error("Error fetching initial session:", error);
+      }
       setSession(initialSession);
       setIsLoading(false);
-    });
+    };
 
-    // Listen for auth state changes
+    getInitialSession();
+
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, currentSession) => {
       console.log("SessionContextProvider: Auth state changed. Event:", event, "Session:", currentSession);
       setSession(currentSession);
-      // The client's session is automatically updated by onAuthStateChange,
-      // but explicitly setting it can be useful for clarity or if other parts
-      // of the app need to react to the client's internal state.
-      if (currentSession) {
-        supabaseClient.auth.setSession(currentSession);
-      } else {
-        // If signed out, clear the session from the client
-        supabaseClient.auth.setSession({ access_token: '', refresh_token: '' });
-      }
+      // The client's internal session state is automatically updated by onAuthStateChange.
+      // Explicitly calling setSession here is generally not needed and can sometimes cause issues.
+      // if (currentSession) {
+      //   supabaseClient.auth.setSession(currentSession);
+      // } else {
+      //   // If signed out, the client's session is already cleared by onAuthStateChange.
+      //   // Explicitly setting an empty session might interfere.
+      //   // supabaseClient.auth.setSession({ access_token: '', refresh_token: '' });
+      // }
     });
 
     return () => {
       console.log("SessionContextProvider: Unsubscribing from auth state changes.");
       subscription.unsubscribe();
     };
-  }, [supabaseClient]); // Depend on supabaseClient to ensure effect runs once after client is stable
+  }, [supabaseClient]);
 
   console.log("SessionContextProvider: Render. Session:", session, "isLoading:", isLoading);
 
