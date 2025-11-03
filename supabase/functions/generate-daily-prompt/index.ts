@@ -44,7 +44,11 @@ async function generatePromptWithGemini(): Promise<string> {
         if (!response.ok) {
             const errorBody = await response.json();
             console.error("Gemini API Error:", errorBody);
-            return `AI Prompt Failed (HTTP ${response.status})`;
+            // Specific handling for 429
+            if (response.status === 429) {
+                return `AI Prompt Failed: Rate limit exceeded (HTTP 429). Please wait a moment or check your Gemini API key usage.`;
+            }
+            return `AI Prompt Failed (HTTP ${response.status}): ${errorBody.error?.message || 'Unknown error'}`;
         }
 
         const data = await response.json();
@@ -66,6 +70,14 @@ serve(async (req) => {
   }
 
   try {
+    // @ts-ignore
+    const supabase = createClient(
+      // @ts-ignore
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-ignore
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // We don't need to fetch user data for a public prompt, but we run the AI generation.
     const generatedPrompt = await generatePromptWithGemini();
 

@@ -16,7 +16,8 @@ const fetchDailyPrompt = async (): Promise<string> => {
 
   if (error) {
     console.error("Failed to fetch daily prompt:", error);
-    throw new Error("Failed to fetch daily prompt.");
+    // Propagate the error message from the Edge Function response
+    throw new Error(error.message || "Failed to fetch daily prompt.");
   }
   
   return data.prompt || "Compose a piece about the color blue.";
@@ -77,7 +78,7 @@ const DailyPromptCard: React.FC = () => {
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <p className="text-sm text-red-500">Error loading prompt. Please wait a moment and try again.</p>
+          <p className="text-sm text-red-500">Error loading prompt: {error.message}</p>
         ) : (
           <p className="text-xl font-semibold italic text-foreground">
             "{prompt}"
