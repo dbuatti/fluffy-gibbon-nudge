@@ -23,6 +23,7 @@ interface ImprovisationData {
   primary_genre: string | null;
   is_improvisation: boolean | null;
   is_metadata_confirmed: boolean | null;
+  description: string | null; // NEW: Add description field
   
   // INSIGHT TIMER FIELDS
   insight_content_type: string | null;
@@ -38,7 +39,7 @@ interface ImprovisationData {
 
 interface InsightTimerTabProps {
   imp: ImprovisationData;
-  aiGeneratedDescription: string;
+  aiGeneratedDescription: string; // Still passed, but local state will be primary
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
@@ -65,15 +66,13 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
 }) => {
   
   // Local state for description, initialized from AI result or kept empty
-  const [description, setDescription] = useState(aiGeneratedDescription);
+  const [description, setDescription] = useState(imp.description || ''); // Initialize from DB
   const updateMutation = useUpdateImprovisation(imp.id);
 
-  // Sync local state when AI generates a new description
+  // Sync local state when DB description changes (e.g., after AI population or manual save)
   useEffect(() => {
-    if (aiGeneratedDescription) {
-        setDescription(aiGeneratedDescription);
-    }
-  }, [aiGeneratedDescription]);
+    setDescription(imp.description || '');
+  }, [imp.description]);
 
   const handleCopy = () => {
     if (description) {
@@ -81,6 +80,23 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
       showSuccess('Description copied to clipboard!');
     } else {
       showError('No description to copy.');
+    }
+  };
+  
+  const handleSaveDescription = async () => {
+    if (description === (imp.description || '')) return; // No change
+    if (description.trim() === '') {
+        showError("Description cannot be empty.");
+        setDescription(imp.description || ''); // Revert to last saved
+        return;
+    }
+    try {
+        await updateMutation.mutateAsync({ description: description });
+        showSuccess("Description saved successfully.");
+    } catch (error) {
+        console.error("Failed to save description:", error);
+        showError("Failed to save description.");
+        setDescription(imp.description || ''); // Revert on error
     }
   };
 
@@ -92,7 +108,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   const hasBenefits = (imp.insight_benefits?.length || 0) > 0;
   const hasPractices = !!imp.insight_practices;
   const hasThemes = (imp.insight_themes?.length || 0) > 0;
-  const hasDescription = description.trim().length > 0;
+  const hasDescription = description.trim().length > 0; // Use local state for current check
   
   // If the content type is 'Music', we assume the other fields are required for full categorization.
   const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
@@ -360,6 +376,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                     placeholder="Click 'AI Populate ALL Metadata' above to generate a compliant 3-5 sentence description based on your notes and analysis..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
+                    onBlur={handleSaveDescription} // Save on blur
                     rows={5}
                     className="min-h-[120px]"
                 />

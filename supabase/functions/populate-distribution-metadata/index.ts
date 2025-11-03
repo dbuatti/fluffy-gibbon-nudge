@@ -144,7 +144,7 @@ serve(async (req) => {
     // Extract description before updating the DB
     const description = aiResults.description || "AI failed to generate a description.";
     
-    // 3. Prepare updates for the database (excluding the description)
+    // 3. Prepare updates for the database (including the new 'description' field)
     const updates = {
         insight_content_type: aiResults.insight_content_type || null,
         insight_language: aiResults.insight_language || null,
@@ -154,6 +154,7 @@ serve(async (req) => {
         insight_benefits: aiResults.insight_benefits || [],
         insight_practices: aiResults.insight_practices || null,
         insight_themes: aiResults.insight_themes || [],
+        description: description, // NEW: Save the generated description
     };
 
     const { error: updateError } = await supabase
