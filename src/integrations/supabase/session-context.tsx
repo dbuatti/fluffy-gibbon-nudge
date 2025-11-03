@@ -20,7 +20,7 @@ export const useSession = () => {
 
 export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
   const [supabaseClient] = useState(() =>
     createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: {
@@ -34,35 +34,19 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
   useEffect(() => {
     console.log("SessionContextProvider: Initializing useEffect...");
 
-    const getInitialSession = async () => {
-      const { data: { session: initialSession }, error } = await supabaseClient.auth.getSession();
-      if (error) {
-        console.error("Error fetching initial session:", error);
-      }
-      setSession(initialSession);
-      // Explicitly set the session on the client after fetching it.
-      // This might help ensure the client's internal state is fully synchronized.
-      if (initialSession) {
-        supabaseClient.auth.setSession(initialSession);
-      }
-      setIsLoading(false);
-      console.log("SessionContextProvider: Initial session loaded. Session:", initialSession, "isLoading:", false);
-    };
-
-    getInitialSession();
-
+    // Listen for auth state changes
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, currentSession) => {
       console.log("SessionContextProvider: Auth state changed. Event:", event, "Session:", currentSession);
       setSession(currentSession);
-      // The onAuthStateChange listener automatically updates the client's internal session.
-      // No need for explicit supabaseClient.auth.setSession() here.
+      setIsLoading(false); // Set loading to false once the initial session is determined
     });
 
+    // Cleanup subscription on unmount
     return () => {
       console.log("SessionContextProvider: Unsubscribing from auth state changes.");
       subscription.unsubscribe();
     };
-  }, [supabaseClient]);
+  }, [supabaseClient]); // Depend on supabaseClient to ensure listener is set up once
 
   console.log("SessionContextProvider: Render. Session:", session, "isLoading:", isLoading);
 
