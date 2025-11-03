@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper, getPublicArtworkUrl } from '@/integrations/supabase/client'; // Added getPublicArtworkUrl
+import { getPublicAudioUrl as getPublicAudioUrlHelper, getPublicArtworkUrl } from '@/integrations/supabase/client'; // Added getPublicArtworkUrl
 import { Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -59,9 +59,8 @@ interface Improvisation {
   insight_voice: string | null;
 }
 
-const fetchImprovisationDetails = async (id: string, sessionUserId: string): Promise<Improvisation> => {
+const fetchImprovisationDetails = async (supabase: any, id: string, sessionUserId: string): Promise<Improvisation> => {
   console.log("fetchImprovisationDetails: Attempting to fetch details for ID:", id, "user:", sessionUserId);
-  // Removed redundant supabase.auth.getSession() call
   const { data, error } = await supabase
     .from('improvisations')
     .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
@@ -92,7 +91,7 @@ const ImprovisationDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { session, isLoading: isSessionLoading } = useSession(); // Get session and its loading state
+  const { session, isLoading: isSessionLoading, supabase } = useSession(); // Get session and its loading state
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
@@ -110,7 +109,7 @@ const ImprovisationDetails: React.FC = () => {
 
   const { data: imp, isLoading, error } = useQuery<Improvisation>({
     queryKey: ['improvisation', id],
-    queryFn: () => fetchImprovisationDetails(id!, session!.user.id), // Pass user ID to fetcher
+    queryFn: () => fetchImprovisationDetails(supabase, id!, session!.user.id), // Pass supabase client and user ID to fetcher
     enabled: !!id && !isSessionLoading && !!session?.user, // Only enable if ID exists, session is loaded, and user exists
     refetchInterval: 5000,
   });

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download } from 'lucide-react';
@@ -11,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { useSession } from '@/integrations/supabase/session-context';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 import { showSuccess, showError } from '@/utils/toast';
 
 interface NoteTab {
@@ -57,9 +56,8 @@ interface Improvisation {
 
 const STALLED_THRESHOLD_HOURS = 48;
 
-const fetchImprovisations = async (sessionUserId: string): Promise<Improvisation[]> => {
+const fetchImprovisations = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
-  // Removed redundant supabase.auth.getSession() call
   const { data, error } = await supabase
     .from('improvisations')
     .select('*') // Select all fields for potential export
@@ -142,7 +140,7 @@ interface ImprovisationListProps {
 
 const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setViewMode, searchTerm, filterStatus, sortOption }) => {
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
+  const { session, isLoading: isSessionLoading, supabase } = useSession(); // Use useSession
   const queryClient = useQueryClient();
   const [selectedCompositions, setSelectedCompositions] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
@@ -152,7 +150,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
   const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
     queryKey: ['improvisations'],
-    queryFn: () => fetchImprovisations(session!.user.id), // Pass user ID to fetcher
+    queryFn: () => fetchImprovisations(supabase, session!.user.id), // Pass supabase client and user ID to fetcher
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });

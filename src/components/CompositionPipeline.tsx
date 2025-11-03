@@ -1,6 +1,5 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,9 +11,8 @@ interface StatusCount {
   count: number;
 }
 
-const fetchStatusCounts = async (sessionUserId: string): Promise<StatusCount[]> => {
+const fetchStatusCounts = async (supabase: any, sessionUserId: string): Promise<StatusCount[]> => {
   console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
-  // Removed redundant supabase.auth.getSession() call
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabase
@@ -38,12 +36,12 @@ const fetchStatusCounts = async (sessionUserId: string): Promise<StatusCount[]> 
 };
 
 const CompositionPipeline: React.FC = () => {
-  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
+  const { session, isLoading: isSessionLoading, supabase } = useSession(); // Use useSession
   console.log("CompositionPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
-    queryFn: () => fetchStatusCounts(session!.user.id), // Pass user ID to fetcher
+    queryFn: () => fetchStatusCounts(supabase, session!.user.id), // Pass supabase client and user ID to fetcher
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });

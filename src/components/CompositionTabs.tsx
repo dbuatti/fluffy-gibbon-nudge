@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
-import { supabase, getPublicArtworkUrl } from '@/integrations/supabase/client'; // Import getPublicArtworkUrl
+import { getPublicArtworkUrl } from '@/integrations/supabase/client'; // Import getPublicArtworkUrl
 import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 
 // External Links for Quick Access
@@ -124,7 +124,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
   handleAIPopulateMetadata,
   setAiGeneratedDescription,
 }) => {
-  const { session } = useSession();
+  const { session, supabase } = useSession(); // Get supabase from useSession
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isUploadingArtwork, setIsUploadingArtwork] = useState(false);
   const dragCounter = useRef(0);
@@ -253,7 +253,7 @@ const CompositionTabs: React.FC<CompositionTabsProps> = ({
     } finally {
       setIsUploadingArtwork(false);
     }
-  }, [session, imp.id, handleRefetch]);
+  }, [session, imp.id, handleRefetch, supabase]);
   // --- End Drag and Drop Handlers ---
 
   // A composition is blocked if any critical asset or confirmation is missing.

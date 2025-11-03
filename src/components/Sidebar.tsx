@@ -3,8 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useSession } from '@/integrations/supabase/session-context';
-import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -17,7 +16,7 @@ const navItems = [
 ];
 
 const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick }) => {
-  const { session } = useSession();
+  const { session, supabase } = useSession(); // Get supabase from useSession
   const location = useLocation();
 
   const handleLogout = async () => {

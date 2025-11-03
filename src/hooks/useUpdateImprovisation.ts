@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 import { showSuccess, showError } from '@/utils/toast';
 
 interface UpdatePayload {
@@ -7,17 +7,18 @@ interface UpdatePayload {
   updates: { [key: string]: any };
 }
 
-const updateImprovisation = async ({ id, updates }: UpdatePayload) => {
-  const { error } = await supabase
-    .from('improvisations')
-    .update(updates)
-    .eq('id', id);
-
-  if (error) throw new Error(error.message);
-};
-
-export const useUpdateImprovisation = (improvisationId: string) => {
+const useUpdateImprovisation = (improvisationId: string) => {
   const queryClient = useQueryClient();
+  const { supabase } = useSession(); // Get supabase from useSession
+
+  const updateImprovisation = async ({ id, updates }: UpdatePayload) => {
+    const { error } = await supabase
+      .from('improvisations')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) throw new Error(error.message);
+  };
 
   return useMutation({
     mutationFn: (updates: { [key: string]: any }) => updateImprovisation({ id: improvisationId, updates }),
@@ -34,3 +35,5 @@ export const useUpdateImprovisation = (improvisationId: string) => {
     },
   });
 };
+
+export { useUpdateImprovisation }; // Export the hook

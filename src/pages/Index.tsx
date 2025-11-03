@@ -7,7 +7,6 @@ import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered,
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import CompositionPipeline from "@/components/CompositionPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
-import { supabase } from '@/integrations/supabase/client';
 import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -22,9 +21,8 @@ interface Improvisation {
   created_at: string;
 }
 
-const fetchImprovisationDates = async (sessionUserId: string): Promise<Improvisation[]> => {
+const fetchImprovisationDates = async (supabase: any, sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisationDates: Attempting to fetch dates for user:", sessionUserId);
-  // Removed redundant supabase.auth.getSession() call
   const { data, error } = await supabase
     .from('improvisations')
     .select('created_at')
@@ -98,7 +96,7 @@ const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: st
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const { session, isLoading: isSessionLoading } = useSession(); // Use useSession
+  const { session, isLoading: isSessionLoading, supabase } = useSession(); // Use useSession
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -108,7 +106,7 @@ const Index = () => {
 
   const { data: improvisations } = useQuery<Improvisation[]>({
     queryKey: ['improvisationDates'],
-    queryFn: () => fetchImprovisationDates(session!.user.id), // Pass user ID to fetcher
+    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Pass supabase client and user ID to fetcher
     enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     staleTime: 86400000, // Cache the prompt for 24 hours
     refetchOnWindowFocus: false,

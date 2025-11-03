@@ -3,8 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Loader2, Music } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useSession } from '@/integrations/supabase/session-context';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
 import { showError, showSuccess } from '@/utils/toast';
 
 interface AudioUploadForIdeaProps {
@@ -17,7 +16,7 @@ interface AudioUploadForIdeaProps {
 const MAX_FILE_SIZE_BYTES = 262144000; 
 
 const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId, isImprovisation, onUploadSuccess }) => {
-  const { session } = useSession();
+  const { session, supabase } = useSession(); // Get supabase from useSession
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
