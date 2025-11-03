@@ -8,15 +8,15 @@ import { useSession } from '@/integrations/supabase/session-context';
 import { showError, showSuccess } from '@/utils/toast';
 
 interface AudioUploadForIdeaProps {
-  improvisationId: string;
-  isImprovisation: boolean;
+  compositionId: string; // Renamed prop
+  isCompositionTypeImprovisation: boolean; // Renamed prop
   onUploadSuccess: () => void;
 }
 
 // Max file size: 250 MB (250 * 1024 * 1024 bytes)
 const MAX_FILE_SIZE_BYTES = 262144000; 
 
-const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId, isImprovisation, onUploadSuccess }) => {
+const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ compositionId, isCompositionTypeImprovisation, onUploadSuccess }) => { // Renamed props
   const { session } = useSession();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -55,7 +55,7 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
     const fileExtension = file.name.split('.').pop();
     // Path format: user_id/timestamp.ext
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'piano_improvisations';
+    const bucketName = 'audio_compositions'; // Updated bucket name
 
     try {
       // 1. Upload file to Supabase Storage
@@ -71,13 +71,13 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
       // 2. Update the existing database record with file details and set status to analyzing
       // NOTE: We still use 'analyzing' status here to trigger the title/artwork generation in the background.
       const { error: dbError } = await supabase
-        .from('improvisations')
+        .from('compositions') // Updated table name
         .update({
           file_name: file.name,
           storage_path: filePath,
           status: 'analyzing', // Use 'analyzing' to trigger background title/artwork generation
         })
-        .eq('id', improvisationId);
+        .eq('id', compositionId); // Updated variable
 
       if (dbError) {
         // If DB update fails, try to clean up the uploaded file
@@ -88,9 +88,10 @@ const AudioUploadForIdea: React.FC<AudioUploadForIdeaProps> = ({ improvisationId
       // 3. Trigger the analysis Edge Function (now only handles title/artwork generation)
       const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
         body: {
-          improvisationId: improvisationId,
+          compositionId: compositionId, // Updated parameter name
           storagePath: filePath,
-          fileName: file.name, // Pass file name for title generation
+          fileName: file.name,
+          isImprovisation: isCompositionTypeImprovisation, // Updated parameter name
         },
       });
 

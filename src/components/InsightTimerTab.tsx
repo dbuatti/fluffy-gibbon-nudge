@@ -9,20 +9,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TYPES, INSIGHT_LANGUAGES, INSIGHT_PRIMARY_USES, INSIGHT_AUDIENCE_LEVELS, INSIGHT_AUDIENCE_AGES, INSIGHT_VOICES } from '@/lib/insight-constants';
 import { cn } from '@/lib/utils';
-import SelectField from './SelectField'; // Import SelectField
+import SelectField from './SelectField';
 
-interface ImprovisationData {
+interface CompositionData { // Renamed interface
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
   is_improvisation: boolean | null;
-  is_metadata_confirmed: boolean | null; // New field
+  is_metadata_confirmed: boolean | null;
   
   // INSIGHT TIMER FIELDS
   insight_content_type: string | null;
@@ -37,16 +37,16 @@ interface ImprovisationData {
 }
 
 interface InsightTimerTabProps {
-  imp: ImprovisationData;
+  imp: CompositionData; // Updated prop name and type
   aiGeneratedDescription: string;
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
-  handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>; // New handler
+  handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
 }
 
 const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ 
-    imp, 
+    imp, // Updated prop name
     aiGeneratedDescription, 
     isPopulating, 
     handleAIPopulateMetadata,
@@ -56,7 +56,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(aiGeneratedDescription);
-  const updateMutation = useUpdateImprovisation(imp.id);
+  const updateMutation = useUpdateComposition(imp.id); // Updated hook
 
   // Sync local state when AI generates a new description
   useEffect(() => {
