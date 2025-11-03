@@ -109,25 +109,5 @@
     @apply bg-background text-foreground;
   }
 
-  /* Typography Hierarchy */
-  /*
-  h1 {
-    @apply text-3xl font-bold leading-tight; 
-  }
-  h2 {
-    @apply text-2xl font-semibold leading-snug; 
-  }
-  h3 {
-    @apply text-xl font-semibold leading-normal; 
-  }
-  p {
-    @apply text-base leading-relaxed; 
-  }
-  .text-sm {
-    @apply text-sm leading-normal; 
-  }
-  .text-xs {
-    @apply text-xs leading-snug;
-  }
-  */
+  /* Typography Hierarchy - Removed @apply, will use direct Tailwind classes */
 }

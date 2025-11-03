@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react'; // Removed ArrowRight, Sparkles
+import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -99,7 +99,7 @@ const CompositionPipeline: React.FC = () => {
   return (
     <Card className="shadow-card-light dark:shadow-card-dark w-full">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-xl font-bold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
+        <CardTitle className="text-2xl font-semibold">Composition Pipeline ({totalCompositions} Total)</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
