@@ -6,7 +6,7 @@ import EditableField from './EditableField';
 import CompositionMetadataDialog from './CompositionMetadataDialog';
 import CompositionSettingsSheet from './CompositionSettingsSheet';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // FIX: Corrected import path
 import { format } from 'date-fns';
 import TitleBar from './TitleBar'; // Import TitleBar
 
@@ -81,8 +81,9 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
   handleUpdateInsightAudienceAge,
   handleUpdateInsightVoice,
 }) => {
-  const updateMutation = useUpdateImprovisation(imp.id);
-  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
+  const updateMutation = useUpdateComposition(imp.id);
+  // FIX: Wrap generated_name in an 'updates' object
+  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ updates: { generated_name: newName } });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
 
   const titleContent = (

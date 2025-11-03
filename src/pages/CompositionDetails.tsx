@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, UseQueryResult, UseQueryOptions } from '@tanstack/react-query'; // FIX: Import UseQueryOptions
+import { useQuery, useQueryClient, UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { MadeWithDyad } from '@/components/made-with-dyad';

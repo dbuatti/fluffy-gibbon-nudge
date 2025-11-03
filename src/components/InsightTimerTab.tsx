@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // FIX: Corrected import path
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -56,7 +56,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(aiGeneratedDescription);
-  const updateMutation = useUpdateImprovisation(imp.id);
+  const updateMutation = useUpdateComposition(imp.id);
 
   // Sync local state when AI generates a new description
   useEffect(() => {
@@ -100,13 +100,14 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     if (newBenefits.length > 3) {
       newBenefits = newBenefits.slice(0, 3);
     }
-    
-    updateMutation.mutate({ insight_benefits: newBenefits });
+    // FIX: Wrap properties in an 'updates' object
+    updateMutation.mutate({ updates: { insight_benefits: newBenefits } });
   };
 
   // --- Practices (Single Select) ---
   const handlePracticeChange = (practice: string) => {
-    updateMutation.mutate({ insight_practices: practice });
+    // FIX: Wrap properties in an 'updates' object
+    updateMutation.mutate({ updates: { insight_practices: practice } });
   };
 
   // --- Themes (Multi-Select) ---
@@ -115,24 +116,25 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     const newThemes = checked
       ? [...currentThemes, theme]
       : currentThemes.filter(t => t !== theme);
-      
-    updateMutation.mutate({ insight_themes: newThemes });
+    // FIX: Wrap properties in an 'updates' object
+    updateMutation.mutate({ updates: { insight_themes: newThemes } });
   };
   
   // --- Core Field Handlers (Re-implementing logic from CompositionMetadataDialog) ---
-  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
-  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
-  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
-  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
-  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
+  // FIX: Wrap properties in an 'updates' object for mutateAsync calls
+  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ updates: { insight_content_type: value } });
+  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ updates: { insight_language: value } });
+  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ updates: { insight_primary_use: value } });
+  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ updates: { insight_audience_level: value } });
+  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ updates: { insight_voice: value } });
   
   const handleAudienceAgeChange = (age: string, checked: boolean) => {
     const currentAudienceAges = imp.insight_audience_age || [];
     const newAges = checked
       ? [...currentAudienceAges, age]
       : currentAudienceAges.filter(a => a !== age);
-      
-    updateMutation.mutate({ insight_audience_age: newAges });
+    // FIX: Wrap properties in an 'updates' object
+    updateMutation.mutate({ updates: { insight_audience_age: newAges } });
   };
   
   // --- Rendering Functions ---
