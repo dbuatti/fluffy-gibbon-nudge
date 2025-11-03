@@ -59,6 +59,8 @@ const STALLED_THRESHOLD_HOURS = 48;
 
 const fetchImprovisations = async (sessionUserId: string): Promise<Improvisation[]> => {
   console.log("fetchImprovisations: Attempting to fetch improvisations for user:", sessionUserId);
+  const { data: { session } } = await supabase.auth.getSession(); // Get current session from client
+  console.log("fetchImprovisations: Supabase client session at call time:", session); // Log it
   const { data, error } = await supabase
     .from('improvisations')
     .select('*') // Select all fields for potential export
@@ -289,7 +291,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortOption === 'created_at_asc') {
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(a.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortOption === 'name_asc') {
       const nameA = (a.generated_name || a.file_name || '').toLowerCase();
