@@ -1,27 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient, queryOptions } from '@tanstack/react-query'; // Changed import to queryOptions
-import { supabase, getPublicAudioUrl } from '@/integrations/supabase/client';
-import { useSession } from '@/integrations/supabase/session-context';
-import { MadeWithDyad } from '@/components/made-with-dyad';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Music, ArrowLeft, Upload, Trash2, Palette, Sparkles, Copy, CheckCircle, AlertTriangle, Clock, Settings, Info, RefreshCw } from 'lucide-react';
+import React from 'react';
+import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
+import { Loader2, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
-import { format } from 'date-fns';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import CompositionTabs from '@/components/CompositionTabs';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition';
-import { Input } from '@/components/ui/input';
 import AudioPlayer from '@/components/AudioPlayer';
-import AudioUploadForIdea from '@/components/AudioUploadForIdea';
-import CompositionMetadataDialog from '@/components/CompositionMetadataDialog';
-import CompositionSettingsSheet from '@/components/CompositionSettingsSheet';
-import EditableField from '@/components/EditableField';
-import { useTitleGenerator } from '@/hooks/useTitleGenerator';
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
 import { useAIAugmentation } from '@/hooks/useAIAugmentation';
+import CompositionHeader from '@/components/CompositionHeader';
+import CompositionProgressCard from '@/components/CompositionProgressCard';
+import CompositionTabs from '@/components/CompositionTabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useSession } from '@/integrations/supabase/session-context';
 
-// Define the Composition interface (must match the one in CompositionTabs.tsx and useUpdateComposition.ts)
 interface NoteTab {
   id: string;
   title: string;
@@ -29,28 +20,33 @@ interface NoteTab {
   content: string;
 }
 
-interface Composition {
+interface AnalysisData {
+  simulated_key?: string;
+  simulated_tempo?: number;
+  mood?: string;
+  [key: string]: any;
+}
+
+interface Composition { // Renamed interface
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
   generated_name: string | null;
   artwork_url: string | null;
   artwork_prompt: string | null;
-  created_at: string;
-  notes: NoteTab[] | null;
-  storage_path: string | null;
-  is_ready_for_release: boolean | null;
-  user_id: string;
   is_piano: boolean | null;
   is_improvisation: boolean | null;
   primary_genre: string | null;
   secondary_genre: string | null;
-  analysis_data: { mood?: string; simulated_key?: string; simulated_tempo?: number; [key: string]: any } | null;
+  analysis_data: AnalysisData | null;
+  created_at: string;
+  storage_path: string | null;
+  notes: NoteTab[] | null;
+  is_ready_for_release: boolean | null;
   user_tags: string[] | null;
   is_instrumental: boolean | null;
   is_original_song: boolean | null;
   has_explicit_lyrics: boolean | null;
-  is_original_song_confirmed: boolean | null;
   is_metadata_confirmed: boolean | null;
   insight_content_type: string | null;
   insight_language: string | null;
@@ -61,518 +57,452 @@ interface Composition {
   insight_practices: string | null;
   insight_themes: string[] | null;
   insight_voice: string | null;
-  ai_generated_description: string | null;
 }
 
-const fetchCompositionDetails = async (supabaseClient: any, compositionId: string): Promise<Composition> => {
-  const { data, error } = await supabaseClient
-    .from('compositions')
-    .select('*')
-    .eq('id', compositionId)
+const fetchCompositionDetails = async (id: string): Promise<Composition> => { // Renamed fetch function
+  const { data, error } = await supabase
+    .from('compositions') // Updated table name
+    .select('id,user_id,file_name,storage_path,status,generated_name,analysis_data,created_at,artwork_url,artwork_prompt,is_piano,primary_genre,secondary_genre,is_improvisation,notes,is_ready_for_release,user_tags,is_instrumental,is_original_song,has_explicit_lyrics,is_metadata_confirmed,insight_content_type,insight_language,insight_primary_use,insight_audience_level,insight_audience_age,insight_benefits,insight_practices,insight_themes,insight_voice')
+    .eq('id', id)
     .single();
 
   if (error) throw new Error(error.message);
   return data as Composition;
 };
 
-const CompositionDetails: React.FC = () => {
+const getPublicAudioUrl = (storagePath: string | null): string | null => {
+    if (!storagePath) return null;
+    return getPublicAudioUrlHelper(storagePath);
+};
+
+const getPublicArtworkDisplayUrl = (artworkUrl: string | null): string | null => {
+    return artworkUrl;
+};
+
+
+const CompositionDetails: React.FC = () => { // Renamed component
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { session, isLoading: isSessionLoading } = useSession();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const { mutateAsync: updateCompositionMutation, isPending: isUpdatingComposition } = useUpdateComposition(id || '');
+  const { session, isLoading: isSessionLoading } = useSession();
+  const [isRegenerating, setIsRegenerating] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isMarkingReady, setIsMarkingReady] = React.useState(false);
 
-  const [currentTab, setCurrentTab] = useState('details');
-  const [aiGeneratedDescription, setAiGeneratedDescription] = useState<string | null>(null);
-  const [isDeletingComposition, setIsDeletingComposition] = useState(false);
+  // --- Tab State Management using URL Query Params ---
+  const query = new URLSearchParams(location.search);
+  const currentTab = query.get('tab') || 'creative-hub';
 
-  const compositionQueryOptions = queryOptions({
-    queryKey: ['composition', id!] as const,
-    queryFn: () => fetchCompositionDetails(supabase, id!),
-    enabled: !!id && !isSessionLoading && !!session?.user,
-    onSuccess: (data) => {
-      setAiGeneratedDescription(data.ai_generated_description);
-    },
-    refetchInterval: (query) => {
-      // Refetch every 5 seconds if status is 'analyzing', otherwise no refetch
-      return query.state.data?.status === 'analyzing' ? 5000 : false;
-    },
+  const handleTabChange = (newTab: string) => {
+    navigate(`?tab=${newTab}`, { replace: true });
+  };
+  // --- End Tab State Management ---
+
+  const { data: comp, isLoading, error } = useQuery<Composition>({ // Renamed variable and type
+    queryKey: ['composition', id], // Updated query key
+    queryFn: () => fetchCompositionDetails(id!), // Updated fetch function
+    enabled: !!id && !isSessionLoading && !!session?.user?.id,
+    refetchInterval: 5000,
   });
 
-  const { data: comp, isLoading, error, refetch } = useQuery(compositionQueryOptions);
+  const updateMutation = useUpdateComposition(id!); // Updated hook
+  const { isPopulating, aiGeneratedDescription, handleAIPopulateMetadata, setAiGeneratedDescription } = useAIAugmentation(id!);
+  
+  // Determine if we are loading the initial data OR if the status is actively analyzing
+  const isAnalyzing = comp?.status === 'analyzing'; // Updated variable
+  const showLoadingSpinner = isLoading || isSessionLoading || isAnalyzing;
+  const hasAudioFile = !!comp?.storage_path; // Updated variable
+  const isReadyForRelease = comp?.is_ready_for_release; // Updated variable
+  
+  // Get public URL for the audio file
+  const audioPublicUrl = getPublicAudioUrl(comp?.storage_path || null); // Updated variable
+  // Get public URL for the artwork
+  const artworkDisplayUrl = getPublicArtworkDisplayUrl(comp?.artwork_url || null); // Updated variable
 
-  const { isPopulating, handleAIPopulateMetadata } = useAIAugmentation(id || '');
+  // NEW: Core Metadata Completion Check
+  const isCoreMetadataComplete = !!comp?.primary_genre && !!comp?.analysis_data?.simulated_key && !!comp?.analysis_data?.simulated_tempo && !!comp?.analysis_data?.mood; // Updated variable
 
-  const handleRefetch = useCallback(() => {
-    refetch();
-    queryClient.invalidateQueries({ queryKey: ['compositions'] });
-    queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] }); // Invalidate pipeline counts
-  }, [refetch, queryClient]);
+  // --- HANDLER DEFINITIONS ---
 
-  const handleUpdateComposition = useCallback(async (updates: Partial<Composition>) => {
-    if (!comp?.id) return;
-    try {
-      await updateCompositionMutation({ updates });
-      handleRefetch();
-    } catch (err) {
-      console.error('Failed to update composition:', err);
-      showError(`Failed to update composition: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }, [comp?.id, updateCompositionMutation, handleRefetch]);
+  const handleRefetch = () => {
+    queryClient.invalidateQueries({ queryKey: ['composition', id] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
+  };
 
-  // --- Handlers for Editable Fields & Toggles (passed to Metadata Dialog) ---
-  const handleUpdatePrimaryGenre = useCallback((value: string) => handleUpdateComposition({ primary_genre: value }), [handleUpdateComposition]);
-  const handleUpdateSecondaryGenre = useCallback((value: string) => handleUpdateComposition({ secondary_genre: value }), [handleUpdateComposition]);
-  const handleUpdateAnalysisData = useCallback((key: keyof Composition['analysis_data'], newValue: string) => {
-    if (!comp) return Promise.resolve();
-    const updatedAnalysisData = { ...comp.analysis_data, [key]: newValue };
-    return handleUpdateComposition({ analysis_data: updatedAnalysisData });
-  }, [comp, handleUpdateComposition]);
-  const handleUpdateIsImprovisation = useCallback((value: string) => handleUpdateComposition({ is_improvisation: value === 'true' }), [handleUpdateComposition]);
-  const handleUpdateIsPiano = useCallback((checked: boolean) => handleUpdateComposition({ is_piano: checked }), [handleUpdateComposition]);
-  const handleUpdateIsInstrumental = useCallback((checked: boolean) => handleUpdateComposition({ is_instrumental: checked }), [handleUpdateComposition]);
-  const handleUpdateIsOriginalSong = useCallback((checked: boolean) => handleUpdateComposition({ is_original_song: checked }), [handleUpdateComposition]);
-  const handleUpdateHasExplicitLyrics = useCallback((checked: boolean) => handleUpdateComposition({ has_explicit_lyrics: checked }), [handleUpdateComposition]);
-  const handleUpdateInsightContentType = useCallback((value: string) => handleUpdateComposition({ insight_content_type: value }), [handleUpdateComposition]);
-  const handleUpdateInsightLanguage = useCallback((value: string) => handleUpdateComposition({ insight_language: value }), [handleUpdateComposition]);
-  const handleUpdateInsightPrimaryUse = useCallback((value: string) => handleUpdateComposition({ insight_primary_use: value }), [handleUpdateComposition]);
-  const handleUpdateInsightAudienceLevel = useCallback((value: string) => handleUpdateComposition({ insight_audience_level: value }), [handleUpdateComposition]);
-  const handleUpdateInsightAudienceAge = useCallback((value: string[]) => handleUpdateComposition({ insight_audience_age: value }), [handleUpdateComposition]);
-  const handleUpdateInsightVoice = useCallback((value: string) => handleUpdateComposition({ insight_voice: value }), [handleUpdateComposition]);
-  const handleUpdateIsMetadataConfirmed = useCallback((checked: boolean) => handleUpdateComposition({ is_metadata_confirmed: checked }), [handleUpdateComposition]);
-
-  // Check if core metadata for Insight Timer is complete
-  const isCoreMetadataComplete = !!comp?.insight_content_type &&
-                                 !!comp?.insight_language &&
-                                 !!comp?.insight_primary_use &&
-                                 !!comp?.insight_audience_level &&
-                                 (comp?.insight_audience_age?.length || 0) > 0 &&
-                                 !!comp?.insight_voice &&
-                                 (comp?.insight_benefits?.length || 0) > 0 &&
-                                 !!comp?.insight_practices &&
-                                 (comp?.insight_themes?.length || 0) > 0 &&
-                                 !!aiGeneratedDescription; // Also check if description is generated
-
-  // --- Title Generation ---
-  const handleUpdateName = (newName: string) => handleUpdateComposition({ generated_name: newName });
-  const { isGenerating: isGeneratingTitle, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(id || '', handleUpdateName);
-
-  const handleClearFile = useCallback(async () => {
-    if (!comp?.id || !comp.storage_path) return;
-
-    if (!window.confirm("Are you sure you want to clear the audio file? This cannot be undone.")) {
+  const handleRegenerateArtwork = async () => {
+    if (!comp || !comp.generated_name || !comp.primary_genre || !comp.analysis_data?.mood) { // Updated variable
+      showError("Cannot generate artwork prompt: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
       return;
     }
 
+    setIsRegenerating(true);
+    showSuccess("AI artwork prompt generation started...");
+
     try {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('piano_improvisations') // Use the correct bucket name
-        .remove([comp.storage_path]);
-
-      if (storageError) throw storageError;
-
-      // Update database record
-      await handleUpdateComposition({
-        storage_path: null,
-        status: 'uploaded', // Reset status to 'uploaded' (needs audio)
-        file_name: null,
-        generated_name: null, // Clear generated name as it's tied to the file
-        artwork_url: null,
-        artwork_prompt: null,
-        analysis_data: null,
-        user_tags: null,
-        ai_generated_description: null,
-        primary_genre: null,
-        secondary_genre: null,
-        is_ready_for_release: false,
-        is_metadata_confirmed: false,
-        insight_content_type: null,
-        insight_language: null,
-        insight_primary_use: null,
-        insight_audience_level: null,
-        insight_audience_age: null,
-        insight_benefits: null,
-        insight_practices: null,
-        insight_themes: null,
-        insight_voice: null,
-      });
-
-      showSuccess("Audio file cleared successfully.");
-    } catch (err) {
-      console.error('Error clearing file:', err);
-      showError(`Failed to clear file: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }, [comp, handleUpdateComposition]);
-
-  const handleUploadArtwork = useCallback(async (file: File) => {
-    if (!comp?.id || !session?.user.id) return;
-
-    showSuccess("Uploading artwork...");
-    try {
-      const fileExtension = file.name.split('.').pop();
-      const filePath = `${session.user.id}/${comp.id}/artwork.${fileExtension}`; // Consistent path
-
-      const { error: uploadError } = await supabase.storage
-        .from('artwork_compositions') // Assuming a separate bucket for artwork
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from('artwork_compositions')
-        .getPublicUrl(filePath);
-
-      await handleUpdateComposition({ artwork_url: publicUrlData.publicUrl });
-      showSuccess("Artwork uploaded successfully!");
-    } catch (err) {
-      console.error('Error uploading artwork:', err);
-      showError(`Failed to upload artwork: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }, [comp, session, handleUpdateComposition]);
-
-  const handleDeleteArtwork = useCallback(async () => {
-    if (!comp?.id || !comp.artwork_url || !session?.user.id) return;
-
-    if (!window.confirm("Are you sure you want to delete the artwork?")) {
-      return;
-    }
-
-    showSuccess("Deleting artwork...");
-    try {
-      // Derive storage path from public URL
-      const filePath = `${session.user.id}/${comp.id}/artwork.${comp.artwork_url.split('.').pop()}`;
-
-      const { error: storageError } = await supabase.storage
-        .from('artwork_compositions')
-        .remove([filePath]);
-
-      if (storageError) throw storageError;
-
-      await handleUpdateComposition({ artwork_url: null, artwork_prompt: null });
-      showSuccess("Artwork deleted successfully!");
-    } catch (err) {
-      console.error('Error deleting artwork:', err);
-      showError(`Failed to delete artwork: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  }, [comp, session, handleUpdateComposition]);
-
-  const handleGenerateArtworkPrompt = useCallback(async () => {
-    if (!comp?.id || !comp.generated_name || !comp.primary_genre || !comp.analysis_data?.mood) {
-      showError("Missing composition name, primary genre, or mood to generate artwork prompt.");
-      return;
-    }
-
-    showSuccess("Generating artwork prompt with AI...");
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-artwork', {
+      const { error: functionError } = await supabase.functions.invoke('generate-artwork', {
         body: {
-          improvisationId: comp.id,
-          generatedName: comp.generated_name,
-          primaryGenre: comp.primary_genre,
-          secondaryGenre: comp.secondary_genre,
-          mood: comp.analysis_data.mood,
+          compositionId: comp.id, // Updated parameter name
+          generatedName: comp.generated_name, // Updated variable
+          primaryGenre: comp.primary_genre, // Updated variable
+          secondaryGenre: comp.secondary_genre, // Updated variable
+          mood: comp.analysis_data.mood, // Updated variable
         },
       });
 
-      if (error) throw error;
-      if (data && data.artworkPrompt) {
-        await handleUpdateComposition({ artwork_prompt: data.artworkPrompt, artwork_url: null });
-        showSuccess("Artwork prompt generated!");
-      } else {
-        showError("AI did not return an artwork prompt.");
+      if (functionError) {
+        throw functionError;
       }
-    } catch (err) {
-      console.error('Error generating artwork prompt:', err);
-      showError(`Failed to generate artwork prompt: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      handleRefetch();
+      showSuccess("New AI artwork prompt generated successfully! Check the Assets tab.");
+
+    } catch (error) {
+      console.error('Artwork prompt generation failed:', error);
+      showError(`Failed to generate artwork prompt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsRegenerating(false);
     }
-  }, [comp, handleUpdateComposition]);
+  };
 
-  const handleRegenerateArtwork = useCallback(async () => {
-    showError("Artwork regeneration not yet implemented.");
-  }, []);
-
-  const handleDeleteComposition = useCallback(async () => {
-    if (!comp?.id || !session?.user.id) return;
-
-    setIsDeletingComposition(true);
-    showSuccess(`Deleting composition "${comp.generated_name || 'Untitled'}"...`);
+  const handleMarkReady = async () => {
+    if (!comp) return; // Updated variable
+    setIsMarkingReady(true);
 
     try {
-      // 1. Delete audio file from Supabase Storage (if exists)
-      if (comp.storage_path) {
+      const { error: dbError } = await supabase
+        .from('compositions') // Updated table name
+        .update({ is_ready_for_release: true })
+        .eq('id', comp.id); // Updated variable
+
+      if (dbError) throw dbError;
+
+      showSuccess("Composition marked as Ready for Release! Time to submit.");
+      handleRefetch();
+    } catch (error) {
+      console.error('Failed to mark ready:', error);
+      showError(`Failed to mark composition ready: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsMarkingReady(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!comp) return; // Updated variable
+
+    setIsDeleting(true);
+    showSuccess("Deleting composition...");
+
+    try {
+      // 1. Delete file from Supabase Storage (only if a file exists)
+      if (comp.storage_path) { // Updated variable
         const { error: storageError } = await supabase.storage
-          .from('piano_improvisations')
-          .remove([comp.storage_path]);
-        if (storageError) console.error(`Failed to delete audio file for ${comp.id}:`, storageError);
+          .from('audio_compositions') // Updated bucket name
+          .remove([comp.storage_path]); // Updated variable
+
+        if (storageError) {
+          console.error("Failed to delete file from storage:", storageError);
+        }
       }
-      // 2. Delete artwork from Supabase Storage (if exists)
-      if (comp.artwork_url) {
-        const filePath = `${session.user.id}/${comp.id}/artwork.${comp.artwork_url.split('.').pop()}`;
-        const { error: artworkStorageError } = await supabase.storage
-          .from('artwork_compositions')
-          .remove([filePath]);
-        if (artworkStorageError) console.error(`Failed to delete artwork file for ${comp.id}:`, artworkStorageError);
-      }
+      
+      // 2. Artwork is no longer directly uploaded by AI, so no need to delete from 'artwork' bucket.
+      //    If manual upload is implemented later, this logic would need to be revisited.
+      //    For now, we assume artwork_url is just a URL and not a path in our storage.
 
       // 3. Delete record from database
       const { error: dbError } = await supabase
-        .from('compositions')
+        .from('compositions') // Updated table name
         .delete()
-        .eq('id', comp.id);
+        .eq('id', comp.id); // Updated variable
+
       if (dbError) throw dbError;
 
-      showSuccess(`Composition "${comp.generated_name || 'Untitled'}" deleted successfully.`);
-      queryClient.invalidateQueries({ queryKey: ['compositions'] });
-      queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
-      navigate('/'); // Redirect to dashboard after deletion
+      showSuccess(`Composition "${comp.generated_name || comp.file_name || 'Idea'}" deleted successfully.`); // Updated variable
+      queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
+      navigate('/'); // Redirect to dashboard
+
     } catch (error) {
       console.error('Deletion failed:', error);
       showError(`Failed to delete composition: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsDeletingComposition(false);
+      setIsDeleting(false);
     }
-  }, [comp, session, queryClient, navigate]);
+  };
+  
+  const handleClearFile = async () => {
+    if (!comp) return; // Updated variable
+    
+    try {
+        const { error: dbError } = await supabase
+            .from('compositions') // Updated table name
+            .update({
+                file_name: null,
+                storage_path: null,
+                status: 'uploaded',
+            })
+            .eq('id', comp.id); // Updated variable
 
-
-  if (isLoading || isSessionLoading) {
-    return (
-      <div className="text-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-        <p className="mt-4 text-muted-foreground">Loading composition details...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center p-8 text-error dark:text-error-foreground">
-        Error loading composition: {error.message}
-        <Button onClick={() => navigate('/')} className="mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-        </Button>
-      </div>
-    );
-  }
-
-  if (!comp) {
-    return (
-      <div className="text-center p-8 text-muted-foreground">
-        <AlertTriangle className="h-8 w-8 mx-auto mb-4" />
-        <p className="text-lg font-medium">Composition not found.</p>
-        <Button onClick={() => navigate('/')} className="mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-        </Button>
-      </div>
-    );
-  }
-
-  const hasFile = !!comp.storage_path;
-  const publicAudioUrl = hasFile ? getPublicAudioUrl(comp.storage_path!) : '';
-
-  const statusBadge = () => {
-    switch (comp.status) {
-      case 'uploaded':
-        return <span className="text-info dark:text-info-foreground">Uploaded (Needs Audio)</span>;
-      case 'analyzing':
-        return <span className="text-warning dark:text-warning-foreground flex items-center"><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</span>;
-      case 'completed':
-        return <span className="text-success dark:text-success-foreground">Completed</span>;
-      case 'failed':
-        return <span className="text-destructive dark:text-destructive-foreground">Failed</span>;
-      default:
-        return <span className="text-muted-foreground">Unknown</span>;
+        if (dbError) throw dbError;
+        
+        showSuccess("Audio file path cleared. Please upload a new file.");
+        handleRefetch();
+    } catch (error) {
+        console.error('Failed to clear file path:', error);
+        showError(`Failed to clear file path: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
+  // Handlers for Editable Fields
+  const handleUpdatePrimaryGenre = (newGenre: string) => updateMutation.mutateAsync({ primary_genre: newGenre });
+  const handleUpdateSecondaryGenre = (newGenre: string) => updateMutation.mutateAsync({ secondary_genre: newGenre });
+  const handleUpdateIsImprovisation = (value: string) => updateMutation.mutateAsync({ is_improvisation: value === 'true' });
+  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutateAsync({ is_piano: checked });
+  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutateAsync({ is_instrumental: checked });
+  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
+  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
+  
+  // NEW HANDLERS FOR INSIGHT TIMER FIELDS
+  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
+  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
+  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
+  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
+  const handleUpdateInsightAudienceAge = (value: string[]) => updateMutation.mutateAsync({ insight_audience_age: value });
+  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
+  const handleUpdateIsMetadataConfirmed = (checked: boolean) => updateMutation.mutateAsync({ is_metadata_confirmed: checked });
+  
+  // Handler for nested analysis_data updates
+  const handleUpdateAnalysisData = (key: keyof AnalysisData, newValue: string) => {
+    const currentData = comp!.analysis_data || {}; // Updated variable
+    let updatedValue: string | number = newValue;
+
+    if (key === 'simulated_tempo') {
+        updatedValue = parseInt(newValue, 10);
+        if (isNaN(updatedValue)) {
+            showError("Tempo must be a valid number.");
+            return Promise.reject(new Error("Invalid tempo value"));
+        }
+    }
+
+    const newAnalysisData = {
+        ...currentData,
+        [key]: updatedValue,
+    };
+
+    return updateMutation.mutateAsync({ analysis_data: newAnalysisData });
+  };
+  
+  // --- Progress Logic (Gamification) ---
+  let progressValue = 0;
+  let progressMessage = "Capture your idea first.";
+  let primaryAction: { label: string, onClick: () => void, variant: "default" | "secondary" | "outline" } | null = null;
+
+  if (comp) { // Updated variable
+    // Base Step: Idea Captured (10%)
+    progressValue = 10;
+    progressMessage = "Idea captured. Now record and upload the audio file.";
+    
+    // Micro-Progress: Set Type (5%)
+    if (comp.is_improvisation !== null) { // Updated variable
+        progressValue += 5;
+    }
+
+    // Action 1: Upload Audio
+    if (!hasAudioFile) {
+        primaryAction = {
+            label: "Upload Audio (30% Progress Boost)",
+            onClick: () => {
+                document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' });
+            },
+            variant: "default"
+        };
+    }
+
+    // Step 2: Audio Uploaded (30% total)
+    if (hasAudioFile) {
+      progressValue = 30; 
+      progressMessage = "Audio uploaded. Set core metadata and notes.";
+      primaryAction = null; 
+    }
+
+    // Step 3: Core Metadata Set (60% total)
+    const hasNotes = comp.notes?.some(n => n.content.trim().length > 0); // Updated variable
+    
+    if (hasAudioFile && isCoreMetadataComplete) {
+      progressValue = 60;
+      progressMessage = "Core metadata set. Add creative notes and tags.";
+      
+      // Action 2: Add Notes
+      if (!hasNotes) {
+          primaryAction = {
+              label: "Add Creative Notes (10% Progress Boost)",
+              onClick: () => {
+                  document.getElementById('composition-notes')?.scrollIntoView({ behavior: 'smooth' });
+              },
+              variant: "secondary"
+          };
+      }
+    }
+    
+    // Step 4: Notes Added (70%)
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && comp.artwork_prompt) { // Updated variable
+        progressValue = 70;
+        progressMessage = "Notes added. Generate artwork prompt and populate distribution fields.";
+        
+        // Action 3: Generate Artwork Prompt
+        if (!comp.artwork_prompt) { // Updated variable
+            primaryAction = {
+                label: "Generate AI Artwork Prompt (10% Progress Boost)",
+                onClick: handleRegenerateArtwork,
+                variant: "outline"
+            };
+        }
+    }
+
+    // Step 5: Artwork Prompt Generated (80%)
+    const hasInsightTimerPopulated = (comp.insight_benefits?.length || 0) > 0 && !!comp.insight_practices; // Updated variable
+    
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && comp.artwork_prompt && hasInsightTimerPopulated) { // Updated variable
+      progressValue = 80;
+      progressMessage = "AI artwork prompt generated. Use AI to populate distribution fields.";
+      
+      // Action 4: AI Populate Metadata
+      if (!hasInsightTimerPopulated) {
+          primaryAction = {
+              label: "AI Populate Distribution Metadata (10% Boost)",
+              onClick: handleAIPopulateMetadata,
+              variant: "default"
+          };
+      }
+    }
+    
+    // Step 6: AI Augmentation Complete (90%)
+    if (hasAudioFile && isCoreMetadataComplete && hasNotes && comp.artwork_prompt && hasInsightTimerPopulated) { // Updated variable
+        progressValue = 90;
+        progressMessage = "AI augmentation complete. Final step: Mark as Ready for Release!";
+        
+        // Action 5: Mark Ready
+        if (!isReadyForRelease) {
+            primaryAction = {
+                label: "Mark as Ready for Release (10% Progress Boost)",
+                onClick: handleMarkReady,
+                variant: "default"
+            };
+        }
+    }
+
+    // Step 7: Ready for Release (100%)
+    if (isReadyForRelease) {
+      progressValue = 100;
+      progressMessage = "Composition is 100% ready for release! Time to submit.";
+      primaryAction = {
+          label: "Go to Distribution Prep",
+          onClick: () => {
+              handleTabChange('analysis-distro');
+          },
+          variant: "default"
+      };
+    }
+  }
+
+
+  if (!id) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (showLoadingSpinner) {
+    const loadingMessage = isAnalyzing ? "Processing file..." : "Loading composition details...";
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">{loadingMessage}</p>
+      </div>
+    );
+  }
+
+  // If data fetching completed but comp is null (e.g., 404 or no data found)
+  if (error || !comp) { // Updated variable
+    return <div className="text-center p-8 text-red-500">Error loading details or composition not found: {error?.message || "No data."}</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <header className="mb-8 max-w-6xl mx-auto flex justify-between items-center">
-        <Button variant="ghost" onClick={() => navigate('/')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-        </Button>
-        {/* Spacer for alignment, or could add global actions here */}
-        <div></div> 
-      </header>
+    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+      
+      {/* 1. HEADER (Title, Metadata Dialog, Settings Sheet) */}
+      <CompositionHeader
+        imp={comp} // Updated prop name
+        isCoreMetadataComplete={isCoreMetadataComplete}
+        handleDelete={handleDelete}
+        isDeleting={isDeleting}
+        handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
+        handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
+        handleUpdateAnalysisData={handleUpdateAnalysisData}
+        handleUpdateIsImprovisation={handleUpdateIsImprovisation}
+        handleUpdateIsPiano={handleUpdateIsPiano}
+        handleUpdateIsInstrumental={handleUpdateIsInstrumental}
+        handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
+        handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
+        handleUpdateInsightContentType={handleUpdateInsightContentType}
+        handleUpdateInsightLanguage={handleUpdateInsightLanguage}
+        handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
+        handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
+        handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
+        handleUpdateInsightVoice={handleUpdateInsightVoice}
+      />
+      
+      {/* 2. TABS (MOVED HERE) */}
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
+          <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
+          <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
+            Distribution Prep {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+          </TabsTrigger>
+        </TabsList>
+        
+        {/* 3. AUDIO PLAYER (MOVED BELOW TABS) */}
+        {audioPublicUrl && comp.file_name && comp.storage_path && ( // Updated variable
+          <AudioPlayer 
+            publicUrl={audioPublicUrl} 
+            fileName={comp.file_name} // Updated variable
+            storagePath={comp.storage_path} // Updated variable
+            onClearFile={handleClearFile}
+          />
+        )}
 
-      <main className="max-w-6xl mx-auto space-y-8">
-        <Card className="shadow-card-light dark:shadow-card-dark">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-2xl font-semibold">Composition Overview</CardTitle>
-            <div className="flex items-center space-x-2">
-              {isUpdatingComposition && (
-                <span className="flex items-center text-sm text-primary">
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
-                </span>
-              )}
-              <Button variant="outline" size="sm" onClick={handleRefetch}>Refresh</Button>
-              <CompositionMetadataDialog
-                imp={comp}
-                isPending={isUpdatingComposition}
-                isCoreMetadataComplete={isCoreMetadataComplete}
-                handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
-                handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
-                handleUpdateAnalysisData={handleUpdateAnalysisData}
-                handleUpdateIsImprovisation={handleUpdateIsImprovisation}
-                handleUpdateIsPiano={handleUpdateIsPiano}
-                handleUpdateIsInstrumental={handleUpdateIsInstrumental}
-                handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
-                handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
-                handleUpdateInsightContentType={handleUpdateInsightContentType}
-                handleUpdateInsightLanguage={handleUpdateInsightLanguage}
-                handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
-                handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
-                handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
-                handleUpdateInsightVoice={handleUpdateInsightVoice}
-              />
-              <CompositionSettingsSheet
-                impId={comp.id}
-                impName={comp.generated_name || comp.file_name || 'Untitled Idea'}
-                handleDelete={handleDeleteComposition}
-                isDeleting={isDeletingComposition}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left Column: Artwork and Actions */}
-            <div className="flex flex-col items-center space-y-4">
-              <Avatar className="h-40 w-40 rounded-md border border-border/50 shadow-sm">
-                <AvatarImage src={comp.artwork_url || undefined} alt={comp.generated_name || "Artwork"} />
-                <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
-                  <Palette className="h-20 w-20 text-muted-foreground" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col space-y-2 w-full max-w-[200px]">
-                <Button variant="outline" size="sm" onClick={handleGenerateArtworkPrompt} disabled={isUpdatingComposition || !comp.generated_name || !comp.primary_genre || !comp.analysis_data?.mood}>
-                  <Sparkles className="h-4 w-4 mr-2" /> Generate Artwork Prompt
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleRegenerateArtwork} disabled={isUpdatingComposition || !comp.artwork_prompt}>
-                  <Palette className="h-4 w-4 mr-2" /> Regenerate Artwork
-                </Button>
-                <Input
-                  id="artwork-upload-input"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleUploadArtwork(e.target.files[0]);
-                    }
-                  }}
-                  className="w-full"
-                  disabled={isUpdatingComposition}
-                />
-                {comp.artwork_url && (
-                  <Button variant="destructive" size="sm" onClick={handleDeleteArtwork} disabled={isUpdatingComposition}>
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete Artwork
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column: Title, Date, Status, Audio Player */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="flex items-center space-x-2">
-                <EditableField
-                  value={comp.generated_name}
-                  label="Composition Title"
-                  onSave={handleUpdateName}
-                  className="text-3xl font-bold p-0"
-                  placeholder="Click to set title"
-                  disabled={isGeneratingTitle || isUpdatingComposition}
-                />
-                <Button
-                  onClick={handleRandomGenerate}
-                  size="icon"
-                  variant="outline"
-                  title="Generate Random Title"
-                  disabled={isGeneratingTitle || isUpdatingComposition}
-                  className="h-8 w-8"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={handleAIGenerate}
-                  size="icon"
-                  variant="outline"
-                  title="Generate AI Title (Based on Analysis & Notes)"
-                  disabled={isGeneratingTitle || isUpdatingComposition}
-                  className="h-8 w-8"
-                >
-                  <Sparkles className="h-4 w-4 text-purple-500" />
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">Created: {format(new Date(comp.created_at), 'MMM dd, yyyy hh:mm a')}</p>
-              <p className="text-lg">Status: <span className="font-semibold">{statusBadge()}</span></p>
-
-              {/* Audio Player / Uploader */}
-              {hasFile ? (
-                <AudioPlayer
-                  publicUrl={publicAudioUrl}
-                  fileName={comp.file_name || 'Unknown File'}
-                  storagePath={comp.storage_path!}
-                  onClearFile={handleClearFile}
-                />
-              ) : (
-                <AudioUploadForIdea
-                  improvisationId={comp.id}
-                  isImprovisation={!!comp.is_improvisation}
-                  onUploadSuccess={handleRefetch}
-                />
-              )}
-
-              {comp.artwork_prompt && (
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Artwork Prompt:</h3>
-                  <p className="text-muted-foreground italic">{comp.artwork_prompt}</p>
-                  <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(comp.artwork_prompt || '')}>
-                    <Copy className="h-4 w-4 mr-2" /> Copy Prompt
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* 4. PROGRESS CARD (MOVED BELOW AUDIO PLAYER) */}
+        <CompositionProgressCard
+          progressValue={progressValue}
+          progressMessage={progressMessage}
+          primaryAction={primaryAction}
+          isAnalyzing={isAnalyzing}
+          isMarkingReady={isMarkingReady}
+          isPopulating={isPopulating}
+          isReadyForRelease={isReadyForRelease}
+        />
+        
+        {/* 5. Tab Content */}
         <CompositionTabs
-          composition={comp}
+          imp={comp} // Updated prop name
           currentTab={currentTab}
-          handleTabChange={setCurrentTab}
+          handleTabChange={handleTabChange}
           handleRefetch={handleRefetch}
           handleRegenerateArtwork={handleRegenerateArtwork}
           handleClearFile={handleClearFile}
-          handleGenerateArtworkPrompt={handleGenerateArtworkPrompt}
-          handleUploadArtwork={handleUploadArtwork}
-          handleDeleteArtwork={handleDeleteArtwork}
-          handleUpdateComposition={handleUpdateComposition}
-          // Pass AI Augmentation handlers
-          handleAIPopulateMetadata={handleAIPopulateMetadata}
-          isPopulating={isPopulating}
-          aiGeneratedDescription={aiGeneratedDescription}
-          setAiGeneratedDescription={setAiGeneratedDescription}
-          // Pass specific update handlers for metadata dialog
           handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
           handleUpdateSecondaryGenre={handleUpdateSecondaryGenre}
-          handleUpdateAnalysisData={handleUpdateAnalysisData}
           handleUpdateIsImprovisation={handleUpdateIsImprovisation}
-          handleUpdateIsPiano={handleUpdateIsPiano}
-          handleUpdateIsInstrumental={handleUpdateIsInstrumental}
-          handleUpdateIsOriginalSong={handleUpdateIsOriginalSong}
-          handleUpdateHasExplicitLyrics={handleUpdateHasExplicitLyrics}
-          handleUpdateInsightContentType={handleUpdateInsightContentType}
-          handleUpdateInsightLanguage={handleUpdateInsightLanguage}
-          handleUpdateInsightPrimaryUse={handleUpdateInsightPrimaryUse}
-          handleUpdateInsightAudienceLevel={handleUpdateInsightAudienceLevel}
-          handleUpdateInsightAudienceAge={handleUpdateInsightAudienceAge}
-          handleUpdateInsightVoice={handleUpdateInsightVoice}
           handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
-          isCoreMetadataComplete={isCoreMetadataComplete}
+          isAnalyzing={isAnalyzing}
+          isRegenerating={isRegenerating}
+          audioPublicUrl={audioPublicUrl}
+          isPopulating={isPopulating}
+          aiGeneratedDescription={aiGeneratedDescription}
+          handleAIPopulateMetadata={handleAIPopulateMetadata}
+          setAiGeneratedDescription={setAiGeneratedDescription}
         />
-      </main>
-
-      <MadeWithDyad />
+      </Tabs>
     </div>
   );
 };

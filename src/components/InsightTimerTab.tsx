@@ -9,20 +9,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // FIX: Corrected import path
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TYPES, INSIGHT_LANGUAGES, INSIGHT_PRIMARY_USES, INSIGHT_AUDIENCE_LEVELS, INSIGHT_AUDIENCE_AGES, INSIGHT_VOICES } from '@/lib/insight-constants';
 import { cn } from '@/lib/utils';
-import SelectField from './SelectField'; // Import SelectField
+import SelectField from './SelectField';
 
-interface ImprovisationData {
+interface CompositionData { // Renamed interface
   id: string;
   generated_name: string | null;
   primary_genre: string | null;
   is_improvisation: boolean | null;
-  is_metadata_confirmed: boolean | null; // New field
+  is_metadata_confirmed: boolean | null;
   
   // INSIGHT TIMER FIELDS
   insight_content_type: string | null;
@@ -37,16 +37,16 @@ interface ImprovisationData {
 }
 
 interface InsightTimerTabProps {
-  imp: ImprovisationData;
+  imp: CompositionData; // Updated prop name and type
   aiGeneratedDescription: string;
   isPopulating: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
-  handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>; // New handler
+  handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
 }
 
 const InsightTimerTab: React.FC<InsightTimerTabProps> = ({ 
-    imp, 
+    imp, // Updated prop name
     aiGeneratedDescription, 
     isPopulating, 
     handleAIPopulateMetadata,
@@ -56,7 +56,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(aiGeneratedDescription);
-  const updateMutation = useUpdateComposition(imp.id);
+  const updateMutation = useUpdateComposition(imp.id); // Updated hook
 
   // Sync local state when AI generates a new description
   useEffect(() => {
@@ -100,14 +100,13 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     if (newBenefits.length > 3) {
       newBenefits = newBenefits.slice(0, 3);
     }
-    // FIX: Wrap properties in an 'updates' object
-    updateMutation.mutate({ updates: { insight_benefits: newBenefits } });
+    
+    updateMutation.mutate({ insight_benefits: newBenefits });
   };
 
   // --- Practices (Single Select) ---
   const handlePracticeChange = (practice: string) => {
-    // FIX: Wrap properties in an 'updates' object
-    updateMutation.mutate({ updates: { insight_practices: practice } });
+    updateMutation.mutate({ insight_practices: practice });
   };
 
   // --- Themes (Multi-Select) ---
@@ -116,25 +115,24 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     const newThemes = checked
       ? [...currentThemes, theme]
       : currentThemes.filter(t => t !== theme);
-    // FIX: Wrap properties in an 'updates' object
-    updateMutation.mutate({ updates: { insight_themes: newThemes } });
+      
+    updateMutation.mutate({ insight_themes: newThemes });
   };
   
   // --- Core Field Handlers (Re-implementing logic from CompositionMetadataDialog) ---
-  // FIX: Wrap properties in an 'updates' object for mutateAsync calls
-  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ updates: { insight_content_type: value } });
-  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ updates: { insight_language: value } });
-  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ updates: { insight_primary_use: value } });
-  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ updates: { insight_audience_level: value } });
-  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ updates: { insight_voice: value } });
+  const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
+  const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
+  const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
+  const handleUpdateInsightAudienceLevel = (value: string) => updateMutation.mutateAsync({ insight_audience_level: value });
+  const handleUpdateInsightVoice = (value: string) => updateMutation.mutateAsync({ insight_voice: value });
   
   const handleAudienceAgeChange = (age: string, checked: boolean) => {
     const currentAudienceAges = imp.insight_audience_age || [];
     const newAges = checked
       ? [...currentAudienceAges, age]
       : currentAudienceAges.filter(a => a !== age);
-    // FIX: Wrap properties in an 'updates' object
-    updateMutation.mutate({ updates: { insight_audience_age: newAges } });
+      
+    updateMutation.mutate({ insight_audience_age: newAges });
   };
   
   // --- Rendering Functions ---

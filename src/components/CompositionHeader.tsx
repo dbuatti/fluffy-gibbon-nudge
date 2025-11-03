@@ -6,9 +6,9 @@ import EditableField from './EditableField';
 import CompositionMetadataDialog from './CompositionMetadataDialog';
 import CompositionSettingsSheet from './CompositionSettingsSheet';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // FIX: Corrected import path
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
 import { format } from 'date-fns';
-import TitleBar from './TitleBar'; // Import TitleBar
+import TitleBar from './TitleBar';
 
 interface AnalysisData {
   simulated_key?: string;
@@ -17,29 +17,31 @@ interface AnalysisData {
   [key: string]: any;
 }
 
+interface Composition { // Renamed interface
+  id: string;
+  generated_name: string | null;
+  file_name: string | null;
+  created_at: string;
+  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
+  is_ready_for_release: boolean | null;
+  is_improvisation: boolean | null;
+  is_piano: boolean | null;
+  is_instrumental: boolean | null;
+  is_original_song: boolean | null;
+  has_explicit_lyrics: boolean | null;
+  primary_genre: string | null;
+  secondary_genre: string | null;
+  analysis_data: AnalysisData | null;
+  insight_content_type: string | null;
+  insight_language: string | null;
+  insight_primary_use: string | null;
+  insight_audience_level: string | null;
+  insight_audience_age: string[] | null;
+  insight_voice: string | null;
+}
+
 interface CompositionHeaderProps {
-  imp: {
-    id: string;
-    generated_name: string | null;
-    file_name: string | null;
-    created_at: string;
-    status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-    is_ready_for_release: boolean | null;
-    is_improvisation: boolean | null;
-    is_piano: boolean | null;
-    is_instrumental: boolean | null;
-    is_original_song: boolean | null;
-    has_explicit_lyrics: boolean | null;
-    primary_genre: string | null;
-    secondary_genre: string | null;
-    analysis_data: AnalysisData | null;
-    insight_content_type: string | null;
-    insight_language: string | null;
-    insight_primary_use: string | null;
-    insight_audience_level: string | null;
-    insight_audience_age: string[] | null;
-    insight_voice: string | null;
-  };
+  imp: Composition; // Updated prop name and type
   isCoreMetadataComplete: boolean;
   handleDelete: () => void;
   isDeleting: boolean;
@@ -81,9 +83,8 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
   handleUpdateInsightAudienceAge,
   handleUpdateInsightVoice,
 }) => {
-  const updateMutation = useUpdateComposition(imp.id);
-  // FIX: Wrap generated_name in an 'updates' object
-  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ updates: { generated_name: newName } });
+  const updateMutation = useUpdateComposition(imp.id); // Updated hook
+  const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
 
   const titleContent = (
@@ -133,7 +134,7 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
         <Sparkles className="h-4 w-4 text-purple-500" />
       </Button>
       <CompositionMetadataDialog
-        imp={imp}
+        imp={imp} // Updated prop name
         isPending={updateMutation.isPending}
         isCoreMetadataComplete={isCoreMetadataComplete}
         handleUpdatePrimaryGenre={handleUpdatePrimaryGenre}
@@ -152,8 +153,8 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
         handleUpdateInsightVoice={handleUpdateInsightVoice}
       />
       <CompositionSettingsSheet
-        impId={imp.id}
-        impName={imp.generated_name || imp.file_name || 'Untitled Idea'}
+        compositionId={imp.id} // Updated prop name
+        compositionName={imp.generated_name || imp.file_name || 'Untitled Idea'} // Updated prop name
         handleDelete={handleDelete}
         isDeleting={isDeleting}
       />
@@ -165,7 +166,7 @@ const CompositionHeader: React.FC<CompositionHeaderProps> = ({
       title={titleContent}
       backLink="/"
       actions={actionButtons}
-      className="mb-0" // Remove default margin bottom from TitleBar since we handle it in the title content
+      className="mb-0"
     />
   );
 };

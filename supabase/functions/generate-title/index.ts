@@ -85,32 +85,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use Service Role Key for secure data fetching
     );
 
-    const { improvisationId } = await req.json();
+    const { compositionId } = await req.json(); // Updated parameter name
 
-    if (!improvisationId) {
-      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), {
+    if (!compositionId) {
+      return new Response(JSON.stringify({ error: 'Missing compositionId' }), { // Updated parameter name
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Fetch the full record using the Service Role Key
-    const { data: imp, error: fetchError } = await supabase
-        .from('improvisations')
+    const { data: comp, error: fetchError } = await supabase // Renamed variable
+        .from('compositions') // Updated table name
         .select('*, notes, user_tags, analysis_data')
-        .eq('id', improvisationId)
+        .eq('id', compositionId) // Updated parameter name
         .single();
 
-    if (fetchError || !imp) {
-        console.error('Failed to fetch improvisation data:', fetchError);
-        return new Response(JSON.stringify({ error: 'Improvisation not found or access denied.' }), {
+    if (fetchError || !comp) { // Updated variable
+        console.error('Failed to fetch composition data:', fetchError);
+        return new Response(JSON.stringify({ error: 'Composition not found or access denied.' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
     // Generate the title
-    const generatedTitle = await generateTitleWithGemini(imp);
+    const generatedTitle = await generateTitleWithGemini(comp); // Updated variable
 
     return new Response(JSON.stringify({ success: true, title: generatedTitle }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

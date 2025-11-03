@@ -28,7 +28,7 @@ const generateRandomTitle = (): string => {
   return title.charAt(0).toUpperCase() + title.slice(1);
 };
 
-export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (title: string) => Promise<void>) => {
+export const useTitleGenerator = (compositionId: string, onTitleGenerated: (title: string) => Promise<void>) => { // Renamed parameter
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleRandomGenerate = useCallback(async () => {
@@ -45,7 +45,7 @@ export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (ti
     } finally {
       setIsGenerating(false);
     }
-  }, [improvisationId, onTitleGenerated, isGenerating]);
+  }, [compositionId, onTitleGenerated, isGenerating]); // Updated dependency
 
   const handleAIGenerate = useCallback(async () => {
     if (isGenerating) return;
@@ -54,7 +54,7 @@ export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (ti
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-title', {
-        body: { improvisationId },
+        body: { compositionId }, // Updated parameter name
       });
 
       if (error) throw error;
@@ -74,7 +74,7 @@ export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (ti
     } finally {
       setIsGenerating(false);
     }
-  }, [improvisationId, onTitleGenerated, isGenerating]);
+  }, [compositionId, onTitleGenerated, isGenerating]); // Updated dependency
 
   return {
     isGenerating,

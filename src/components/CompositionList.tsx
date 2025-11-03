@@ -21,7 +21,7 @@ interface NoteTab {
   content: string;
 }
 
-interface Composition { // Renamed from Improvisation to Composition
+interface Composition { // Renamed interface
   id: string;
   file_name: string | null;
   status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
@@ -57,11 +57,11 @@ interface Composition { // Renamed from Improvisation to Composition
 
 const STALLED_THRESHOLD_HOURS = 24;
 
-const fetchCompositions = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed function
+const fetchCompositions = async (supabaseClient: any, sessionUserId: string): Promise<Composition[]> => { // Renamed fetch function
   console.log("fetchCompositions: Attempting to fetch compositions for user:", sessionUserId);
   console.log("fetchCompositions: Supabase client session:", supabaseClient.auth.currentSession);
   const { data, error } = await supabaseClient
-    .from('compositions') // FIX: Changed table name from 'improvisations' to 'compositions'
+    .from('compositions') // Updated table name
     .select('*')
     .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
@@ -72,7 +72,7 @@ const fetchCompositions = async (supabaseClient: any, sessionUserId: string): Pr
 };
 
 // Unified Status Badge Function
-const getStatusBadge = (status: Composition['status'], hasFile: boolean) => { // Renamed type
+const getStatusBadge = (status: Composition['status'], hasFile: boolean) => { // Updated type
   if (!hasFile && status === 'uploaded') {
     return <Badge variant="outline" className="bg-info text-info-foreground border-info">💡 Needs Audio</Badge>;
   }
@@ -99,7 +99,7 @@ const getNotesStatusBadge = (notes: NoteTab[] | null) => {
   return null;
 };
 
-const getNextAction = (comp: Composition) => { // Renamed type
+const getNextAction = (comp: Composition) => { // Updated parameter name and type
   const hasFile = !!comp.storage_path;
   const hasNotes = comp.notes?.some(n => n.content && n.content.trim().length > 0);
   const hasArtworkPrompt = !!comp.artwork_prompt;
@@ -119,6 +119,7 @@ const getNextAction = (comp: Composition) => { // Renamed type
     if (!hasArtworkPrompt) {
       return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary', type: 'ai' };
     }
+    // If artwork_prompt exists but artwork_url is null, it means artwork needs manual upload
     if (hasArtworkPrompt && !hasArtworkUrl) {
       return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary', type: 'manual' };
     }
@@ -149,9 +150,9 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
 
   console.log("CompositionList: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
-  const { data: compositions, isLoading, error, refetch } = useQuery<Composition[]>({ // Renamed data variable and query key
-    queryKey: ['compositions'],
-    queryFn: () => fetchCompositions(supabase, session!.user.id), // Renamed function
+  const { data: compositions, isLoading, error, refetch } = useQuery<Composition[]>({ // Renamed variable and type
+    queryKey: ['compositions'], // Updated query key
+    queryFn: () => fetchCompositions(supabase, session!.user.id), // Updated fetch function
     enabled: !isSessionLoading && !!session?.user,
     refetchInterval: 5000,
   });
@@ -169,9 +170,9 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (!compositions) return;
+    if (!compositions) return; // Updated variable
     if (checked) {
-      const allIds = new Set(compositions.map(comp => comp.id));
+      const allIds = new Set(compositions.map(comp => comp.id)); // Updated variable
       setSelectedCompositions(allIds);
     } else {
       setSelectedCompositions(new Set());
@@ -188,12 +189,12 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
 
     try {
       for (const id of selectedCompositions) {
-        const compToDelete = compositions?.find(comp => comp.id === id);
+        const compToDelete = compositions?.find(comp => comp.id === id); // Updated variable
         if (compToDelete) {
           // 1. Delete audio file from Supabase Storage (if exists)
           if (compToDelete.storage_path) {
             const { error: storageError } = await supabase.storage
-              .from('piano_improvisations') // Use directly imported supabase
+              .from('audio_compositions') // Updated bucket name
               .remove([compToDelete.storage_path]);
             if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
           }
@@ -203,15 +204,15 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
 
           // 3. Delete record from database
           const { error: dbError } = await supabase
-            .from('compositions') // Use directly imported supabase
+            .from('compositions') // Updated table name
             .delete()
             .eq('id', id);
           if (dbError) throw dbError;
         }
       }
       showSuccess(`${selectedCompositions.size} compositions deleted successfully.`);
-      setSelectedCompositions(new Set()); // Clear selection
-      queryClient.invalidateQueries({ queryKey: ['compositions'] });
+      setSelectedCompositions(new Set());
+      queryClient.invalidateQueries({ queryKey: ['compositions'] }); // Updated query key
       queryClient.invalidateQueries({ queryKey: ['compositionStatusCounts'] });
     } catch (error) {
       console.error('Bulk deletion failed:', error);
@@ -232,7 +233,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('compositions') // Use directly imported supabase
+        .from('compositions') // Updated table name
         .select('*')
         .in('id', Array.from(selectedCompositions));
 
@@ -269,7 +270,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   const hasSelectedItems = selectedCompositions.size > 0;
 
   // --- Filtering Logic ---
-  const filteredCompositions = compositions?.filter(comp => { // Renamed variable
+  const filteredCompositions = compositions?.filter(comp => { // Updated variable
     const matchesSearch = searchTerm === '' || 
                           comp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           comp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -284,7 +285,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
   }) || [];
 
   // --- Sorting Logic ---
-  const sortedCompositions = [...filteredCompositions].sort((a, b) => { // Renamed variable
+  const sortedCompositions = [...filteredCompositions].sort((a, b) => { // Updated variable
     if (sortOption === 'created_at_desc') {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
@@ -320,7 +321,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
         </div>
       </CardHeader>
       <CardContent>
-        {sortedCompositions && sortedCompositions.length > 0 ? ( // Renamed variable
+        {sortedCompositions && sortedCompositions.length > 0 ? ( // Updated variable
           <>
             {/* Bulk Action Toolbar */}
             {hasSelectedItems && (
@@ -388,10 +389,10 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                 "grid gap-4",
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
-              {sortedCompositions.map((comp) => { // Renamed variable
+              {sortedCompositions.map((comp) => { // Updated variable
                 const hasFile = !!comp.storage_path;
                 const isStalled = comp.status === 'uploaded' && differenceInHours(new Date(), new Date(comp.created_at)) >= STALLED_THRESHOLD_HOURS;
-                const nextAction = getNextAction(comp);
+                const nextAction = getNextAction(comp); // Updated variable
                 const Icon = nextAction.icon;
                 const isSelected = selectedCompositions.has(comp.id);
                 const notesBadge = getNotesStatusBadge(comp.notes);
@@ -405,7 +406,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
-                    onClick={() => navigate(`/composition/${comp.id}`)}
+                    onClick={() => navigate(`/composition/${comp.id}`)} // Updated path
                   >
                     <CardContent className={cn(
                         "p-4 flex items-center space-x-4",
@@ -443,7 +444,7 @@ const CompositionList: React.FC<CompositionListProps> = ({ viewMode, setViewMode
                             variant="ghost" 
                             size="sm" 
                             className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit", nextAction.color)} 
-                            onClick={(e) => { e.stopPropagation(); navigate(`/composition/${comp.id}`); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/composition/${comp.id}`); }} // Updated path
                         >
                             <Icon className={cn(
                                 "w-4 h-4 mr-2", 

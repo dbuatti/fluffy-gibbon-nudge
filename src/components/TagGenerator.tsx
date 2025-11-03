@@ -3,37 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, Tag, X, Loader2, Check, Sparkles } from 'lucide-react'; // Added Sparkles
+import { Copy, Tag, X, Loader2, Check } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { useSession } from '@/integrations/supabase/session-context'; // Added useSession
 
 interface TagGeneratorProps {
-  compositionId: string;
+  compositionId: string; // Renamed prop
   initialTags: string[] | null;
-  onTagsUpdate: (newTags: string[]) => Promise<void>; // Added
-  generatedName: string; // Added
-  primaryGenre: string; // Added
-  secondaryGenre: string | null; // Added
-  mood: string; // Added
 }
 
-const TagGenerator: React.FC<TagGeneratorProps> = ({ 
-  compositionId, 
-  initialTags,
-  onTagsUpdate, // Destructured
-  generatedName, // Destructured
-  primaryGenre, // Destructured
-  secondaryGenre, // Destructured
-  mood, // Destructured
-}) => {
+const TagGenerator: React.FC<TagGeneratorProps> = ({ compositionId, initialTags }) => { // Renamed prop
   const [tags, setTags] = useState<string[]>(initialTags || []);
   const [inputValue, setInputValue] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved'>('idle');
-  const [isGenerating, setIsGenerating] = useState(false); // Added
   const inputRef = useRef<HTMLInputElement>(null);
-  const { session } = useSession(); // Added
 
   // --- Persistence Logic ---
 
@@ -41,32 +25,33 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('compositions')
+        .from('compositions') // Updated table name
         .update({ user_tags: currentTags })
-        .eq('id', compositionId);
+        .eq('id', compositionId); // Updated variable
 
       if (error) throw error;
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000); 
-      onTagsUpdate(currentTags); // Call parent update handler
     } catch (error) {
       console.error('Failed to save tags:', error);
       showError('Failed to autosave tags.');
       setSaveStatus('idle');
     }
-  }, [compositionId, onTagsUpdate]);
+  }, [compositionId]); // Updated dependency
 
   // Effect to trigger save when tags change
   useEffect(() => {
     if (saveStatus === 'saved') return;
 
     const handler = setTimeout(() => {
+      // Only save if content is actually different from the initial load
       if (JSON.stringify(tags) !== JSON.stringify(initialTags)) {
         saveTags(tags);
       }
     }, 1000); // 1 second debounce
 
+    // Set status to unsaved immediately when tags change, unless we are currently saving
     if (saveStatus !== 'saving') {
         setSaveStatus('unsaved');
     }
@@ -74,7 +59,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({
     return () => {
       clearTimeout(handler);
     };
-  }, [tags, saveTags, initialTags, saveStatus]);
+  }, [tags, saveTags, initialTags]);
 
   // --- Tag Management ---
 
@@ -100,47 +85,6 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({
     }
   };
 
-  // --- AI Tag Generation ---
-  const handleGenerateTags = async () => {
-    if (!session?.user) {
-      showError("You must be logged in to generate tags.");
-      return;
-    }
-
-    setIsGenerating(true);
-    showSuccess("Generating tags with AI...");
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-tags', {
-        body: JSON.stringify({
-          compositionId,
-          generatedName,
-          primaryGenre,
-          secondaryGenre,
-          mood,
-        }),
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data && data.tags) {
-        const newTags = Array.from(new Set([...tags, ...data.tags])); // Merge and deduplicate
-        setTags(newTags);
-        onTagsUpdate(newTags); // Call parent update handler
-        showSuccess("Tags generated successfully!");
-      } else {
-        showError("AI did not return any tags.");
-      }
-    } catch (err) {
-      console.error('Error generating tags:', err);
-      showError(`Failed to generate tags: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   // --- Copy Logic ---
 
   const handleCopy = (format: 'hashtag' | 'comma') => {
@@ -149,6 +93,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({
       textToCopy = tags.map(tag => `#${tag}`).join(' ');
     } else {
       textToCopy = tags.join(', ');
+    To copy the text, you can use the `navigator.clipboard.writeText()` method.
     }
 
     if (textToCopy) {
@@ -249,19 +194,6 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({
             <Copy className="w-4 h-4 mr-2" /> Copy as CSV
           </Button>
         </div>
-        <Button
-          variant="secondary"
-          onClick={handleGenerateTags}
-          disabled={isGenerating}
-          className="w-full"
-        >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4 mr-2" />
-          )}
-          Generate Tags with AI
-        </Button>
       </CardContent>
     </Card>
   );

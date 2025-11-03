@@ -71,16 +71,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { improvisationId, generatedName, primaryGenre, secondaryGenre, mood } = await req.json();
+    const { compositionId, generatedName, primaryGenre, secondaryGenre, mood } = await req.json();
 
-    if (!improvisationId || !generatedName || !primaryGenre || !mood) {
+    if (!compositionId || !generatedName || !primaryGenre || !mood) {
       return new Response(JSON.stringify({ error: 'Missing required parameters for artwork generation' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Starting artwork prompt generation for ID: ${improvisationId} based on name: ${generatedName}`);
+    console.log(`Starting artwork prompt generation for ID: ${compositionId} based on name: ${generatedName}`);
 
     // 1. Generate a detailed, artistic prompt using Gemini, incorporating musical context
     const imagePrompt = await generateImagePromptWithGemini(generatedName, primaryGenre, secondaryGenre || '', mood);
@@ -88,12 +88,12 @@ serve(async (req) => {
 
     // 2. Update the database record with the artwork prompt (and clear the old artwork_url)
     const { error } = await supabase
-      .from('improvisations')
+      .from('compositions')
       .update({ 
         artwork_prompt: imagePrompt,
         artwork_url: null, // Clear the old placeholder URL
       })
-      .eq('id', improvisationId);
+      .eq('id', compositionId);
 
     if (error) {
       console.error('Database update failed during artwork prompt generation:', error);
@@ -103,7 +103,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Artwork prompt generated and saved for ID: ${improvisationId}.`);
+    console.log(`Artwork prompt generated and saved for ID: ${compositionId}.`);
 
     return new Response(JSON.stringify({ success: true, artworkPrompt: imagePrompt }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

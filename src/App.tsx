@@ -7,14 +7,14 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import CompositionDetails from "./pages/CompositionDetails"; // FIX: Updated import from ImprovisationDetails to CompositionDetails
-import Improvisations from "./pages/Improvisations"; // Import new page
-import Settings from "./pages/Settings"; // Import new page
-import CompositionScript from "./pages/CompositionScript"; // Import new page
+import CompositionDetails from "./pages/CompositionDetails"; // Renamed
+import Compositions from "./pages/Compositions"; // Renamed
+import Settings from "./pages/Settings";
+import CompositionScript from "./pages/CompositionScript";
 import { SessionContextProvider } from "./integrations/supabase/session-context";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DragDropOverlay from "./components/DragDropOverlay";
-import AppLayout from "./components/AppLayout"; // Import AppLayout
+import AppLayout from "./components/AppLayout";
 
 const queryClient = new QueryClient();
 
@@ -35,8 +35,8 @@ const App = () => (
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Index />} />
-                  <Route path="/composition/:id" element={<CompositionDetails />} /> {/* FIX: Updated route path */}
-                  <Route path="/improvisations" element={<Improvisations />} />
+                  <Route path="/composition/:id" element={<CompositionDetails />} /> {/* Updated path */}
+                  <Route path="/compositions" element={<Compositions />} /> {/* Updated path */}
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/composition-script" element={<CompositionScript />} />
                 </Route>

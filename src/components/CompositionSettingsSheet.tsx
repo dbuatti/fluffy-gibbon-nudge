@@ -6,13 +6,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 
 interface CompositionSettingsSheetProps {
-  impId: string;
-  impName: string;
+  compositionId: string; // Renamed prop
+  compositionName: string; // Renamed prop
   handleDelete: () => void;
   isDeleting: boolean;
 }
 
-const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ impId, impName, handleDelete, isDeleting }) => {
+const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ compositionId, compositionName, handleDelete, isDeleting }) => { // Renamed props
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -54,7 +54,7 @@ const CompositionSettingsSheet: React.FC<CompositionSettingsSheetProps> = ({ imp
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the composition record "{impName}" and the uploaded audio file (if attached).
+                  This action cannot be undone. This will permanently delete the composition record "{compositionName}" and the uploaded audio file (if attached).
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

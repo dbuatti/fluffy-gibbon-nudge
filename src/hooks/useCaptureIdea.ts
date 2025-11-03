@@ -31,8 +31,8 @@ export const useCaptureIdea = () => {
     const finalTitle = `${datePrefix} - ${baseTitle}`;
 
     try {
-      const { data: newImpData, error: dbError } = await supabase
-        .from('improvisations')
+      const { data: newCompData, error: dbError } = await supabase // Renamed variable
+        .from('compositions') // Updated table name
         .insert({
           user_id: session.user.id,
           file_name: null, // Placeholder idea, no file yet
@@ -46,14 +46,14 @@ export const useCaptureIdea = () => {
 
       if (dbError) throw dbError;
       
-      const newImprovisationId = newImpData.id;
+      const newCompositionId = newCompData.id; // Renamed variable
 
       showSuccess(`Idea "${finalTitle}" captured! Redirecting to details...`);
       
       // 2. Navigate to the new song's details page
-      navigate(`/improvisation/${newImprovisationId}`);
+      navigate(`/composition/${newCompositionId}`); // Updated path
       
-      return newImprovisationId;
+      return newCompositionId;
 
     } catch (error) {
       console.error('Failed to capture idea:', error);

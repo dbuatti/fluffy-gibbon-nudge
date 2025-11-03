@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
 interface PreFlightChecklistProps {
-  imp: {
+  imp: { // Updated prop name
     id: string;
     storage_path: string | null;
     artwork_url: string | null;
@@ -20,7 +20,7 @@ interface PreFlightChecklistProps {
   isAnalyzing: boolean;
 }
 
-const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => {
+const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => { // Updated prop name
   const hasAudioFile = !!imp.storage_path;
   const hasArtwork = !!imp.artwork_url;
   const isMetadataConfirmed = !!imp.is_metadata_confirmed;
@@ -103,7 +103,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
                   </Badge>
                 </div>
                 {check.actionLink && (
-                    <Link to={`/improvisation/${imp.id}${check.actionLink.includes('#') ? '?tab=' + (check.actionLink.includes('artwork') ? 'assets-downloads' : 'analysis-distro') + check.actionLink : ''}`}>
+                    <Link to={`/composition/${imp.id}${check.actionLink.includes('#') ? '?tab=' + (check.actionLink.includes('artwork') ? 'assets-downloads' : 'analysis-distro') + check.actionLink : ''}`}> {/* Updated path */}
                         <Button variant="link" size="sm" className="h-6 p-0 text-xs justify-start">
                             {check.actionLabel} &rarr;
                         </Button>

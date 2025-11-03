@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSession } from '@/integrations/supabase/session-context';
-import { supabase } from '@/integrations/supabase/client';
+import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
+import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
 
 
 interface StatusCount {
@@ -14,17 +14,18 @@ interface StatusCount {
 
 const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Promise<StatusCount[]> => {
   console.log("fetchStatusCounts: Attempting to fetch counts for user:", sessionUserId);
-  console.log("fetchStatusCounts: Supabase client session:", supabaseClient.auth.currentSession);
+  console.log("fetchStatusCounts: Supabase client session:", supabaseClient.auth.currentSession); // Add this line
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabaseClient
-      .from('compositions') // FIX: Changed table name from 'improvisations' to 'compositions'
+      .from('improvisations')
       .select('*', { count: 'exact', head: true })
       .eq('status', status)
-      .eq('user_id', sessionUserId);
+      .eq('user_id', sessionUserId); // Ensure we only count for the current user
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
+      // Log the full error object for more details
       console.error(`Full Supabase error for status ${status}:`, error); 
       return { status, count: 0 };
     }
@@ -37,13 +38,13 @@ const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Pr
 };
 
 const CompositionPipeline: React.FC = () => {
-  const { session, isLoading: isSessionLoading } = useSession();
+  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
   console.log("CompositionPipeline: Render. Session:", session, "isSessionLoading:", isSessionLoading);
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['compositionStatusCounts'],
-    queryFn: () => fetchStatusCounts(supabase, session!.user.id),
-    enabled: !isSessionLoading && !!session?.user,
+    queryFn: () => fetchStatusCounts(supabase, session!.user.id), // Use directly imported supabase
+    enabled: !isSessionLoading && !!session?.user, // Only enable if session is loaded and user exists
     refetchInterval: 5000,
   });
 
@@ -61,7 +62,7 @@ const CompositionPipeline: React.FC = () => {
       label: 'Idea Captured',
       count: totalUploaded, 
       icon: Edit2, 
-      color: 'text-info dark:text-info-foreground',
+      color: 'text-info dark:text-info-foreground', // Use info for neutral/initial
       description: 'Awaiting audio file upload.',
       bg: 'bg-info/10 dark:bg-info/20',
       border: 'border-info',
@@ -71,7 +72,7 @@ const CompositionPipeline: React.FC = () => {
       label: 'Processing File',
       count: totalAnalyzing, 
       icon: Clock, 
-      color: 'text-warning dark:text-warning-foreground',
+      color: 'text-warning dark:text-warning-foreground', // Use warning for in-progress
       description: 'Title/Artwork generation in progress.',
       bg: 'bg-warning/10 dark:bg-warning/20',
       border: 'border-warning',
@@ -81,7 +82,7 @@ const CompositionPipeline: React.FC = () => {
       label: 'Failed/Error',
       count: totalFailed, 
       icon: AlertTriangle, 
-      color: 'text-error dark:text-error-foreground',
+      color: 'text-error dark:text-error-foreground', // Use error for failed
       description: 'Processing failed. Check logs or re-upload.',
       bg: 'bg-error/10 dark:bg-error/20', 
       border: 'border-error', 
@@ -91,7 +92,7 @@ const CompositionPipeline: React.FC = () => {
       label: 'Ready for Prep',
       count: totalCompleted, 
       icon: CheckCircle, 
-      color: 'text-success dark:text-success-foreground',
+      color: 'text-success dark:text-success-foreground', // Use success for completed
       description: 'Ready for distribution prep.',
       bg: 'bg-success/10 dark:bg-success/20',
       border: 'border-success',
@@ -122,18 +123,18 @@ const CompositionPipeline: React.FC = () => {
               <div 
                 key={stage.status}
                 className={cn(
-                  "flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-36 text-center",
+                  "flex flex-col items-center justify-center p-4 rounded-xl border transition-all h-36 text-center", // Increased height
                   stage.bg,
-                  isActive ? `border-2 ${stage.border}` : 'border-border',
+                  isActive ? `border-2 ${stage.border}` : 'border-border', // Use border-border for inactive
                   "hover:shadow-md dark:hover:shadow-lg"
                 )}
               >
-                <div className="h-12 w-12 flex items-center justify-center rounded-full mb-2">
-                  <Icon className={cn("h-7 w-7 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} />
+                <div className="h-12 w-12 flex items-center justify-center rounded-full mb-2"> {/* Larger icon container */}
+                  <Icon className={cn("h-7 w-7 flex-shrink-0", stage.color, isAnalyzingStage && 'animate-spin')} /> {/* Larger icon */}
                 </div>
                 
-                <p className="text-5xl font-extrabold leading-none mb-1">{stage.count}</p>
-                <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3>
+                <p className="text-5xl font-extrabold leading-none mb-1">{stage.count}</p> {/* Much larger count */}
+                <h3 className="font-semibold text-sm text-muted-foreground">{stage.label}</h3> {/* Smaller label */}
               </div>
             );
           })}

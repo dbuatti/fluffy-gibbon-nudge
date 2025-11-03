@@ -2,10 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Piano, Music, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // FIX: Corrected import path
+import { useUpdateComposition } from '@/hooks/useUpdateComposition'; // Renamed hook
 
 interface DistributionTogglesCardProps {
-  improvisationId: string;
+  compositionId: string; // Renamed prop
   isPiano: boolean | null;
   isInstrumental: boolean | null;
   isOriginalSong: boolean | null;
@@ -13,20 +13,19 @@ interface DistributionTogglesCardProps {
 }
 
 const DistributionTogglesCard: React.FC<DistributionTogglesCardProps> = ({
-  improvisationId,
+  compositionId, // Renamed prop
   isPiano,
   isInstrumental,
   isOriginalSong,
   hasExplicitLyrics,
 }) => {
-  const updateMutation = useUpdateComposition(improvisationId);
+  const updateMutation = useUpdateComposition(compositionId); // Updated hook
   const isPending = updateMutation.isPending;
 
-  // FIX: Wrap properties in an 'updates' object
-  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutate({ updates: { is_piano: checked } });
-  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutate({ updates: { is_instrumental: checked } });
-  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutate({ updates: { is_original_song: checked } });
-  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutate({ updates: { has_explicit_lyrics: checked } });
+  const handleUpdateIsPiano = (checked: boolean) => updateMutation.mutate({ is_piano: checked });
+  const handleUpdateIsInstrumental = (checked: boolean) => updateMutation.mutate({ is_instrumental: checked });
+  const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutate({ is_original_song: checked });
+  const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutate({ has_explicit_lyrics: checked });
 
   const renderToggleItem = (Icon: React.ElementType, label: string, checked: boolean | null, onCheckedChange: (checked: boolean) => void) => (
     <div className="flex items-center justify-between pr-4 py-2 border-b last:border-b-0">
