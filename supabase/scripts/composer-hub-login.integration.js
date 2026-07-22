@@ -175,6 +175,7 @@ async function validateAndSave(refresh_token, email) {
     user_id: body.user.id,
     email: body.user.email || email,
   }, null, 2));
+  fs.chmodSync(AUTH_FILE, 0o600);
 
   console.log(`\nLogged in as ${body.user.email || email}. Session cached in ${AUTH_FILE}`);
   console.log('You can now run Finish Take and it will auto-create ideas in Composer Hub.');

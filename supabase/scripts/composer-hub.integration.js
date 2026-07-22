@@ -58,12 +58,13 @@ async function getSession() {
 
   const body = await res.json();
 
-  // Cache the new refresh token
+  // Cache the new refresh token with restricted permissions
   fs.writeFileSync(AUTH_FILE, JSON.stringify({
     refresh_token: body.refresh_token,
     user_id: body.user.id,
     email: body.user.email,
   }, null, 2));
+  fs.chmodSync(AUTH_FILE, 0o600);
 
   return { access_token: body.access_token, user_id: body.user.id };
 }
