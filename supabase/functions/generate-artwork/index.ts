@@ -20,7 +20,7 @@ async function generateImagePromptWithGemini(generatedName: string, primaryGenre
 
     const genreInstr = primaryGenre ? `The primary genre is ${primaryGenre}.` : 'Infer a fitting genre from the title.';
     const moodInstr = mood ? `The mood is ${mood}.` : 'Infer an appropriate mood from the title.';
-    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". ${genreInstr} ${moodInstr} Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on color, texture, and lighting that reflects the title's atmosphere. The style should be cinematic, painterly, or digital art.
+    const prompt = `You are an expert visual artist designing abstract album covers. The song title is "${generatedName}". ${genreInstr} ${moodInstr} Generate a single, highly descriptive, purely abstract prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000). CRITICAL: contain NO recognizable real-world objects whatsoever — no mugs, cups, glasses, tables, chairs, buildings, trees, animals, human figures, faces, hands, clocks, vehicles, books, lamps, or any other physical objects. Describe ONLY abstract elements: color fields, gradients, light, shadow, texture, geometric or organic shapes, atmosphere, energy, movement, temperature, density. Focus on color palette, lighting quality, and textural feel that reflects the title's atmosphere. The style should be purely abstract, cinematic, painterly, or digital art.
 
     Respond ONLY with the prompt text, nothing else.`;
 
