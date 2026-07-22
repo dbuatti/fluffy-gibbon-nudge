@@ -18,6 +18,7 @@ const Signup = React.lazy(() => import("./pages/Signup"));
 const ImprovisationDetails = React.lazy(() => import("./pages/ImprovisationDetails"));
 const Settings = React.lazy(() => import("./pages/Settings"));
 const CompositionScript = React.lazy(() => import("./pages/CompositionScript"));
+const Instructions = React.lazy(() => import("./pages/Instructions"));
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
                   {/* Removed /improvisations route as it's no longer a separate page */}
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/composition-script" element={<CompositionScript />} />
+                  <Route path="/instructions" element={<Instructions />} />
                 </Route>
               </Route>
 

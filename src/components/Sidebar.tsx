@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText } from 'lucide-react';
+import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -15,6 +15,7 @@ const navItems = [
   // Removed the /improvisations route as it's no longer a separate page
   { to: '/composition-script', icon: FileText, label: 'Local Script' },
   { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/instructions', icon: BookOpen, label: 'Instructions' },
 ];
 
 const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick }) => {
