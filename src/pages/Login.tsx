@@ -8,6 +8,7 @@ import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 const Login = () => {
+  const { session, isLoading } = useSession();
   useEffect(() => {
     document.title = 'Sign In - AI Composer Hub';
   }, []);

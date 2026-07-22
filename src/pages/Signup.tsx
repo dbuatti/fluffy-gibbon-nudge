@@ -11,6 +11,7 @@ import PasswordGenerator from '@/components/PasswordGenerator';
 import { Key, ArrowLeft } from 'lucide-react';
 
 const Signup = () => {
+  const { session, isLoading } = useSession();
   useEffect(() => {
     document.title = 'Sign Up - AI Composer Hub';
   }, []);
