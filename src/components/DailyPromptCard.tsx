@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw, Music, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { showError, showSuccess } from '@/utils/toast';
 import CaptureIdeaDialog from './CaptureIdeaDialog';
@@ -32,6 +32,7 @@ const DailyPromptCard: React.FC = () => {
   });
   
   const [cooldown, setCooldown] = useState(false); // New state for cooldown
+  const [copied, setCopied] = useState(false);
 
   const handleRefetch = () => {
     if (cooldown) return; // Prevent refetch if on cooldown
@@ -80,9 +81,25 @@ const DailyPromptCard: React.FC = () => {
         ) : error ? (
           <p className="text-sm text-red-500">Error loading prompt: {error.message}</p>
         ) : (
-          <p className="text-xl font-semibold italic text-foreground">
-            "{prompt}"
-          </p>
+          <div className="flex items-start gap-2">
+            <p className="text-xl font-semibold italic text-foreground flex-1">
+              "{prompt}"
+            </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                navigator.clipboard.writeText(prompt || '');
+                setCopied(true);
+                showSuccess("Prompt copied!");
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              title="Copy prompt"
+              className="shrink-0 text-muted-foreground hover:text-primary"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
         )}
         
         <CaptureIdeaDialog 
