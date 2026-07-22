@@ -128,17 +128,26 @@ async function loginWithPastedToken() {
     return null;
   }
 
-  if (!Array.isArray(session) || session.length < 2) {
-    console.error('Expected a JSON array with at least 2 items. Copy the whole value.');
+  let refresh_token, email;
+
+  if (Array.isArray(session)) {
+    // Format: ["access_token", "refresh_token", "token_type", "expires_in", ...]
+    if (session.length < 2 || !session[1]) {
+      console.error('No refresh token found. Make sure you are logged in.');
+      return null;
+    }
+    refresh_token = session[1];
+    email = session[3] || null;
+  } else if (typeof session === 'object' && session.refresh_token) {
+    // Format: {"access_token": "...", "refresh_token": "...", "user": {...}}
+    refresh_token = session.refresh_token;
+    email = session.user?.email || null;
+  } else {
+    console.error('Could not find a refresh token in the pasted value. Make sure you are logged in.');
     return null;
   }
 
-  if (!session[1]) {
-    console.error('No refresh token found in the pasted value. Make sure you are logged in.');
-    return null;
-  }
-
-  return { refresh_token: session[1], email: session[3] || null };
+  return { refresh_token, email };
 }
 
 async function validateAndSave(refresh_token, email) {
