@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TYPES, INSIGHT_LANGUAGES, INSIGHT_PRIMARY_USES, INSIGHT_AUDIENCE_LEVELS, INSIGHT_AUDIENCE_AGES, INSIGHT_VOICES } from '@/lib/insight-constants';
 import { cn } from '@/lib/utils';
 import SelectField from './SelectField';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ImprovisationData {
   id: string;
@@ -93,12 +94,35 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(imp.description || '');
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   // Removed updateMutation, now using passed handlers
 
   // Sync local state when DB description changes (e.g., after AI population or manual save)
   useEffect(() => {
     setDescription(imp.description || '');
   }, [imp.description]);
+
+  const handleGenerateDescription = async () => {
+    setIsGeneratingDescription(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-description', {
+        body: { improvisationId: imp.id },
+      });
+      if (error) throw error;
+      if (data?.description) {
+        setDescription(data.description);
+        await handleUpdateDescription(data.description);
+        showSuccess('AI description generated and saved!');
+      } else {
+        throw new Error('No description returned');
+      }
+    } catch (error) {
+      console.error('Description generation failed:', error);
+      showError(`Failed to generate description: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
 
   const handleCopy = () => {
     if (description) {
@@ -391,14 +415,27 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                     <h4 className="font-semibold flex items-center">
                         <Sparkles className="w-4 h-4 mr-2 text-purple-500" /> AI Description Generator
                     </h4>
-                    {/* Note: The generation button is now the main AI button above */}
                 </div>
 
+                <Button
+                    onClick={handleGenerateDescription}
+                    disabled={isGeneratingDescription || isPopulating}
+                    className="w-full"
+                    variant="secondary"
+                >
+                    {isGeneratingDescription ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    Generate AI Description
+                </Button>
+
                 <Textarea
-                    placeholder="Click 'AI Populate ALL Metadata' above to generate a compliant 3-5 sentence description based on your notes and analysis..."
+                    placeholder="Generate a description using the button above, or write your own..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    onBlur={handleSaveDescription} // Save on blur
+                    onBlur={handleSaveDescription}
                     rows={5}
                     className="min-h-[120px]"
                 />

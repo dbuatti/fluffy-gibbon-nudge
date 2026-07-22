@@ -111,7 +111,6 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
       navigate(`/improvisation/${improvisationId}`); // Updated path
 
     } catch (error) {
-      console.error('Instant upload failed:', error);
       showError(`Failed to process file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
