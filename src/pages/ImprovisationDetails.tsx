@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
-import { Loader2, Music } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
@@ -12,6 +12,9 @@ import ImprovisationProgressCard from '@/components/ImprovisationProgressCard';
 import ImprovisationTabs from '@/components/ImprovisationTabs';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSession } from '@/integrations/supabase/session-context';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface NoteTab {
   id: string;
@@ -24,7 +27,6 @@ interface AnalysisData {
   simulated_key?: string;
   simulated_tempo?: number;
   mood?: string;
-  [key: string]: any;
 }
 
 interface Improvisation {
@@ -122,6 +124,10 @@ const ImprovisationDetails: React.FC = () => {
 
   // --- HANDLER DEFINITIONS ---
 
+  useEffect(() => {
+    document.title = `${imp?.generated_name || 'Improvisation'} - AI Composer Hub`;
+  }, [imp?.generated_name]);
+
   const handleRefetch = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisation', id] });
     queryClient.invalidateQueries({ queryKey: ['improvisations'] });
@@ -186,11 +192,14 @@ const ImprovisationDetails: React.FC = () => {
     }
   };
 
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+
   const handleDelete = async () => {
     if (!imp) return;
 
     setIsDeleting(true);
     showSuccess("Deleting improvisation...");
+    setIsDeleteDialogOpen(false);
 
     try {
       // 1. Delete file from Supabase Storage (only if a file exists)
@@ -455,18 +464,40 @@ const ImprovisationDetails: React.FC = () => {
   }
 
   if (showLoadingSpinner) {
-    const loadingMessage = isAnalyzing ? "Processing file..." : "Loading improvisation details...";
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">{loadingMessage}</p>
+      <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+        <div className="flex items-center space-x-4">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <div className="space-y-2 flex-grow">
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
+        </div>
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <div className="flex space-x-2">
+          <Skeleton className="h-10 flex-1 rounded-md" />
+          <Skeleton className="h-10 flex-1 rounded-md" />
+          <Skeleton className="h-10 flex-1 rounded-md" />
+        </div>
+        <Skeleton className="h-48 w-full rounded-lg" />
       </div>
     );
   }
 
   // If data fetching completed but imp is null (e.g., 404 or no data found)
   if (error || !imp) {
-    return <div className="text-center p-8 text-red-500">Error loading details or improvisation not found: {error?.message || "No data."}</div>;
+    return (
+      <div className="max-w-4xl mx-auto p-4 md:p-8">
+        <div className="text-center p-12">
+          <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-destructive" />
+          <h2 className="text-2xl font-bold mb-2">Improvisation not found</h2>
+          <p className="text-muted-foreground mb-6">{error?.message || "The improvisation you're looking for doesn't exist or has been deleted."}</p>
+          <Button asChild>
+            <a href="/">Return to Dashboard</a>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -486,7 +517,7 @@ const ImprovisationDetails: React.FC = () => {
       
       {/* 2. TABS (MOVED HERE) */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6">
-        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+        <TabsList className="flex w-full h-auto p-1 overflow-x-auto md:grid md:grid-cols-3">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
           <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">

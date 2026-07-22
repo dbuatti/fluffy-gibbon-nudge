@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HardDrive, FolderOpen, Music, FileText, ArrowRight, CheckCircle, Zap, ListOrdered, Code } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -47,6 +47,9 @@ const ScriptStep: React.FC<ScriptStepProps> = ({ stepNumber, title, description,
 };
 
 const CompositionScript: React.FC = () => {
+  useEffect(() => {
+    document.title = 'Local Composition Script - AI Composer Hub';
+  }, []);
   // Define color classes for the two sections
   const automatedColor = 'blue-600';
   const manualColor = 'green-600';

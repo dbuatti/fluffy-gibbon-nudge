@@ -4,15 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { showError, showSuccess } from '@/utils/toast'; // Import showSuccess
+import { showError, showSuccess } from '@/utils/toast';
 import CaptureIdeaDialog from './CaptureIdeaDialog';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const fetchDailyPrompt = async (): Promise<string> => {
   // Note: We use the anon key here as this is a public function call
-  const { data, error } = await supabase.functions.invoke('generate-daily-prompt', {
-    method: 'GET', // Use GET since we are just fetching data
-  });
+  const { data, error } = await supabase.functions.invoke('generate-daily-prompt');
 
   if (error) {
     console.error("Failed to fetch daily prompt:", error);
@@ -51,10 +50,10 @@ const DailyPromptCard: React.FC = () => {
   return (
     <Card className={cn(
         "shadow-xl dark:shadow-3xl border-2",
-        "border-purple-500/50 bg-purple-50/50 dark:bg-purple-950/50"
+        "border-primary/30 bg-primary/5 dark:bg-primary/10"
     )}>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-xl font-bold flex items-center text-purple-600 dark:text-purple-400">
+        <CardTitle className="text-xl font-bold flex items-center text-primary">
           <Sparkles className="w-5 h-5 mr-2" /> Daily Creative Prompt
         </CardTitle>
         <Button 
@@ -74,8 +73,9 @@ const DailyPromptCard: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
-          <div className="flex items-center justify-center h-12">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-3/4" />
           </div>
         ) : error ? (
           <p className="text-sm text-red-500">Error loading prompt: {error.message}</p>
@@ -91,7 +91,7 @@ const DailyPromptCard: React.FC = () => {
         >
             <Button 
                 disabled={isLoading || !prompt}
-                className="w-full h-10 text-base bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+                className="w-full h-10 text-base"
             >
                 {isLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

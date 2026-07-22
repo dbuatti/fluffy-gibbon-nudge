@@ -59,7 +59,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
     return () => {
       clearTimeout(handler);
     };
-  }, [tags, saveTags, initialTags]);
+  }, [tags, saveTags, initialTags, saveStatus]);
 
   // --- Tag Management ---
 

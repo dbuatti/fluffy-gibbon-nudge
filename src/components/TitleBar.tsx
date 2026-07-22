@@ -14,7 +14,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ title, backLink = '/', actions, cla
   return (
     <div className={cn("flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6", className)}>
       {/* Back Link */}
-      <Link to={backLink} className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors order-1 md:order-1">
+      <Link to={backLink} className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors order-1 md:order-1" aria-label="Go back">
         <ArrowLeft className="w-4 h-4 mr-1" /> Back
       </Link>
 

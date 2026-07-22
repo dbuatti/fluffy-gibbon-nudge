@@ -1,31 +1,28 @@
-// @ts-ignore
+// @ts-expect-error - Deno
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-// @ts-ignore
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Function to call Gemini API for prompt generation
 async function generatePromptWithGemini(): Promise<string> {
-    // @ts-ignore
+    // @ts-expect-error - Deno
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
         console.error("GEMINI_API_KEY is not set.");
-        return "AI Key Missing: Compose a piece about silence.";
+        return "Compose a piece about the color blue.";
     }
 
     const prompt = `You are a creative writing and music coach. Generate a single, short, evocative, and inspiring prompt for a musician's daily improvisation session. The prompt should focus on a mood, a specific image, a color, or a short abstract concept.
-    
+
     Example: "The sound of a forgotten memory."
     Example: "A slow, deliberate piece in the key of F minor."
-    
+
     Respond ONLY with the prompt text, nothing else.`;
 
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-    
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -35,7 +32,7 @@ async function generatePromptWithGemini(): Promise<string> {
             },
             body: JSON.stringify({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { 
+                generationConfig: {
                     temperature: 1.0,
                 }
             }),
@@ -44,22 +41,17 @@ async function generatePromptWithGemini(): Promise<string> {
         if (!response.ok) {
             const errorBody = await response.json();
             console.error("Gemini API Error:", errorBody);
-            // Specific handling for 429
-            if (response.status === 429) {
-                return `AI Prompt Failed: Rate limit exceeded (HTTP 429). Please wait a moment or check your Gemini API key usage.`;
-            }
-            return `AI Prompt Failed (HTTP ${response.status}): ${errorBody.error?.message || 'Unknown error'}`;
+            return "Compose a piece about the color blue.";
         }
 
         const data = await response.json();
         const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Compose a piece about the color blue.";
-        
-        // Clean up and return the prompt
+
         return generatedText.replace(/^["']|["']$/g, '');
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        return "AI Prompt Failed (Network Error)";
+        return "Compose a piece about the color blue.";
     }
 }
 
@@ -70,15 +62,6 @@ serve(async (req) => {
   }
 
   try {
-    // @ts-ignore
-    const supabase = createClient(
-      // @ts-ignore
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // We don't need to fetch user data for a public prompt, but we run the AI generation.
     const generatedPrompt = await generatePromptWithGemini();
 
     return new Response(JSON.stringify({ success: true, prompt: generatedPrompt }), {

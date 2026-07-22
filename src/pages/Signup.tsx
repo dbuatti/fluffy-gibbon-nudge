@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,10 +11,16 @@ import PasswordGenerator from '@/components/PasswordGenerator';
 import { Key, ArrowLeft } from 'lucide-react';
 
 const Signup = () => {
-  const { session, isLoading } = useSession();
+  useEffect(() => {
+    document.title = 'Sign Up - AI Composer Hub';
+  }, []);
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (session) {

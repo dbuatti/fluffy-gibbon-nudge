@@ -1,10 +1,13 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSession } from '@/integrations/supabase/session-context'; // Import useSession
-import { supabase } from '@/integrations/supabase/client'; // NEW: Import supabase directly
+import { useSession } from '@/integrations/supabase/session-context';
+import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 interface StatusCount {
@@ -12,7 +15,7 @@ interface StatusCount {
   count: number;
 }
 
-const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Promise<StatusCount[]> => {
+const fetchStatusCounts = async (supabaseClient: SupabaseClient, sessionUserId: string): Promise<StatusCount[]> => {
   const statuses = ['uploaded', 'analyzing', 'completed', 'failed'];
   const promises = statuses.map(async (status) => {
     const { count, error } = await supabaseClient
@@ -23,7 +26,6 @@ const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Pr
 
     if (error) {
       console.error(`Error fetching count for status ${status}:`, error);
-      // Removed redundant console.error(`Full Supabase error for status ${status}:`, error); 
       return { status, count: 0 };
     }
     return { status, count: count || 0 };
@@ -34,7 +36,8 @@ const fetchStatusCounts = async (supabaseClient: any, sessionUserId: string): Pr
 };
 
 const ImprovisationPipeline: React.FC = () => {
-  const { session, isLoading: isSessionLoading } = useSession(); // Removed supabase from destructuring
+  const { session, isLoading: isSessionLoading } = useSession();
+  const queryClient = useQueryClient();
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
     queryKey: ['improvisationStatusCounts'],
@@ -95,11 +98,38 @@ const ImprovisationPipeline: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div className="text-center p-4"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading improvisations...</p></div>;
+    return (
+      <Card className="shadow-card-light dark:shadow-card-dark w-full">
+        <CardHeader className="pb-3">
+          <Skeleton className="h-7 w-64" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center justify-center p-4 rounded-xl border h-36">
+                <Skeleton className="h-12 w-12 rounded-full mb-2" />
+                <Skeleton className="h-10 w-16 mb-1" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (error) {
-    return <div className="text-center p-4 text-destructive dark:text-destructive-foreground">Error loading pipeline status. Please check your network connection.</div>;
+    return (
+      <Card className="shadow-card-light dark:shadow-card-dark w-full">
+        <CardContent className="text-center p-6">
+          <AlertTriangle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+          <p className="text-destructive font-semibold">Failed to load pipeline</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] })}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

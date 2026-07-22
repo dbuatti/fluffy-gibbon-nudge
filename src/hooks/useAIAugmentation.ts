@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 interface AIAugmentationResult {
   description: string;
-  updates: { [key: string]: any };
+  updates: Record<string, unknown>;
 }
 
 export const useAIAugmentation = (improvisationId: string) => { // Renamed parameter

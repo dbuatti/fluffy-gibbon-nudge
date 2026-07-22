@@ -1,6 +1,6 @@
-// @ts-ignore
+// @ts-expect-error - Deno
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-// @ts-ignore
+// @ts-expect-error - Deno
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -8,13 +8,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Function to call Gemini API for creative suggestions
-async function generateSuggestionsWithGemini(improvisationData: any): Promise<string[]> {
-    // @ts-ignore
+async function generateSuggestionsWithGemini(improvisationData: any): Promise<{ suggestions?: string[]; error?: string }> {
+    // @ts-expect-error - Deno
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
         console.error("GEMINI_API_KEY is not set.");
-        return ["AI Key Missing"];
+        return { error: "AI service not configured" };
     }
 
     const notesContent = improvisationData.notes?.map((n: any) => `${n.title}: ${n.content}`).join('; ') || 'No creative notes provided.';
@@ -22,7 +21,7 @@ async function generateSuggestionsWithGemini(improvisationData: any): Promise<st
     const analysis = improvisationData.analysis_data || {};
 
     const prompt = `You are an expert music producer and creative coach. Based on the following improvisation data, generate exactly three distinct, actionable, and inspiring suggestions for the user to develop this musical idea further. Focus on structure, instrumentation, mood, or arrangement.
-    
+
     Improvisation Data:
     - Title: "${improvisationData.generated_name || 'Untitled'}"
     - Primary Genre: ${improvisationData.primary_genre || 'Ambient'}
@@ -30,14 +29,14 @@ async function generateSuggestionsWithGemini(improvisationData: any): Promise<st
     - Tempo: ${analysis.simulated_tempo || 'Moderate'} BPM
     - Creative Notes: ${notesContent}
     - User Tags: ${tags}
-    
+
     Instructions for Output:
     1. Provide exactly three suggestions.
     2. Each suggestion must be a concise, single sentence.
     3. Respond ONLY with a JSON array of strings, like: ["Suggestion 1.", "Suggestion 2.", "Suggestion 3."].`;
 
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-    
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -47,7 +46,7 @@ async function generateSuggestionsWithGemini(improvisationData: any): Promise<st
             },
             body: JSON.stringify({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { 
+                generationConfig: {
                     temperature: 0.9,
                 }
             }),
@@ -56,28 +55,29 @@ async function generateSuggestionsWithGemini(improvisationData: any): Promise<st
         if (!response.ok) {
             const errorBody = await response.json();
             console.error("Gemini API Error:", errorBody);
-            return [`AI Generation Failed (HTTP ${response.status})`];
+            return { error: `AI generation failed (HTTP ${response.status})` };
         }
 
         const data = await response.json();
         let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        
+
         if (generatedText) {
             generatedText = generatedText.replace(/^```json\s*|```\s*$/g, '').trim();
             try {
                 const result = JSON.parse(generatedText);
-                if (Array.isArray(result) && result.length === 3) {
-                    return result as string[];
+                if (Array.isArray(result) && result.length >= 1 && result.length <= 5) {
+                    return { suggestions: result as string[] };
                 }
+                return { error: "AI returned an unexpected format" };
             } catch (e) {
                 console.error("Failed to parse Gemini JSON:", e);
             }
         }
-        return ["AI Parsing Failed. Try again."];
+        return { error: "AI returned an empty response" };
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        return ["AI Network Error."];
+        return { error: "AI service unavailable" };
     }
 }
 
@@ -88,49 +88,65 @@ serve(async (req) => {
   }
 
   try {
-    // @ts-ignore
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('Missing authorization header');
+
     const supabase = createClient(
-      // @ts-ignore
+      // @ts-expect-error - Deno
       Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use Service Role Key for secure data fetching
+      // @ts-expect-error - Deno
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { improvisationId } = await req.json(); // Updated parameter name
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const { improvisationId } = await req.json();
 
     if (!improvisationId) {
-      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), { // Updated parameter name
+      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fetch the full record using the Service Role Key
-    const { data: imp, error: fetchError } = await supabase // Renamed variable
-        .from('improvisations') // Updated table name
-        .select('*, notes, user_tags, analysis_data')
-        .eq('id', improvisationId) // Updated parameter name
+    const { data: imp, error: fetchError } = await supabase
+        .from('improvisations')
+        .select('*, notes, user_tags, analysis_data, user_id')
+        .eq('id', improvisationId)
         .single();
 
-    if (fetchError || !imp) { // Updated variable
+    if (fetchError || !imp) {
         console.error('Failed to fetch improvisation data:', fetchError);
-        return new Response(JSON.stringify({ error: 'Improvisation not found or access denied.' }), {
+        return new Response(JSON.stringify({ error: 'Improvisation not found' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
-    // Generate the suggestions
-    const suggestions = await generateSuggestionsWithGemini(imp); // Updated variable
+    if (imp.user_id !== user.id) {
+        throw new Error('Unauthorized');
+    }
 
-    return new Response(JSON.stringify({ success: true, suggestions }), {
+    const result = await generateSuggestionsWithGemini(imp);
+
+    if (result.error) {
+        return new Response(JSON.stringify(result), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+    }
+
+    return new Response(JSON.stringify({ success: true, suggestions: result.suggestions }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Edge Function error:', error);
+    const status = error.message === 'Unauthorized' || error.message === 'Missing authorization header' ? 401 : 500;
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

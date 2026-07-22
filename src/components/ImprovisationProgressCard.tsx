@@ -46,7 +46,7 @@ const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
     isFullySubmitted && "text-success",
     isPartiallySubmitted && "text-info",
     isReadyButNotSubmitted && "text-primary",
-    isInProgress && "text-yellow-500" // Keep yellow for general in-progress/attention
+    isInProgress && "text-warning"
   );
 
   return (

@@ -45,7 +45,7 @@ export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (ti
     } finally {
       setIsGenerating(false);
     }
-  }, [improvisationId, onTitleGenerated, isGenerating]); // Updated dependency
+  }, [onTitleGenerated, isGenerating]); // Updated dependency
 
   const handleAIGenerate = useCallback(async () => {
     if (isGenerating) return;

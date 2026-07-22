@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import ImprovisationList from "@/components/ImprovisationList"; // Renamed
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Music, Clock, Sparkles, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
+import { ExternalLink, Music, Clock, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ImprovisationPipeline from "@/components/ImprovisationPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/integrations/supabase/session-context';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import DailyPromptCard from '@/components/DailyPromptCard';
 import StreakCard from '@/components/StreakCard';
 
@@ -25,7 +26,7 @@ interface Improvisation { // Renamed interface
   created_at: string;
 }
 
-const fetchImprovisationDates = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => { // Renamed fetch function
+const fetchImprovisationDates = async (supabaseClient: SupabaseClient, sessionUserId: string): Promise<Improvisation[]> => {
   const { data, error } = await supabaseClient
     .from('improvisations') // Updated table name
     .select('created_at')
@@ -120,8 +121,10 @@ const Index = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
     queryClient.invalidateQueries({ queryKey: ['improvisationDates'] }); // Updated query key
   };
-  
-  // Removed unused streakMessage variable
+
+  useEffect(() => {
+    document.title = 'Dashboard - AI Composer Hub';
+  }, []);
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -200,10 +203,10 @@ const Index = () => {
             </DropdownMenu>
 
             {/* View Toggles */}
-            <Button variant="outline" size="icon" onClick={() => setViewMode('grid')} className={cn("h-10 w-10", viewMode === 'grid' && 'bg-accent text-accent-foreground')}>
+            <Button variant="outline" size="icon" onClick={() => setViewMode('grid')} className={cn("h-10 w-10", viewMode === 'grid' && 'bg-accent text-accent-foreground')} aria-label="Grid view">
                 <Grid3X3 className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => setViewMode('list')} className={cn("h-10 w-10", viewMode === 'list' && 'bg-accent text-accent-foreground')}>
+            <Button variant="outline" size="icon" onClick={() => setViewMode('list')} className={cn("h-10 w-10", viewMode === 'list' && 'bg-accent text-accent-foreground')} aria-label="List view">
                 <ListOrdered className="h-4 w-4" />
             </Button>
           </div>

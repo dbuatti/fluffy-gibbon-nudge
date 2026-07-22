@@ -1,6 +1,6 @@
-// @ts-ignore
+// @ts-expect-error - Deno
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
-// @ts-ignore
+// @ts-expect-error - Deno
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -8,9 +8,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Function to call Gemini API for name generation
 async function generateTitleWithGemini(improvisationData: any): Promise<string> {
-    // @ts-ignore
+    // @ts-expect-error - Deno
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
         console.error("GEMINI_API_KEY is not set.");
@@ -21,8 +20,8 @@ async function generateTitleWithGemini(improvisationData: any): Promise<string> 
     const tags = improvisationData.user_tags?.join(', ') || 'No user tags.';
     const analysis = improvisationData.analysis_data || {};
 
-    const prompt = `You are an expert music analyst and poet. Based on the following analysis and creative notes, generate a single, evocative, abstract, and unique title for this music piece. 
-    
+    const prompt = `You are an expert music analyst and poet. Based on the following analysis and creative notes, generate a single, evocative, abstract, and unique title for this music piece.
+
     Improvisation Data:
     - Primary Genre: ${improvisationData.primary_genre || 'Unknown'}
     - Secondary Genre: ${improvisationData.secondary_genre || 'Unknown'}
@@ -30,13 +29,13 @@ async function generateTitleWithGemini(improvisationData: any): Promise<string> 
     - Tempo: ${analysis.simulated_tempo || 'Moderate'} BPM
     - Creative Notes: ${notesContent}
     - User Tags: ${tags}
-    
+
     The title should be suitable for a music release, focusing on imagery, emotion, or abstract concepts.
-    
+
     Respond ONLY with the title, nothing else.`;
 
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-    
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -46,7 +45,7 @@ async function generateTitleWithGemini(improvisationData: any): Promise<string> 
             },
             body: JSON.stringify({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: { 
+                generationConfig: {
                     temperature: 0.9,
                 }
             }),
@@ -60,8 +59,7 @@ async function generateTitleWithGemini(improvisationData: any): Promise<string> 
 
         const data = await response.json();
         const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Untitled AI Piece";
-        
-        // Clean up potential quotes or extra formatting from the AI response
+
         return generatedText.replace(/^["']|["']$/g, '');
 
     } catch (error) {
@@ -77,40 +75,48 @@ serve(async (req) => {
   }
 
   try {
-    // @ts-ignore
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('Missing authorization header');
+
     const supabase = createClient(
-      // @ts-ignore
+      // @ts-expect-error - Deno
       Deno.env.get('SUPABASE_URL') ?? '',
-      // @ts-ignore
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use Service Role Key for secure data fetching
+      // @ts-expect-error - Deno
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { improvisationId } = await req.json(); // Updated parameter name
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    const { improvisationId } = await req.json();
 
     if (!improvisationId) {
-      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), { // Updated parameter name
+      return new Response(JSON.stringify({ error: 'Missing improvisationId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fetch the full record using the Service Role Key
-    const { data: imp, error: fetchError } = await supabase // Renamed variable
-        .from('improvisations') // Updated table name
-        .select('*, notes, user_tags, analysis_data')
-        .eq('id', improvisationId) // Updated parameter name
+    const { data: imp, error: fetchError } = await supabase
+        .from('improvisations')
+        .select('*, notes, user_tags, analysis_data, user_id')
+        .eq('id', improvisationId)
         .single();
 
-    if (fetchError || !imp) { // Updated variable
+    if (fetchError || !imp) {
         console.error('Failed to fetch improvisation data:', fetchError);
-        return new Response(JSON.stringify({ error: 'Improvisation not found or access denied.' }), {
+        return new Response(JSON.stringify({ error: 'Improvisation not found' }), {
             status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
     }
 
-    // Generate the title
-    const generatedTitle = await generateTitleWithGemini(imp); // Updated variable
+    if (imp.user_id !== user.id) {
+        throw new Error('Unauthorized');
+    }
+
+    const generatedTitle = await generateTitleWithGemini(imp);
 
     return new Response(JSON.stringify({ success: true, title: generatedTitle }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -118,8 +124,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Edge Function error:', error);
+    const status = error.message === 'Unauthorized' || error.message === 'Missing authorization header' ? 401 : 500;
     return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

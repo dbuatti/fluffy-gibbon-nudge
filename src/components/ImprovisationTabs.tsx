@@ -1,10 +1,9 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download, ExternalLink, RefreshCw, Image as ImageIcon, AlertTriangle, Sparkles, Upload, Copy } from 'lucide-react';
+import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, AlertTriangle, Sparkles, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
 import AudioUploadForImprovisation from './AudioUploadForImprovisation';
 import ImprovisationNotes from './ImprovisationNotes';
 import TagGenerator from './TagGenerator';
@@ -16,9 +15,6 @@ import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
 import { Input } from '@/components/ui/input';
 import { showSuccess, showError } from '@/utils/toast';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import GenreSelect from './GenreSelect';
 import { cn } from '@/lib/utils';
 import ArtworkUpload from './ArtworkUpload';
 import DistributionTogglesCard from './DistributionTogglesCard';
@@ -40,7 +36,6 @@ interface AnalysisData {
   simulated_key?: string;
   simulated_tempo?: number;
   mood?: string;
-  [key: string]: any;
 }
 
 interface Improvisation {

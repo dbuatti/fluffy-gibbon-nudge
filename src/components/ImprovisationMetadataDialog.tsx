@@ -28,7 +28,6 @@ interface AnalysisData {
   simulated_key?: string;
   simulated_tempo?: number;
   mood?: string;
-  [key: string]: any;
 }
 
 interface Improvisation {

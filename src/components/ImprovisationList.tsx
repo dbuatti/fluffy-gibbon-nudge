@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download, RefreshCw } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,7 +12,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { showSuccess, showError } from '@/utils/toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface NoteTab {
   id: string;
@@ -38,7 +41,7 @@ interface Improvisation {
   is_improvisation: boolean | null;
   primary_genre: string | null;
   secondary_genre: string | null;
-  analysis_data: any | null;
+  analysis_data: Record<string, string | number | undefined> | null;
   user_tags: string[] | null;
   is_instrumental: boolean | null;
   is_original_song: boolean | null;
@@ -59,7 +62,7 @@ interface Improvisation {
 
 const STALLED_THRESHOLD_HOURS = 24;
 
-const fetchImprovisations = async (supabaseClient: any, sessionUserId: string): Promise<Improvisation[]> => {
+const fetchImprovisations = async (supabaseClient: SupabaseClient, sessionUserId: string): Promise<Improvisation[]> => {
   const { data, error } = await supabaseClient
     .from('improvisations')
     .select('*')
@@ -191,10 +194,10 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
     }
   };
 
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   const handleBulkDelete = async () => {
-    if (selectedImprovisations.size === 0 || !window.confirm(`Are you sure you want to delete ${selectedImprovisations.size} improvisations? This action cannot be undone.`)) {
-      return;
-    }
+    if (selectedImprovisations.size === 0) return;
 
     setIsDeletingBulk(true);
     showSuccess(`Deleting ${selectedImprovisations.size} improvisations...`);
@@ -272,11 +275,45 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   };
 
   if (isLoading) {
-    return <div className="text-center p-8"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /><p className="mt-2 text-muted-foreground">Loading improvisations...</p></div>;
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <Skeleton className="h-7 w-48" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-start space-x-4 p-4 border rounded-lg">
+                <Skeleton className="h-20 w-20 rounded-md flex-shrink-0" />
+                <div className="flex-grow space-y-2">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <div className="flex gap-2 mt-2">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (error) {
-    return <div className="text-center p-8 text-destructive dark:text-destructive-foreground">Error loading data: {error.message}</div>;
+    return (
+      <Card>
+        <CardContent className="text-center p-8">
+          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+          <p className="text-lg font-semibold text-destructive">Failed to load improvisations</p>
+          <p className="text-sm text-muted-foreground mt-2 mb-4">{error.message}</p>
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['improvisations'] })}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   const hasSelectedItems = selectedImprovisations.size > 0;
@@ -351,19 +388,32 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                         </label>
                     </div>
                     <div className="flex space-x-2">
-                        <Button 
-                            variant="destructive" 
-                            size="sm" 
-                            onClick={handleBulkDelete} 
-                            disabled={isDeletingBulk}
-                        >
-                            {isDeletingBulk ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <Trash2 className="h-4 w-4 mr-2" />
-                            )}
-                            Delete
-                        </Button>
+                        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" disabled={isDeletingBulk}>
+                                    {isDeletingBulk ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                    )}
+                                    Delete
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete {selectedImprovisations.size} improvisations?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. All audio files and metadata will be permanently deleted.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive hover:bg-destructive/90">
+                                        {isDeletingBulk ? 'Deleting...' : 'Delete All'}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                         <Button 
                             variant="secondary" 
                             size="sm" 

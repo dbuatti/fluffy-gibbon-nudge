@@ -42,6 +42,7 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
             key={item.to} 
             to={item.to} 
             onClick={onLinkClick}
+            aria-current={location.pathname === item.to ? "page" : undefined}
             className={cn(
               "flex items-center p-3 rounded-lg transition-colors",
               location.pathname === item.to
@@ -90,7 +91,7 @@ const Sidebar: React.FC = () => {
     return (
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50">
+          <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-50" aria-label="Open navigation menu">
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>

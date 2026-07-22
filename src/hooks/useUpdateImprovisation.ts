@@ -2,9 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError } from '@/utils/toast';
 
-interface UpdateImprovisationPayload { // Renamed interface
+interface UpdateImprovisationPayload {
   id: string;
-  updates: { [key: string]: any };
+  updates: Record<string, unknown>;
 }
 
 const updateImprovisation = async ({ id, updates }: UpdateImprovisationPayload) => { // Renamed function
@@ -20,7 +20,7 @@ export const useUpdateImprovisation = (improvisationId: string) => { // Renamed 
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (updates: { [key: string]: any }) => updateImprovisation({ id: improvisationId, updates }), // Updated function call
+    mutationFn: (updates: Record<string, unknown>) => updateImprovisation({ id: improvisationId, updates }),
     onSuccess: (data, variables) => {
       // Invalidate the specific improvisation query to refetch the latest data
       queryClient.invalidateQueries({ queryKey: ['improvisation', improvisationId] }); // Updated query key

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Sparkles, Loader2, Info } from 'lucide-react';
+import { RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EditableField from './EditableField';
@@ -14,7 +14,6 @@ interface AnalysisData {
   simulated_key?: string;
   simulated_tempo?: number;
   mood?: string;
-  [key: string]: any;
 }
 
 interface Improvisation {

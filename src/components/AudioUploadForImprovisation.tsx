@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Loader2, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { useSession } from '@/integrations/supabase/session-context'; // Added missing import
+import { useSession } from '@/integrations/supabase/session-context';
+import { Progress } from '@/components/ui/progress';
 
 interface AudioUploadForImprovisationProps {
   improvisationId: string; // Renamed prop
@@ -21,6 +22,7 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -50,21 +52,27 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
     if (!file || !session) return;
 
     setIsUploading(true);
+    setUploadProgress(0);
 
     const user = session.user;
     const fileExtension = file.name.split('.').pop();
-    // Path format: user_id/timestamp.ext
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'piano_improvisations'; // Updated bucket name
+    const bucketName = 'piano_improvisations';
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + Math.random() * 20, 90));
+    }, 500);
 
     try {
-      // 1. Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
         });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       if (uploadError) throw uploadError;
 
@@ -106,6 +114,8 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
       onUploadSuccess(); // Notify parent component to refetch details
 
     } catch (error) {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
       console.error('Upload failed:', error);
       showError(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -147,6 +157,12 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
             <p className="text-sm text-muted-foreground">
               Selected: <span className="font-semibold text-primary">{file.name}</span> ({(file.size / 1024 / 1024).toFixed(2)} MB)
             </p>
+            {isUploading && (
+              <div className="space-y-2">
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="text-xs text-muted-foreground text-center">{uploadProgress}% uploaded</p>
+              </div>
+            )}
             <Button 
               onClick={handleUpload} 
               disabled={isUploading} 

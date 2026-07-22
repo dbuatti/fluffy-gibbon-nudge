@@ -13,6 +13,7 @@ import { SessionContextProvider } from "./integrations/supabase/session-context"
 import ProtectedRoute from "./components/ProtectedRoute";
 import DragDropOverlay from "./components/DragDropOverlay";
 import AppLayout from "./components/AppLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <SessionContextProvider>
           <DragDropOverlay>
+            <ErrorBoundary>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
@@ -43,6 +45,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
           </DragDropOverlay>
         </SessionContextProvider>
       </BrowserRouter>

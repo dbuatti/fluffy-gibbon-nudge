@@ -42,16 +42,16 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) =>
   }, [improvisationId]); // Updated dependency
 
   return (
-    <Card className="shadow-lg dark:shadow-xl border-purple-500/50 border-2">
+    <Card className="shadow-lg dark:shadow-xl border-primary/30 border-2">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-xl text-purple-600 dark:text-purple-400">
+        <CardTitle className="text-xl text-primary">
           <Lightbulb className="w-5 h-5 mr-2" /> AI Creative Coach
         </CardTitle>
         <Button 
           onClick={handleGenerate} 
           disabled={isLoading} // Button is now only disabled by loading state
           size="sm"
-          className="bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+          className=""
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
