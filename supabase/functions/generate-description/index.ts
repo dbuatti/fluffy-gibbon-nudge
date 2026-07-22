@@ -42,7 +42,7 @@ Write 2-3 paragraphs (150-300 words total) that:
 
 Respond ONLY with the description text, no labels or prefixes.`;
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
     try {
         const response = await fetch(url, {

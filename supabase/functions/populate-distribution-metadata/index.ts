@@ -49,7 +49,7 @@ async function populateFieldsWithGemini(improvisationData: any): Promise<any> {
 
     Respond ONLY with a single JSON object containing the following keys: "insight_content_type", "insight_language", "insight_primary_use", "insight_audience_level", "insight_voice", "insight_benefits" (array), "insight_practices" (string), "insight_themes" (array), and "description" (string).`;
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
     try {
         const response = await fetch(url, {

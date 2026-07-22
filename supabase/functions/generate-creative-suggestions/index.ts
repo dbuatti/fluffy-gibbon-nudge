@@ -37,7 +37,7 @@ async function generateSuggestionsWithGemini(improvisationData: any): Promise<{ 
     2. Each suggestion must be a concise, single sentence.
     3. Respond ONLY with a JSON array of strings, like: ["Suggestion 1.", "Suggestion 2.", "Suggestion 3."].`;
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
     try {
         const response = await fetch(url, {

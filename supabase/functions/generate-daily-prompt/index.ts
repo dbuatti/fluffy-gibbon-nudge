@@ -23,7 +23,7 @@ async function generatePromptWithGemini(): Promise<string> {
 
     Respond ONLY with the prompt text, nothing else.`;
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
     try {
         const response = await fetch(url, {
@@ -42,7 +42,7 @@ async function generatePromptWithGemini(): Promise<string> {
 
         if (!response.ok) {
             const errorBody = await response.json();
-            console.error("Gemini API Error:", errorBody);
+            console.error("Gemini API Error:", JSON.stringify(errorBody));
             return "Compose a piece about the color blue.";
         }
 

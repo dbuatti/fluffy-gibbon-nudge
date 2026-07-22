@@ -41,7 +41,7 @@ async function generateNameWithGemini(fileName: string): Promise<string> {
 
     Respond ONLY with the title, nothing else. The title should be suitable for a music release.`;
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
     try {
         const response = await fetch(url, {

@@ -22,7 +22,7 @@ async function generateImagePromptWithGemini(generatedName: string, primaryGenre
 
     Respond ONLY with the prompt text, nothing else.`;
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
 
     try {
         const response = await fetch(url, {
