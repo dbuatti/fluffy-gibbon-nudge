@@ -61,7 +61,7 @@ const ImprovisationPipeline: React.FC = () => {
       count: totalUploaded, 
       icon: Edit2, 
       color: 'text-info dark:text-info-foreground', // Updated color
-      description: 'Awaiting audio file upload.',
+      description: 'Idea captured successfully.',
       bg: 'bg-info/10 dark:bg-info/20',
       border: 'border-info',
     },

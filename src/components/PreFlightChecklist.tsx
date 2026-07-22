@@ -30,10 +30,10 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
 
   // --- Individual Checks ---
   const audioCheck = {
-    status: hasAudioFile ? 'passed' : 'failed',
-    label: hasAudioFile ? 'Audio File Uploaded' : 'Audio File Missing',
-    icon: hasAudioFile ? CheckCircle : XCircle,
-    color: hasAudioFile ? 'text-success' : 'text-red-500',
+    status: hasAudioFile ? 'passed' : 'skipped',
+    label: hasAudioFile ? 'Audio File Uploaded' : 'Audio File (Optional)',
+    icon: hasAudioFile ? CheckCircle : Music,
+    color: hasAudioFile ? 'text-success' : 'text-muted-foreground',
     actionLink: hasAudioFile ? undefined : '#audio-upload-cta',
     actionLabel: hasAudioFile ? undefined : 'Upload Audio',
   };
@@ -98,7 +98,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
                     <Icon className={cn("h-4 w-4 mr-2", check.color)} />
                     {check.label}
                   </span>
-                  <Badge variant={check.status === 'passed' ? 'default' : (check.status === 'failed' ? 'destructive' : 'secondary')}>
+                  <Badge variant={check.status === 'passed' ? 'default' : (check.status === 'failed' ? 'destructive' : (check.status === 'skipped' ? 'outline' : 'secondary'))}>
                     {check.status.toUpperCase()}
                   </Badge>
                 </div>
@@ -121,10 +121,10 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
             <Badge 
                 className={cn(
                     "text-base px-4 py-2",
-                    isReady ? "bg-success hover:bg-success/90 text-success-foreground" : "bg-red-600 hover:bg-red-600"
+                    isReady ? "bg-success hover:bg-success/90 text-success-foreground" : (isBlocked ? "bg-red-600 hover:bg-red-600" : "bg-yellow-600 hover:bg-yellow-600")
                 )}
             >
-                {isReady ? 'READY TO SUBMIT' : 'BLOCKED'}
+                {isReady ? 'READY TO SUBMIT' : (isBlocked ? 'BLOCKED' : 'IN PROGRESS')}
             </Badge>
         </div>
       </CardContent>

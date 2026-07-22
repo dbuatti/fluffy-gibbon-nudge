@@ -197,8 +197,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
 
   // A improvisation is blocked if any critical asset or confirmation is missing.
   const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
-  // Artwork check now relies on the user having an artwork_url set
-  const isBlocked = !hasAudioFile || !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
+  const isBlocked = !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
 
   // --- Conditional Content Rendering ---
 

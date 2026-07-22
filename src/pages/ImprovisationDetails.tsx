@@ -347,12 +347,6 @@ const ImprovisationDetails: React.FC = () => {
               variant: "default" 
           } 
       },
-      // Step 2: Audio File Upload
-      { 
-          condition: hasAudioFile, 
-          message: "Upload your audio file.", 
-          action: { label: "Upload Audio", onClick: () => document.getElementById('audio-upload-cta')?.scrollIntoView({ behavior: 'smooth' }), variant: "default" } 
-      },
       // Step 3: Core Musical Metadata
       { 
           condition: isCoreMetadataComplete, 

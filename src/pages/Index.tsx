@@ -197,7 +197,7 @@ const Index = () => {
                 <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setFilterStatus('all')}>All</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus('uploaded')}>Needs Audio</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus('uploaded')}>Uploaded</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterStatus('analyzing')}>Processing</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterStatus('completed')}>Ready</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setFilterStatus('failed')}>Failed</DropdownMenuItem>

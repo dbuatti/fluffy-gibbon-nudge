@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, Upload, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download, RefreshCw } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -80,15 +80,10 @@ const fetchImprovisations = async (supabaseClient: SupabaseClient, sessionUserId
 
 // Unified Status Badge Function
 const getStatusBadge = (imp: Improvisation) => { // Updated to take full imp object
-  const hasFile = !!imp.storage_path;
   const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
 
   if (isSubmitted) {
     return <Badge variant="default" className="bg-green-700 text-white">🎉 Submitted!</Badge>;
-  }
-  
-  if (!hasFile && imp.status === 'uploaded') {
-    return <Badge variant="outline" className="bg-info text-info-foreground border-info">💡 Needs Audio</Badge>;
   }
   
   switch (imp.status) {
@@ -117,7 +112,6 @@ const getNotesStatusBadge = (notes: NoteTab[] | null) => {
 };
 
 const getNextAction = (imp: Improvisation) => {
-  const hasFile = !!imp.storage_path;
   const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
   const hasArtworkPrompt = !!imp.artwork_prompt;
   const hasArtworkUrl = !!imp.artwork_url;
@@ -128,9 +122,6 @@ const getNextAction = (imp: Improvisation) => {
     return { label: 'View Submissions', icon: CheckCircle, color: 'text-success', type: 'manual' };
   }
 
-  if (!hasFile) {
-    return { label: 'Upload Audio', icon: Upload, color: 'text-primary', type: 'manual' };
-  }
   if (imp.status === 'analyzing') {
     return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning', type: 'ai' };
   }
