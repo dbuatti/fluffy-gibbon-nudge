@@ -61,16 +61,21 @@ interface Improvisation {
 }
 
 const STALLED_THRESHOLD_HOURS = 24;
+const PAGE_SIZE = 20;
 
-const fetchImprovisations = async (supabaseClient: SupabaseClient, sessionUserId: string): Promise<Improvisation[]> => {
-  const { data, error } = await supabaseClient
+const fetchImprovisations = async (supabaseClient: SupabaseClient, sessionUserId: string, page: number): Promise<{ data: Improvisation[]; total: number }> => {
+  const from = page * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  const { data, error, count } = await supabaseClient
     .from('improvisations')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('user_id', sessionUserId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(from, to);
 
   if (error) throw new Error(error.message);
-  return data as Improvisation[];
+  return { data: data as Improvisation[], total: count ?? 0 };
 };
 
 // Unified Status Badge Function
@@ -164,13 +169,34 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   const [selectedImprovisations, setSelectedImprovisations] = useState<Set<string>>(new Set());
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isExportingBulk, setIsExportingBulk] = useState(false);
+  const [page, setPage] = useState(0);
+  const [allImprovisations, setAllImprovisations] = useState<Improvisation[]>([]);
 
-  const { data: improvisations, isLoading, error, refetch } = useQuery<Improvisation[]>({
-    queryKey: ['improvisations'],
-    queryFn: () => fetchImprovisations(supabase, session!.user.id),
+  const { data: pageData, isLoading, error, refetch } = useQuery<{ data: Improvisation[]; total: number }>({
+    queryKey: ['improvisations', page],
+    queryFn: () => fetchImprovisations(supabase, session!.user.id, page),
     enabled: !isSessionLoading && !!session?.user,
-    refetchInterval: 15000, // Changed from 5000 to 15000 (15 seconds)
+    refetchInterval: 15000,
   });
+
+  const improvisations = pageData?.data;
+  const totalCount = pageData?.total ?? 0;
+  const hasMore = allImprovisations.length + (improvisations?.length ?? 0) < totalCount;
+
+  React.useEffect(() => {
+    if (improvisations) {
+      setAllImprovisations(prev => {
+        const existingIds = new Set(prev.map(i => i.id));
+        const newItems = improvisations.filter(i => !existingIds.has(i.id));
+        if (page === 0) return [...newItems];
+        return [...prev, ...newItems];
+      });
+    }
+  }, [improvisations, page]);
+
+  const handleLoadMore = () => {
+    setPage(prev => prev + 1);
+  };
 
   const handleSelectImprovisation = (id: string, checked: boolean) => {
     setSelectedImprovisations(prev => {
@@ -318,8 +344,10 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
   const hasSelectedItems = selectedImprovisations.size > 0;
 
+  const allItems = allImprovisations;
+
   // --- Filtering Logic ---
-  const filteredImprovisations = improvisations?.filter(imp => {
+  const filteredImprovisations = allItems.filter(imp => {
     const matchesSearch = searchTerm === '' || 
                           imp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -523,6 +551,14 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                 );
               })}
             </div>
+
+            {hasMore && (
+              <div className="flex justify-center mt-6">
+                <Button variant="outline" onClick={handleLoadMore}>
+                  Load More ({allItems.length} / {totalCount})
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center p-8 text-muted-foreground">

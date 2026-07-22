@@ -1,19 +1,23 @@
+import React, { Suspense } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import ImprovisationDetails from "./pages/ImprovisationDetails";
-import Settings from "./pages/Settings";
-import CompositionScript from "./pages/CompositionScript";
 import { SessionContextProvider } from "./integrations/supabase/session-context";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DragDropOverlay from "./components/DragDropOverlay";
 import AppLayout from "./components/AppLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+import { Loader2 } from "lucide-react";
+
+const Index = React.lazy(() => import("./pages/Index"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const Login = React.lazy(() => import("./pages/Login"));
+const Signup = React.lazy(() => import("./pages/Signup"));
+const ImprovisationDetails = React.lazy(() => import("./pages/ImprovisationDetails"));
+const Settings = React.lazy(() => import("./pages/Settings"));
+const CompositionScript = React.lazy(() => import("./pages/CompositionScript"));
 
 const queryClient = new QueryClient();
 
@@ -26,6 +30,7 @@ const App = () => (
         <SessionContextProvider>
           <DragDropOverlay>
             <ErrorBoundary>
+            <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
@@ -45,6 +50,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
             </ErrorBoundary>
           </DragDropOverlay>
         </SessionContextProvider>

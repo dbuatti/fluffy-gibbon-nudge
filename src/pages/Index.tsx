@@ -115,6 +115,7 @@ const Index = () => {
   });
 
   const { streak, todayActivity } = useStreakTracker(improvisationDates); // Updated variable name
+  const hasNoImprovisations = improvisationDates && improvisationDates.length === 0 && !isSessionLoading;
 
   const handleRefetch = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
@@ -153,7 +154,25 @@ const Index = () => {
         <StreakCard streak={streak} todayActivity={todayActivity} />
 
         {/* Improvisation Pipeline (Now full width at the top) */}
-        <ImprovisationPipeline />
+        {hasNoImprovisations ? (
+          <Card className="shadow-card-light dark:shadow-card-dark w-full">
+            <CardContent className="text-center p-12">
+              <Music className="w-16 h-16 mx-auto mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">Welcome to AI Composer Hub!</h2>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Your creative space for capturing musical ideas, analyzing improvisations,
+                and preparing them for distribution. Start by capturing your first idea!
+              </p>
+              <CaptureIdeaDialog onIdeaCaptured={handleRefetch}>
+                <Button size="lg" className="text-base">
+                  <Music className="w-5 h-5 mr-2" /> Capture Your First Idea
+                </Button>
+              </CaptureIdeaDialog>
+            </CardContent>
+          </Card>
+        ) : (
+          <ImprovisationPipeline />
+        )}
         
         {/* Search, Filter, and View Toggles */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
