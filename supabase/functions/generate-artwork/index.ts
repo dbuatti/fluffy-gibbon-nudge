@@ -10,15 +10,17 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-async function generateImagePromptWithGemini(generatedName: string, primaryGenre: string, mood: string): Promise<string> {
+async function generateImagePromptWithGemini(generatedName: string, primaryGenre?: string, mood?: string): Promise<string> {
     // @ts-expect-error - Deno
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
         console.error("GEMINI_API_KEY is not set.");
-        return `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
+        return `A cinematic, abstract representation of ${generatedName}. 3000x3000, no text.`;
     }
 
-    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". The primary genre is ${primaryGenre} and the mood is ${mood}. Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on color, texture, and lighting that reflects the ${mood} and ${primaryGenre} genres. The style should be cinematic, painterly, or digital art.
+    const genreInstr = primaryGenre ? `The primary genre is ${primaryGenre}.` : 'Infer a fitting genre from the title.';
+    const moodInstr = mood ? `The mood is ${mood}.` : 'Infer an appropriate mood from the title.';
+    const prompt = `You are an expert visual artist designing album covers. The song title is "${generatedName}". ${genreInstr} ${moodInstr} Generate a single, highly descriptive, abstract, and evocative prompt suitable for an AI image generator (like Midjourney or DALL-E). The image must be square, high-resolution (3000x3000), and contain no text, logos, or human faces. Focus on color, texture, and lighting that reflects the title's atmosphere. The style should be cinematic, painterly, or digital art.
 
     Respond ONLY with the prompt text, nothing else.`;
 
@@ -42,17 +44,18 @@ async function generateImagePromptWithGemini(generatedName: string, primaryGenre
         if (!response.ok) {
             const errorBody = await response.json();
             console.error("Gemini API Error:", errorBody);
-            return `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
+            const fallbackGenre = primaryGenre ? ` in the style of ${primaryGenre}` : '';
+            return `A cinematic, abstract representation of ${generatedName}${fallbackGenre}. 3000x3000, no text.`;
         }
 
         const data = await response.json();
-        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || `A cinematic, abstract representation of ${generatedName}${primaryGenre ? ` in the style of ${primaryGenre}` : ''}. 3000x3000, no text.`;
 
         return generatedText.replace(/^["']|["']$/g, '');
 
     } catch (error) {
         console.error("Error calling Gemini API:", error);
-        return `A cinematic, abstract representation of ${generatedName} in the style of ${primaryGenre}. 3000x3000, no text.`;
+        return `A cinematic, abstract representation of ${generatedName}${primaryGenre ? ` in the style of ${primaryGenre}` : ''}. 3000x3000, no text.`;
     }
 }
 
@@ -77,10 +80,10 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
-    const { improvisationId, generatedName, primaryGenre, secondaryGenre, mood } = await req.json();
+    const { improvisationId, generatedName, primaryGenre, mood } = await req.json();
 
-    if (!improvisationId || !generatedName || !primaryGenre || !mood) {
-      return new Response(JSON.stringify({ error: 'Missing required parameters for artwork generation' }), {
+    if (!improvisationId || !generatedName) {
+      return new Response(JSON.stringify({ error: 'Missing required parameters: improvisationId and generatedName' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

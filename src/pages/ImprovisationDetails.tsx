@@ -134,8 +134,8 @@ const ImprovisationDetails: React.FC = () => {
   };
 
   const handleRegenerateArtwork = async () => {
-    if (!imp || !imp.generated_name || !imp.primary_genre || !imp.analysis_data?.mood) {
-      showError("Cannot generate artwork prompt: Core metadata (name, genre, or mood) is missing. Please set these fields first.");
+    if (!imp || !imp.generated_name) {
+      showError("Cannot generate artwork prompt: a title is required.");
       return;
     }
 
@@ -148,8 +148,7 @@ const ImprovisationDetails: React.FC = () => {
           improvisationId: imp.id,
           generatedName: imp.generated_name,
           primaryGenre: imp.primary_genre,
-          secondaryGenre: imp.secondary_genre,
-          mood: imp.analysis_data.mood,
+          mood: imp.analysis_data?.mood,
         },
       });
 
