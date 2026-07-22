@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local script auth cache
+.config/composer-hub/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
