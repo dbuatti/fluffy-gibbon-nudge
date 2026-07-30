@@ -113,7 +113,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
         );
       case 'saved':
         return (
-          <span className="flex items-center text-green-600 dark:text-green-400 text-sm">
+          <span className="flex items-center text-success text-sm">
             <Check className="h-4 w-4 mr-2" /> Saved
           </span>
         );

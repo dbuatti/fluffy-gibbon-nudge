@@ -99,7 +99,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
           <div className="flex items-center space-x-2">
             <Checkbox id="social-media-pack" />
             <Label htmlFor="social-media-pack" className="text-sm flex items-center">
-              <DollarSign className="w-4 h-4 mr-1 text-green-500" /> Social Media Pack ($4.95/yr + 20% revenue)
+              <DollarSign className="w-4 h-4 mr-1 text-success" /> Social Media Pack ($4.95/yr + 20% revenue)
             </Label>
           </div>
           <div className="flex items-center space-x-2">
