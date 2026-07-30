@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { showSuccess, showError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-// Removed useUpdateImprovisation as handlers are now passed from parent
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -17,38 +16,19 @@ import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TY
 import { cn } from '@/lib/utils';
 import SelectField from './SelectField';
 import { supabase } from '@/integrations/supabase/client';
+import type { Improvisation } from '@/types/improvisation';
 
-interface ImprovisationData {
-  id: string;
-  generated_name: string | null;
-  primary_genre: string | null;
-  is_improvisation: boolean | null;
-  is_metadata_confirmed: boolean | null;
-  description: string | null;
-  
-  // INSIGHT TIMER FIELDS
-  insight_content_type: string | null;
-  insight_language: string | null;
-  insight_primary_use: string | null;
-  insight_audience_level: string | null;
-  insight_audience_age: string[] | null;
-  insight_benefits: string[] | null;
-  insight_practices: string | null;
-  insight_themes: string[] | null;
-  insight_voice: string | null;
-  is_submitted_to_insight_timer: boolean | null; // NEW
-}
+type ImprovisationData = Pick<Improvisation, 'id' | 'generated_name' | 'primary_genre' | 'is_improvisation' | 'is_metadata_confirmed' | 'description' | 'insight_content_type' | 'insight_language' | 'insight_primary_use' | 'insight_audience_level' | 'insight_audience_age' | 'insight_benefits' | 'insight_practices' | 'insight_themes' | 'insight_voice' | 'is_submitted_to_insight_timer'>;
 
 interface InsightTimerTabProps {
   imp: ImprovisationData;
   aiGeneratedDescription: string;
   isPopulating: boolean;
-  isPending: boolean; // NEW: Pass pending state from parent
+  isPending: boolean;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
   handleUpdateIsMetadataConfirmed: (checked: boolean) => Promise<void>;
-  handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>; // NEW
-  // NEW: Handlers for Insight Timer fields
+  handleUpdateIsSubmittedToInsightTimer: (checked: boolean) => Promise<void>;
   handleUpdateDescription: (value: string) => Promise<void>;
   handleUpdateInsightContentType: (value: string) => Promise<void>;
   handleUpdateInsightLanguage: (value: string) => Promise<void>;
@@ -75,27 +55,26 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     imp,
     aiGeneratedDescription, 
     isPopulating, 
-    isPending, // NEW
+    isPending,
     handleAIPopulateMetadata,
     setAiGeneratedDescription,
     handleUpdateIsMetadataConfirmed,
-    handleUpdateIsSubmittedToInsightTimer, // NEW
-    handleUpdateDescription, // NEW
-    handleUpdateInsightContentType, // NEW
-    handleUpdateInsightLanguage, // NEW
-    handleUpdateInsightPrimaryUse, // NEW
-    handleUpdateInsightAudienceLevel, // NEW
-    handleUpdateInsightAudienceAge, // NEW
-    handleUpdateInsightBenefits, // NEW
-    handleUpdateInsightPractices, // NEW
-    handleUpdateInsightThemes, // NEW
-    handleUpdateInsightVoice, // NEW
+    handleUpdateIsSubmittedToInsightTimer,
+    handleUpdateDescription,
+    handleUpdateInsightContentType,
+    handleUpdateInsightLanguage,
+    handleUpdateInsightPrimaryUse,
+    handleUpdateInsightAudienceLevel,
+    handleUpdateInsightAudienceAge,
+    handleUpdateInsightBenefits,
+    handleUpdateInsightPractices,
+    handleUpdateInsightThemes,
+    handleUpdateInsightVoice,
 }) => {
   
   // Local state for description, initialized from AI result or kept empty
   const [description, setDescription] = useState(imp.description || '');
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
-  // Removed updateMutation, now using passed handlers
 
   // Sync local state when DB description changes (e.g., after AI population or manual save)
   useEffect(() => {
@@ -198,7 +177,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   // --- Core Field Handlers (Re-implementing logic from ImprovisationMetadataDialog) ---
   // These are now directly passed from ImprovisationDetails
   
-  const handleAudienceAgeChangeInternal = (age: string, checked: boolean) => { // Renamed to avoid conflict
+  const handleAudienceAgeChangeInternal = (age: string, checked: boolean) => {
     const currentAudienceAges = imp.insight_audience_age || [];
     const newAges = checked
       ? [...currentAudienceAges, age]
@@ -569,7 +548,6 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
 
       <Separator className="my-6" />
 
-      {/* NEW: Mark as Submitted to Insight Timer */}
       <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
         <div className="space-y-1">
             <Label htmlFor="insight-timer-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">

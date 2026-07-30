@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { Improvisation, AnalysisData } from '@/types/improvisation';
 
 // --- Constants for Select Fields ---
 const MUSICAL_KEYS = [
@@ -23,24 +24,6 @@ const MOODS = [
 ];
 // --- End Constants ---
 
-
-interface AnalysisData {
-  simulated_key?: string;
-  simulated_tempo?: number;
-  mood?: string;
-}
-
-interface Improvisation {
-  id: string;
-  generated_name: string | null;
-  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-  is_ready_for_release: boolean | null;
-  is_improvisation: boolean | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  analysis_data: AnalysisData | null;
-  is_metadata_confirmed: boolean | null;
-}
 
 interface ImprovisationMetadataDialogProps {
   imp: Improvisation;

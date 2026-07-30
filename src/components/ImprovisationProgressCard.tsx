@@ -13,8 +13,8 @@ interface ImprovisationProgressCardProps {
   isMarkingReady: boolean;
   isPopulating: boolean;
   isReadyForRelease: boolean | null;
-  isSubmittedToDistroKid: boolean | null; // NEW
-  isSubmittedToInsightTimer: boolean | null; // NEW
+  isSubmittedToDistroKid: boolean | null;
+  isSubmittedToInsightTimer: boolean | null;
 }
 
 const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
@@ -25,8 +25,8 @@ const ImprovisationProgressCard: React.FC<ImprovisationProgressCardProps> = ({
   isMarkingReady,
   isPopulating,
   isReadyForRelease,
-  isSubmittedToDistroKid, // NEW
-  isSubmittedToInsightTimer, // NEW
+  isSubmittedToDistroKid,
+  isSubmittedToInsightTimer,
 }) => {
   const isFullySubmitted = !!isSubmittedToDistroKid && !!isSubmittedToInsightTimer;
   const isPartiallySubmitted = !!isReadyForRelease && (!!isSubmittedToDistroKid || !!isSubmittedToInsightTimer) && !isFullySubmitted;

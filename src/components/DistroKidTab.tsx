@@ -8,29 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Switch } from '@/components/ui/switch'; // NEW: Import Switch
-
-interface ImprovisationData {
-  id: string;
-  generated_name: string | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  artwork_url: string | null;
-  is_improvisation: boolean | null;
-  is_piano: boolean | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
-  is_submitted_to_distrokid: boolean | null; // NEW
-}
+import { Switch } from '@/components/ui/switch';
+import type { Improvisation } from '@/types/improvisation';
 
 interface DistroKidTabProps {
   imp: ImprovisationData;
   isReady: boolean;
-  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>; // NEW
+  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>;
 }
 
-const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateIsSubmittedToDistroKid }) => { // NEW prop
+type ImprovisationData = Pick<Improvisation, 'id' | 'generated_name' | 'primary_genre' | 'secondary_genre' | 'artwork_url' | 'is_improvisation' | 'is_piano' | 'is_instrumental' | 'is_original_song' | 'has_explicit_lyrics' | 'is_submitted_to_distrokid'>;
+
+const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateIsSubmittedToDistroKid }) => {
   const isCompleted = !!imp.generated_name;
   const hasArtwork = !!imp.artwork_url;
 
@@ -147,7 +136,6 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
 
           <Separator className="my-6" />
 
-          {/* NEW: Mark as Submitted to DistroKid */}
           <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
             <div className="space-y-1">
                 <Label htmlFor="distrokid-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">

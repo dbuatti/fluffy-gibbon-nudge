@@ -9,15 +9,15 @@ import { useSession } from '@/integrations/supabase/session-context';
 import { Progress } from '@/components/ui/progress';
 
 interface AudioUploadForImprovisationProps {
-  improvisationId: string; // Renamed prop
-  isImprovisationTypeImprovisation: boolean; // Renamed prop
+  improvisationId: string;
+  isImprovisationTypeImprovisation: boolean;
   onUploadSuccess: () => void;
 }
 
 // Max file size: 250 MB (250 * 1024 * 1024 bytes)
 const MAX_FILE_SIZE_BYTES = 262144000; 
 
-const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = ({ improvisationId, isImprovisationTypeImprovisation, onUploadSuccess }) => { // Renamed props
+const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = ({ improvisationId, isImprovisationTypeImprovisation, onUploadSuccess }) => {
   const { session } = useSession();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -79,13 +79,13 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
       // 2. Update the existing database record with file details and set status to analyzing
       // NOTE: We still use 'analyzing' status here to trigger the title/artwork generation in the background.
       const { error: dbError } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .update({
           file_name: file.name,
           storage_path: filePath,
           status: 'analyzing', // Use 'analyzing' to trigger background title/artwork generation
         })
-        .eq('id', improvisationId); // Updated variable
+        .eq('id', improvisationId);
 
       if (dbError) {
         // If DB update fails, try to clean up the uploaded file
@@ -96,10 +96,10 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
       // 3. Trigger the analysis Edge Function (now only handles title/artwork generation)
       const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
         body: {
-          improvisationId: improvisationId, // Updated parameter name
+          improvisationId: improvisationId,
           storagePath: filePath,
           fileName: file.name,
-          isImprovisation: isImprovisationTypeImprovisation, // Updated parameter name
+          isImprovisation: isImprovisationTypeImprovisation,
         },
       });
 

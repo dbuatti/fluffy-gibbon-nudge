@@ -7,7 +7,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
-  improvisationId: string; // Renamed prop
+  improvisationId: string;
 }
 
 const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) => {
@@ -21,7 +21,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) =>
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-creative-suggestions', {
-        body: { improvisationId }, // Updated parameter name
+        body: { improvisationId },
       });
 
       if (error) throw error;
@@ -39,7 +39,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) =>
     } finally {
       setIsLoading(false);
     }
-  }, [improvisationId]); // Updated dependency
+  }, [improvisationId]);
 
   return (
     <Card className="shadow-lg dark:shadow-xl border-primary/30 border-2">

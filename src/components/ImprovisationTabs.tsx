@@ -9,7 +9,7 @@ import ImprovisationNotes from './ImprovisationNotes';
 import TagGenerator from './TagGenerator';
 import AICreativeCoach from './AICreativeCoach';
 import FilePathSuggestion from './FilePathSuggestion';
-import AudioPlayer from './AudioPlayer'; // Re-added AudioPlayer import
+import AudioPlayer from './AudioPlayer';
 import PreFlightChecklist from './PreFlightChecklist';
 import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
@@ -18,59 +18,8 @@ import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import ArtworkUpload from './ArtworkUpload';
 import DistributionTogglesCard from './DistributionTogglesCard';
-
-// External Links for Quick Access
-const DISTROKID_URL = "https://distrokid.com/new/";
-const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
-const IMAGE_RESIZER_URL = "https://biteable.com/tools/image-resizer/";
-const VISUALGPT_AI_IMAGE_EDITOR_URL = "https://visualgpt.io/ai-image-editor";
-
-interface NoteTab {
-  id: string;
-  title: string;
-  color: string;
-  content: string;
-}
-
-interface AnalysisData {
-  simulated_key?: string;
-  simulated_tempo?: number;
-  mood?: string;
-}
-
-interface Improvisation {
-  id: string;
-  file_name: string | null;
-  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-  generated_name: string | null;
-  artwork_url: string | null;
-  artwork_prompt: string | null;
-  is_piano: boolean | null;
-  is_improvisation: boolean | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  analysis_data: AnalysisData | null;
-  storage_path: string | null;
-  notes: NoteTab[] | null;
-  is_ready_for_release: boolean | null;
-  user_tags: string[] | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
-  is_metadata_confirmed: boolean | null;
-  insight_content_type: string | null;
-  insight_language: string | null;
-  insight_primary_use: string | null;
-  insight_audience_level: string | null;
-  insight_audience_age: string[] | null;
-  insight_benefits: string[] | null;
-  insight_practices: string | null;
-  insight_themes: string[] | null;
-  insight_voice: string | null;
-  description: string | null;
-  is_submitted_to_distrokid: boolean | null;
-  is_submitted_to_insight_timer: boolean | null;
-}
+import type { Improvisation } from '@/types/improvisation';
+import { DISTROKID_URL, INSIGHT_TIMER_URL, IMAGE_RESIZER_URL, VISUALGPT_AI_IMAGE_EDITOR_URL } from '@/lib/constants';
 
 interface ImprovisationTabsProps {
   imp: Improvisation;
@@ -93,7 +42,6 @@ interface ImprovisationTabsProps {
   aiGeneratedDescription: string;
   handleAIPopulateMetadata: () => Promise<void>;
   setAiGeneratedDescription: (description: string) => void;
-  // NEW: Pass pending state and all Insight Timer handlers
   isPending: boolean;
   handleUpdateDescription: (value: string) => Promise<void>;
   handleUpdateInsightContentType: (value: string) => Promise<void>;
@@ -141,7 +89,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   aiGeneratedDescription,
   handleAIPopulateMetadata,
   setAiGeneratedDescription,
-  // NEW: Destructure passed props
   isPending,
   handleUpdateDescription,
   handleUpdateInsightContentType,
@@ -479,7 +426,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                   setAiGeneratedDescription={setAiGeneratedDescription}
                   handleUpdateIsMetadataConfirmed={handleUpdateIsMetadataConfirmed}
                   handleUpdateIsSubmittedToInsightTimer={handleUpdateIsSubmittedToInsightTimer}
-                  // NEW: Pass pending state and all Insight Timer handlers
                   isPending={isPending}
                   handleUpdateDescription={handleUpdateDescription}
                   handleUpdateInsightContentType={handleUpdateInsightContentType}

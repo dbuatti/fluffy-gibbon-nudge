@@ -15,54 +15,7 @@ import { useSession } from '@/integrations/supabase/session-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
-interface NoteTab {
-  id: string;
-  title: string;
-  color: string;
-  content: string;
-}
-
-interface AnalysisData {
-  simulated_key?: string;
-  simulated_tempo?: number;
-  mood?: string;
-}
-
-interface Improvisation {
-  id: string;
-  file_name: string | null;
-  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-  generated_name: string | null;
-  artwork_url: string | null;
-  artwork_prompt: string | null;
-  is_piano: boolean | null;
-  is_improvisation: boolean | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  analysis_data: AnalysisData | null;
-  created_at: string;
-  storage_path: string | null;
-  notes: NoteTab[] | null;
-  is_ready_for_release: boolean | null;
-  user_tags: string[] | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
-  is_metadata_confirmed: boolean | null;
-  insight_content_type: string | null;
-  insight_language: string | null;
-  insight_primary_use: string | null;
-  insight_audience_level: string | null;
-  insight_audience_age: string[] | null;
-  insight_benefits: string[] | null;
-  insight_practices: string | null;
-  insight_themes: string[] | null;
-  insight_voice: string | null;
-  description: string | null;
-  is_submitted_to_distrokid: boolean | null;
-  is_submitted_to_insight_timer: boolean | null;
-}
+import type { Improvisation, AnalysisData } from '@/types/improvisation';
 
 const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => {
   const { data, error } = await supabase
@@ -119,7 +72,6 @@ const ImprovisationDetails: React.FC = () => {
   // Get public URL for the audio file
   const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
 
-  // NEW: Core Metadata Completion Check
   const isCoreMetadataComplete = !!imp?.primary_genre && !!imp?.analysis_data?.simulated_key && !!imp?.analysis_data?.simulated_tempo && !!imp?.analysis_data?.mood;
 
   // --- HANDLER DEFINITIONS ---
@@ -268,7 +220,6 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateIsOriginalSong = (checked: boolean) => updateMutation.mutateAsync({ is_original_song: checked });
   const handleUpdateHasExplicitLyrics = (checked: boolean) => updateMutation.mutateAsync({ has_explicit_lyrics: checked });
   
-  // NEW HANDLERS FOR INSIGHT TIMER FIELDS
   const handleUpdateInsightContentType = (value: string) => updateMutation.mutateAsync({ insight_content_type: value });
   const handleUpdateInsightLanguage = (value: string) => updateMutation.mutateAsync({ insight_language: value });
   const handleUpdateInsightPrimaryUse = (value: string) => updateMutation.mutateAsync({ insight_primary_use: value });
@@ -281,7 +232,6 @@ const ImprovisationDetails: React.FC = () => {
   const handleUpdateIsMetadataConfirmed = (checked: boolean) => updateMutation.mutateAsync({ is_metadata_confirmed: checked });
   const handleUpdateDescription = (value: string) => updateMutation.mutateAsync({ description: value });
   
-  // NEW HANDLERS FOR SUBMISSION STATUS
   const handleUpdateIsSubmittedToDistroKid = (checked: boolean) => updateMutation.mutateAsync({ is_submitted_to_distrokid: checked });
   const handleUpdateIsSubmittedToInsightTimer = (checked: boolean) => updateMutation.mutateAsync({ is_submitted_to_insight_timer: checked });
 
@@ -562,7 +512,6 @@ const ImprovisationDetails: React.FC = () => {
           aiGeneratedDescription={aiGeneratedDescription}
           handleAIPopulateMetadata={handleAIPopulateMetadata}
           setAiGeneratedDescription={setAiGeneratedDescription}
-          // NEW: Pass pending state and all Insight Timer handlers
           isPending={updateMutation.isPending}
           handleUpdateDescription={handleUpdateDescription}
           handleUpdateInsightContentType={handleUpdateInsightContentType}

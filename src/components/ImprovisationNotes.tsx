@@ -15,11 +15,10 @@ interface NoteTab {
 }
 
 interface ImprovisationNotesProps {
-  improvisationId: string; // Renamed prop
+  improvisationId: string;
   initialNotes: NoteTab[] | null;
 }
 
-// Updated color definitions for a cleaner, more defined look
 const defaultNotes: NoteTab[] = [
   { id: 'zone1', title: 'Zone 1: Structure (A-B-A, Verse/Chorus, etc.)', color: 'border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-950/30', content: '' },
   { id: 'zone2', title: 'Zone 2: Mood/Vibe (Emotional intent, feeling, imagery)', color: 'border-l-4 border-purple-500 bg-purple-50/50 dark:bg-purple-950/30', content: '' },
@@ -38,9 +37,9 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .update({ notes: currentNotes })
-        .eq('id', improvisationId); // Updated variable
+        .eq('id', improvisationId);
 
       if (error) throw error;
 
@@ -52,7 +51,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
       showError('Failed to autosave notes.');
       setSaveStatus('idle'); // Revert to idle on error
     }
-  }, [improvisationId]); // Updated dependency
+  }, [improvisationId]);
 
 
   // Effect to debounce saving whenever notes change

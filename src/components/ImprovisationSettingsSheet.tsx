@@ -6,13 +6,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 
 interface ImprovisationSettingsSheetProps {
-  improvisationId: string; // Renamed prop
-  improvisationName: string; // Renamed prop
+  improvisationId: string;
+  improvisationName: string;
   handleDelete: () => void;
   isDeleting: boolean;
 }
 
-const ImprovisationSettingsSheet: React.FC<ImprovisationSettingsSheetProps> = ({ improvisationId, improvisationName, handleDelete, isDeleting }) => { // Renamed props
+const ImprovisationSettingsSheet: React.FC<ImprovisationSettingsSheetProps> = ({ improvisationId, improvisationName, handleDelete, isDeleting }) => {
   return (
     <Sheet>
       <SheetTrigger asChild>

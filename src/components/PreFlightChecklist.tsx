@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
 interface PreFlightChecklistProps {
-  imp: { // Updated prop name
+  imp: {
     id: string;
     storage_path: string | null;
     artwork_url: string | null;
@@ -20,7 +20,7 @@ interface PreFlightChecklistProps {
   isAnalyzing: boolean;
 }
 
-const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => { // Updated prop name
+const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => {
   const hasAudioFile = !!imp.storage_path;
   const hasArtwork = !!imp.artwork_url;
   const isMetadataConfirmed = !!imp.is_metadata_confirmed;
