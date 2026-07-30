@@ -138,6 +138,7 @@ const Index = () => {
               className="pl-9 w-full h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search improvisations"
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">

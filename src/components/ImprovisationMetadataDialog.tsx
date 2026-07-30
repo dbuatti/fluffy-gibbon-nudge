@@ -99,10 +99,10 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Edit Improvisation Metadata" className="h-8 w-8 relative">
+        <Button variant="ghost" size="icon" title="Edit Improvisation Metadata" aria-label="Edit Improvisation Metadata" className="h-8 w-8 relative">
           <Info className="h-5 w-5 text-primary" />
           {isCoreMetadataComplete && (
-            <CheckCircle className="absolute -top-1 -right-1 h-4 w-4 text-green-500 bg-background rounded-full border border-background" />
+            <CheckCircle className="absolute -top-1 -right-1 h-4 w-4 text-green-500 bg-background rounded-full border border-background" aria-label="Metadata complete" />
           )}
         </Button>
       </DialogTrigger>

@@ -16,7 +16,7 @@ const ImprovisationSettingsSheet: React.FC<ImprovisationSettingsSheetProps> = ({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" title="Improvisation Settings">
+        <Button variant="outline" size="icon" title="Improvisation Settings" aria-label="Improvisation Settings">
           <Settings className="h-5 w-5" />
         </Button>
       </SheetTrigger>

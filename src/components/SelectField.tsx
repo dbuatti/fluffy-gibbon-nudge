@@ -131,8 +131,9 @@ const SelectField: React.FC<SelectFieldProps> = ({
                     variant="ghost" 
                     className="h-8 w-8"
                     disabled={isLoading}
+                    aria-label={`Save custom ${label.toLowerCase()}`}
                 >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-500" />}
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 </Button>
                 <Button 
                     onClick={handleCancel} 
@@ -140,8 +141,9 @@ const SelectField: React.FC<SelectFieldProps> = ({
                     variant="ghost" 
                     className="h-8 w-8"
                     disabled={isLoading}
+                    aria-label={`Cancel custom ${label.toLowerCase()}`}
                 >
-                    <X className="h-4 w-4 text-red-500" />
+                    <X className="h-4 w-4" />
                 </Button>
             </div>
         );
@@ -184,6 +186,7 @@ const SelectField: React.FC<SelectFieldProps> = ({
                     variant="ghost" 
                     className="h-8 w-8 flex-shrink-0"
                     title={`Edit Custom ${label} Text`}
+                    aria-label={`Edit custom ${label}`}
                 >
                     <Edit2 className="h-4 w-4" />
                 </Button>

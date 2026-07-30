@@ -166,6 +166,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
                 size="icon" 
                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
                 title="Clear Audio File"
+                aria-label="Clear Audio File"
             >
                 <Trash2 className="h-4 w-4" />
             </Button>
@@ -178,6 +179,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
             onClick={handlePlayPause} 
             size="icon" 
             disabled={!isLoaded || error !== null}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
             className={cn(
                 "flex-shrink-0",
                 !isLoaded && "bg-gray-400 hover:bg-gray-400"
@@ -208,7 +210,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
 
           {/* Volume Controls */}
           <div className="flex items-center space-x-2 w-32 flex-shrink-0">
-            <Button onClick={handleMuteToggle} variant="ghost" size="icon" className="h-8 w-8">
+            <Button onClick={handleMuteToggle} variant="ghost" size="icon" aria-label={isMuted ? 'Unmute' : 'Mute'} className="h-8 w-8">
               <VolumeIcon className="h-4 w-4" />
             </Button>
             <Slider

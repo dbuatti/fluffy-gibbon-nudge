@@ -315,6 +315,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                     size="icon" 
                     onClick={handleCopyUrl} 
                     title="Copy Public URL"
+                    aria-label="Copy Public URL"
                     className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10"
                 >
                   <Copy className="h-5 w-5" />

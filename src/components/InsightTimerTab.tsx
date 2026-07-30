@@ -417,6 +417,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
                     onBlur={handleSaveDescription}
                     rows={5}
                     className="min-h-[120px]"
+                    aria-label="AI Description"
                 />
                 
                 <Button 

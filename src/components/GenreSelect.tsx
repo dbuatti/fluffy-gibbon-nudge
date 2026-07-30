@@ -164,8 +164,9 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     variant="ghost" 
                     className="h-8 w-8"
                     disabled={isLoading}
+                    aria-label="Save custom genre"
                 >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-500" />}
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 </Button>
                 <Button 
                     onClick={handleCancel} 
@@ -173,8 +174,9 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     variant="ghost" 
                     className="h-8 w-8"
                     disabled={isLoading}
+                    aria-label="Cancel custom genre"
                 >
-                    <X className="h-4 w-4 text-red-500" />
+                    <X className="h-4 w-4" />
                 </Button>
             </div>
         );
@@ -215,6 +217,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     variant="ghost" 
                     className="h-8 w-8 flex-shrink-0"
                     title="Edit Custom Genre Text"
+                    aria-label="Edit custom genre"
                 >
                     <Edit2 className="h-4 w-4" />
                 </Button>

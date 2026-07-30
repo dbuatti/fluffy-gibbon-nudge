@@ -69,6 +69,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         size="icon"
         variant="outline"
         title="Generate Random Title"
+        aria-label="Generate Random Title"
         disabled={isGenerating || updateMutation.isPending}
         className="h-8 w-8"
       >
@@ -79,6 +80,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         size="icon"
         variant="outline"
         title="Generate AI Title (Based on Analysis & Notes)"
+        aria-label="Generate AI Title"
         disabled={isGenerating || updateMutation.isPending}
         className="h-8 w-8"
       >

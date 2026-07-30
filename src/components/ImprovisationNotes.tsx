@@ -146,6 +146,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
                           onChange={(e) => handleContentChange(note.id, e.target.value)}
                           maxLength={100}
                           className="bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary"
+                          aria-label="Next action task"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                           Focus: What is the single, most actionable task to move this idea forward?
@@ -158,6 +159,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
                       onChange={(e) => handleContentChange(note.id, e.target.value)}
                       rows={5}
                       className="min-h-[150px] bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary"
+                      aria-label={note.title}
                   />
               )}
             </div>
