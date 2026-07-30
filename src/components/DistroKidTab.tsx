@@ -26,7 +26,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
   const renderStatusItem = (label: string, value: string | boolean | null, isGood: boolean) => (
     <div className="flex items-center justify-between py-2 border-b last:border-b-0">
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold flex items-center ${isGood ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+      <span className={`text-sm font-semibold flex items-center ${isGood ? 'text-success' : 'text-error'}`}>
         {typeof value === 'boolean' ? (
           value ? <Check className="w-4 h-4 mr-1" /> : <X className="w-4 h-4 mr-1" />
         ) : (
@@ -63,14 +63,14 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
               {renderStatusItem("High Resolution (3000x3000)", true, true)}
               {renderStatusItem("No Logos/Text/Frames", true, true)}
               {renderStatusItem("Unique Artwork", true, true)}
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center">
+              <p className="text-xs text-success mt-2 flex items-center">
                 <Check className="w-4 h-4 mr-1" /> Artwork is ready for submission.
               </p>
             </>
           ) : (
-            <div className="text-center p-6 border-4 border-dashed border-red-500 rounded-lg bg-red-50 dark:bg-red-950/50 shadow-lg">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-600" />
-              <p className="text-lg font-bold text-red-700 dark:text-red-300">CRITICAL: Artwork Missing</p>
+            <div className="text-center p-6 border-4 border-dashed border-error rounded-lg bg-destructive/5 dark:bg-destructive/10">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-error" />
+              <p className="text-lg font-bold text-error mb-1">CRITICAL: Artwork Missing</p>
               <p className="text-sm text-muted-foreground mt-1">
                 You must generate or upload artwork before distribution.
               </p>

@@ -380,7 +380,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
 
             {!isCategorizationComplete && (
                 <div className="pt-4 text-center">
-                    <p className="text-sm text-red-600 dark:text-red-400 mb-2 font-semibold">
+                    <p className="text-sm text-error mb-2 font-semibold">
                         CRITICAL: Submission is not ready. Complete all required fields.
                     </p>
                 </div>
@@ -462,7 +462,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
             />
         </div>
         {!isCategorizationComplete && (
-            <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+            <p className="text-xs text-error mt-2">
                 *Confirmation is disabled until all required categorization fields are set.
             </p>
         )}
