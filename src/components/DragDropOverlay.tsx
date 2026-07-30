@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { UploadCloud, Music, Loader2 } from 'lucide-react'; // Corrected import path
+import { UploadCloud, Loader2 } from 'lucide-react'; // Corrected import path
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';

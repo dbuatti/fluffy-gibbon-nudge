@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Check, X, Music, DollarSign, Clock, Globe, Image as ImageIcon, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Check, X, Music, DollarSign, Clock, Globe, ArrowRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

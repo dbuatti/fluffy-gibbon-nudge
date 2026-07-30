@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, AlertTriangle, Sparkles, Copy } from 'lucide-react';
+import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';

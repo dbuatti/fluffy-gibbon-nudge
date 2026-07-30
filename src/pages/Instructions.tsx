@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, Music, Upload, FileText, Zap, CheckCircle, Send, Monitor, BookOpen, ArrowRight, Image as ImageIcon, Wand2, LogIn, Terminal, Apple, Video, Clapperboard } from 'lucide-react';
+import { Sparkles, Music, Upload, FileText, CheckCircle, Send, Monitor, Image as ImageIcon, Wand2, LogIn, Terminal, Apple, Video, Clapperboard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 

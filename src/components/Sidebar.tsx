@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen } from 'lucide-react';
+import { LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';

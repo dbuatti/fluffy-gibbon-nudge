@@ -5,7 +5,6 @@ import { Upload, Loader2, Image as ImageIcon, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { useSession } from '@/integrations/supabase/session-context';
-import { cn } from '@/lib/utils';
 
 interface ArtworkUploadProps {
   improvisationId: string;
