@@ -9,11 +9,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface TagGeneratorProps {
-  improvisationId: string; // Renamed prop
+  improvisationId: string;
   initialTags: string[] | null;
 }
 
-const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTags }) => { // Renamed prop
+const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTags }) => {
   const [tags, setTags] = useState<string[]>(initialTags || []);
   const [inputValue, setInputValue] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved'>('idle');
@@ -25,9 +25,9 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .update({ user_tags: currentTags })
-        .eq('id', improvisationId); // Updated variable
+        .eq('id', improvisationId);
 
       if (error) throw error;
 
@@ -38,7 +38,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
       showError('Failed to autosave tags.');
       setSaveStatus('idle');
     }
-  }, [improvisationId]); // Updated dependency
+  }, [improvisationId]);
 
   // Effect to trigger save when tags change
   useEffect(() => {
@@ -113,7 +113,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
         );
       case 'saved':
         return (
-          <span className="flex items-center text-green-600 dark:text-green-400 text-sm">
+          <span className="flex items-center text-success text-sm">
             <Check className="h-4 w-4 mr-2" /> Saved
           </span>
         );

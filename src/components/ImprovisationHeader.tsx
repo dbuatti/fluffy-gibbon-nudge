@@ -9,26 +9,7 @@ import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
 import TitleBar from './TitleBar';
-
-interface AnalysisData {
-  simulated_key?: string;
-  simulated_tempo?: number;
-  mood?: string;
-}
-
-interface Improvisation {
-  id: string;
-  generated_name: string | null;
-  file_name: string | null;
-  created_at: string;
-  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-  is_ready_for_release: boolean | null;
-  is_improvisation: boolean | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  analysis_data: AnalysisData | null;
-  is_metadata_confirmed: boolean | null;
-}
+import type { Improvisation, AnalysisData } from '@/types/improvisation';
 
 interface ImprovisationHeaderProps {
   imp: Improvisation;
@@ -88,6 +69,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         size="icon"
         variant="outline"
         title="Generate Random Title"
+        aria-label="Generate Random Title"
         disabled={isGenerating || updateMutation.isPending}
         className="h-8 w-8"
       >
@@ -98,6 +80,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         size="icon"
         variant="outline"
         title="Generate AI Title (Based on Analysis & Notes)"
+        aria-label="Generate AI Title"
         disabled={isGenerating || updateMutation.isPending}
         className="h-8 w-8"
       >

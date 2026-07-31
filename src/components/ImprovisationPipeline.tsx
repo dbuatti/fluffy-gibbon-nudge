@@ -60,7 +60,7 @@ const ImprovisationPipeline: React.FC = () => {
       label: 'Idea Captured',
       count: totalUploaded, 
       icon: Edit2, 
-      color: 'text-info dark:text-info-foreground', // Updated color
+      color: 'text-info dark:text-info-foreground',
       description: 'Idea captured successfully.',
       bg: 'bg-info/10 dark:bg-info/20',
       border: 'border-info',
@@ -70,7 +70,7 @@ const ImprovisationPipeline: React.FC = () => {
       label: 'Processing File',
       count: totalAnalyzing, 
       icon: Clock, 
-      color: 'text-warning dark:text-warning-foreground', // Updated color
+      color: 'text-warning dark:text-warning-foreground',
       description: 'Title/Artwork generation in progress.',
       bg: 'bg-warning/10 dark:bg-warning/20',
       border: 'border-warning',
@@ -80,7 +80,7 @@ const ImprovisationPipeline: React.FC = () => {
       label: 'Failed/Error',
       count: totalFailed, 
       icon: AlertTriangle, 
-      color: 'text-destructive dark:text-destructive-foreground', // Updated color
+      color: 'text-destructive dark:text-destructive-foreground',
       description: 'Processing failed. Check logs or re-upload.',
       bg: 'bg-destructive/10 dark:bg-destructive/20', 
       border: 'border-destructive', 
@@ -90,7 +90,7 @@ const ImprovisationPipeline: React.FC = () => {
       label: 'Ready for Prep',
       count: totalCompleted, 
       icon: CheckCircle, 
-      color: 'text-success dark:text-success-foreground', // Updated color
+      color: 'text-success dark:text-success-foreground',
       description: 'Ready for distribution prep.',
       bg: 'bg-success/10 dark:bg-success/20',
       border: 'border-success',

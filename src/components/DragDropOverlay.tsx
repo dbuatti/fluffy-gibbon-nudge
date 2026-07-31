@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { UploadCloud, Music, Loader2 } from 'lucide-react'; // Corrected import path
+import { UploadCloud, Loader2 } from 'lucide-react'; // Corrected import path
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -66,13 +66,13 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const user = session.user;
     const fileExtension = file.name.split('.').pop();
     const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
-    const bucketName = 'piano_improvisations'; // Updated bucket name
+    const bucketName = 'piano_improvisations';
     const generatedName = file.name.replace(`.${fileExtension}`, '').trim();
 
     try {
       // 1. Create placeholder record (assuming it's an improvisation by default for quick capture)
       const { data: newImpData, error: dbError } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .insert({
           user_id: user.id,
           file_name: file.name,
@@ -85,7 +85,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         .single();
 
       if (dbError) throw dbError;
-      const improvisationId = newImpData.id; // Renamed variable
+      const improvisationId = newImpData.id;
 
       // 2. Upload file to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -100,7 +100,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
       // 3. Trigger the analysis Edge Function (asynchronously)
       await supabase.functions.invoke('analyze-improvisation', {
         body: {
-          improvisationId: improvisationId, // Updated parameter name
+          improvisationId: improvisationId,
           storagePath: filePath,
           fileName: file.name,
           isImprovisation: true,
@@ -108,7 +108,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
       });
 
       showSuccess(`Improvisation created and analysis started! Redirecting...`);
-      navigate(`/improvisation/${improvisationId}`); // Updated path
+      navigate(`/improvisation/${improvisationId}`);
 
     } catch (error) {
       showError(`Failed to process file: ${error instanceof Error ? error.message : 'Unknown error'}`);

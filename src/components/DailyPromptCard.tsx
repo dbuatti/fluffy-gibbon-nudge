@@ -61,8 +61,9 @@ const DailyPromptCard: React.FC = () => {
             variant="ghost" 
             size="icon" 
             onClick={handleRefetch} 
-            disabled={isLoading || cooldown} // Disable button during loading or cooldown
+            disabled={isLoading || cooldown}
             title={cooldown ? "Please wait before generating a new prompt" : "Generate a new prompt"}
+            aria-label="Generate a new prompt"
             className="text-muted-foreground hover:text-primary"
         >
             {isLoading || cooldown ? (
@@ -79,7 +80,7 @@ const DailyPromptCard: React.FC = () => {
             <Skeleton className="h-6 w-3/4" />
           </div>
         ) : error ? (
-          <p className="text-sm text-red-500">Error loading prompt: {error.message}</p>
+          <p className="text-sm text-error">Error loading prompt: {error.message}</p>
         ) : (
           <div className="flex items-start gap-2">
             <p className="text-xl font-semibold italic text-foreground flex-1">
@@ -95,6 +96,7 @@ const DailyPromptCard: React.FC = () => {
                 setTimeout(() => setCopied(false), 2000);
               }}
               title="Copy prompt"
+              aria-label="Copy prompt"
               className="shrink-0 text-muted-foreground hover:text-primary"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

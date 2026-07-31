@@ -1,82 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import ImprovisationList from "@/components/ImprovisationList"; // Renamed
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import ImprovisationList from "@/components/ImprovisationList";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ImprovisationPipeline from "@/components/ImprovisationPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
-import { parseISO, format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useSession } from '@/integrations/supabase/session-context';
 import { supabase } from '@/integrations/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import DailyPromptCard from '@/components/DailyPromptCard';
 import StreakCard from '@/components/StreakCard';
+import { useStreakTracker } from '@/hooks/useStreakTracker';
+import { GEMINI_URL, DISTROKID_URL, INSIGHT_TIMER_URL } from '@/lib/constants';
 
-// Define external URLs
-const GEMINI_URL = "https://gemini.google.com/";
-const DISTROKID_URL = "https://distrokid.com/new/";
-const INSIGHT_TIMER_URL = "https://teacher.insighttimer.com/tracks/create?type=audio";
-
-interface Improvisation { // Renamed interface
+interface ImprovisationDate {
   created_at: string;
 }
 
-const fetchImprovisationDates = async (supabaseClient: SupabaseClient, sessionUserId: string): Promise<Improvisation[]> => {
+const fetchImprovisationDates = async (supabaseClient: SupabaseClient, sessionUserId: string): Promise<ImprovisationDate[]> => {
   const { data, error } = await supabaseClient
-    .from('improvisations') // Updated table name
+    .from('improvisations')
     .select('created_at')
     .eq('user_id', sessionUserId)
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data as Improvisation[];
+  return data as ImprovisationDate[];
 };
 
-const useStreakTracker = (data: Improvisation[] | undefined) => { // Updated type
-  if (!data || data.length === 0) return { streak: 0, todayActivity: false };
-
-  const activityDates = new Set(
-    data.map(item => format(parseISO(item.created_at), 'yyyy-MM-dd'))
-  );
-  
-  let currentStreak = 0;
-  const todayString = format(new Date(), 'yyyy-MM-dd');
-  
-  const todayActivity = activityDates.has(todayString);
-  
-  let dateToCheck = new Date(); // Initialize dateToCheck here
-  
-  if (todayActivity) {
-    currentStreak = 1;
-    dateToCheck = subDays(dateToCheck, 1);
-  } 
-  else if (activityDates.has(format(subDays(dateToCheck, 1), 'yyyy-MM-dd'))) {
-    currentStreak = 1;
-    dateToCheck = subDays(dateToCheck, 2);
-  } else {
-    return { streak: 0, todayActivity: false };
-  }
-
-  while (true) {
-    const dateString = format(dateToCheck, 'yyyy-MM-dd');
-    
-    if (activityDates.has(dateString)) {
-      currentStreak++;
-      dateToCheck = subDays(dateToCheck, 1);
-    } else {
-      break;
-    }
-  }
-
-  return { streak: currentStreak, todayActivity };
-};
-
-// New component for consistent Quick Link buttons
 const QuickLinkCard: React.FC<{ href: string, icon: React.ElementType, title: string, description: string, buttonText: string, variant?: "default" | "outline" }> = ({ href, icon: Icon, title, description, buttonText, variant = "outline" }) => (
   <Card className="shadow-card-light dark:shadow-card-dark hover:shadow-xl transition-shadow">
     <CardHeader className="pb-2">
@@ -105,22 +60,22 @@ const Index = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortOption, setSortOption] = useState<string>('created_at_desc');
 
-  const { data: improvisationDates } = useQuery<Improvisation[]>({ // Updated variable name and type
-    queryKey: ['improvisationDates'], // Updated query key
-    queryFn: () => fetchImprovisationDates(supabase, session!.user.id), // Updated fetch function
+  const { data: improvisationDates } = useQuery<Improvisation[]>({
+    queryKey: ['improvisationDates'],
+    queryFn: () => fetchImprovisationDates(supabase, session!.user.id),
     enabled: !isSessionLoading && !!session?.user,
     staleTime: 86400000,
     refetchOnWindowFocus: false,
-    refetchInterval: 60000, // NEW: Refetch every 1 minute for streak tracking
+    refetchInterval: 60000,
   });
 
-  const { streak, todayActivity } = useStreakTracker(improvisationDates); // Updated variable name
+  const { streak, todayActivity } = useStreakTracker(improvisationDates);
   const hasNoImprovisations = improvisationDates && improvisationDates.length === 0 && !isSessionLoading;
 
   const handleRefetch = () => {
-    queryClient.invalidateQueries({ queryKey: ['improvisations'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['improvisations'] });
     queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
-    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] }); // Updated query key
+    queryClient.invalidateQueries({ queryKey: ['improvisationDates'] });
   };
 
   useEffect(() => {
@@ -183,6 +138,7 @@ const Index = () => {
               className="pl-9 w-full h-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search improvisations"
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -232,7 +188,7 @@ const Index = () => {
         </div>
 
         {/* Improvisation List */}
-        <ImprovisationList // Renamed component
+        <ImprovisationList
           viewMode={viewMode} 
           setViewMode={setViewMode}
           searchTerm={searchTerm} 

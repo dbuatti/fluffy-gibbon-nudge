@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music, LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen } from 'lucide-react';
+import { LayoutDashboard, LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -12,7 +12,6 @@ import ThemeToggle from './ThemeToggle';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  // Removed the /improvisations route as it's no longer a separate page
   { to: '/composition-script', icon: FileText, label: 'Local Script' },
   { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/instructions', icon: BookOpen, label: 'Instructions' },
@@ -43,12 +42,16 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
             key={item.to} 
             to={item.to} 
             onClick={onLinkClick}
-            aria-current={location.pathname === item.to ? "page" : undefined}
+            aria-current={
+                item.to === '/'
+                  ? (location.pathname === '/' || location.pathname.startsWith('/improvisation/') ? "page" : undefined)
+                  : (location.pathname === item.to ? "page" : undefined)
+            }
             className={cn(
               "flex items-center p-3 rounded-lg transition-colors",
-              location.pathname === item.to
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              item.to === '/'
+                ? (location.pathname === '/' || location.pathname.startsWith('/improvisation/') ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:bg-muted hover:text-foreground")
+                : (location.pathname === item.to ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:bg-muted hover:text-foreground")
             )}
           >
             <item.icon className="h-5 w-5 mr-3" />

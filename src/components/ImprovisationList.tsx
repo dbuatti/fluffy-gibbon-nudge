@@ -16,49 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { showSuccess, showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
-interface NoteTab {
-  id: string;
-  title: string;
-  color: string;
-  content: string;
-}
-
-interface Improvisation {
-  id: string;
-  file_name: string | null;
-  status: 'uploaded' | 'analyzing' | 'completed' | 'failed';
-  generated_name: string | null;
-  artwork_url: string | null;
-  artwork_prompt: string | null;
-  created_at: string;
-  notes: NoteTab[] | null;
-  storage_path: string | null;
-  is_ready_for_release: boolean | null;
-  // Include all fields for export
-  user_id: string;
-  is_piano: boolean | null;
-  is_improvisation: boolean | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  analysis_data: Record<string, string | number | undefined> | null;
-  user_tags: string[] | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
-  is_metadata_confirmed: boolean | null;
-  insight_content_type: string | null;
-  insight_language: string | null;
-  insight_primary_use: string | null;
-  insight_audience_level: string | null;
-  insight_audience_age: string[] | null;
-  insight_benefits: string[] | null;
-  insight_practices: string | null;
-  insight_themes: string[] | null;
-  insight_voice: string | null;
-  is_submitted_to_distrokid: boolean | null; // NEW
-  is_submitted_to_insight_timer: boolean | null; // NEW
-}
+import type { Improvisation } from '@/types/improvisation';
 
 const STALLED_THRESHOLD_HOURS = 24;
 const PAGE_SIZE = 20;
@@ -79,7 +37,7 @@ const fetchImprovisations = async (supabaseClient: SupabaseClient, sessionUserId
 };
 
 // Unified Status Badge Function
-const getStatusBadge = (imp: Improvisation) => { // Updated to take full imp object
+const getStatusBadge = (imp: Improvisation) => {
   const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
 
   if (isSubmitted) {
@@ -485,7 +443,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                     key={imp.id} 
                     className={cn(
                       "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
-                      isStalled ? 'border-l-4 border-destructive dark:border-destructive-foreground bg-destructive/5 dark:bg-destructive/10' : 'border-l-4 border-transparent', // Updated stalled colors
+                      isStalled ? 'border-l-4 border-destructive dark:border-destructive-foreground bg-destructive/5 dark:bg-destructive/10' : 'border-l-4 border-transparent',
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}

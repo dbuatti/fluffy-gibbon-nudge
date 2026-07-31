@@ -5,7 +5,6 @@ import { Upload, Loader2, Image as ImageIcon, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
 import { useSession } from '@/integrations/supabase/session-context';
-import { cn } from '@/lib/utils';
 
 interface ArtworkUploadProps {
   improvisationId: string;
@@ -146,6 +145,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
                     size="icon" 
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     title="Clear selected file"
+                    aria-label="Clear selected file"
                 >
                     <XCircle className="h-4 w-4" />
                 </Button>

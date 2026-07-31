@@ -22,7 +22,7 @@ const StreakCard: React.FC<StreakCardProps> = ({ streak, todayActivity }) => {
           <Flame className="w-5 h-5 mr-2" /> Creative Streak
         </CardTitle>
         {todayActivity ? (
-          <span className="flex items-center text-green-600 dark:text-green-400 text-sm font-medium">
+          <span className="flex items-center text-success text-sm font-medium">
             <CalendarCheck className="h-4 w-4 mr-1" /> Today's activity recorded!
           </span>
         ) : (

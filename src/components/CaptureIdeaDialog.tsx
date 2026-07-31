@@ -13,7 +13,7 @@ import { useCaptureIdea } from '@/hooks/useCaptureIdea'; // Import new hook
 
 interface CaptureIdeaDialogProps {
   onIdeaCaptured: () => void;
-  defaultTitle?: string; // NEW PROP
+  defaultTitle?: string;
   children: React.ReactNode; // ADDED children prop
 }
 

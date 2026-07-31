@@ -1,43 +1,32 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Check, X, Music, DollarSign, Clock, Globe, Image as ImageIcon, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Check, X, Music, DollarSign, Clock, Globe, ArrowRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Switch } from '@/components/ui/switch'; // NEW: Import Switch
-
-interface ImprovisationData {
-  id: string;
-  generated_name: string | null;
-  primary_genre: string | null;
-  secondary_genre: string | null;
-  artwork_url: string | null;
-  is_improvisation: boolean | null;
-  is_piano: boolean | null;
-  is_instrumental: boolean | null;
-  is_original_song: boolean | null;
-  has_explicit_lyrics: boolean | null;
-  is_submitted_to_distrokid: boolean | null; // NEW
-}
+import { Switch } from '@/components/ui/switch';
+import type { Improvisation } from '@/types/improvisation';
 
 interface DistroKidTabProps {
   imp: ImprovisationData;
   isReady: boolean;
-  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>; // NEW
+  handleUpdateIsSubmittedToDistroKid: (checked: boolean) => Promise<void>;
 }
 
-const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateIsSubmittedToDistroKid }) => { // NEW prop
+type ImprovisationData = Pick<Improvisation, 'id' | 'generated_name' | 'primary_genre' | 'secondary_genre' | 'artwork_url' | 'is_improvisation' | 'is_piano' | 'is_instrumental' | 'is_original_song' | 'has_explicit_lyrics' | 'is_submitted_to_distrokid'>;
+
+const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateIsSubmittedToDistroKid }) => {
   const isCompleted = !!imp.generated_name;
   const hasArtwork = !!imp.artwork_url;
 
   const renderStatusItem = (label: string, value: string | boolean | null, isGood: boolean) => (
     <div className="flex items-center justify-between py-2 border-b last:border-b-0">
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold flex items-center ${isGood ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+      <span className={`text-sm font-semibold flex items-center ${isGood ? 'text-success' : 'text-error'}`}>
         {typeof value === 'boolean' ? (
           value ? <Check className="w-4 h-4 mr-1" /> : <X className="w-4 h-4 mr-1" />
         ) : (
@@ -74,14 +63,14 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
               {renderStatusItem("High Resolution (3000x3000)", true, true)}
               {renderStatusItem("No Logos/Text/Frames", true, true)}
               {renderStatusItem("Unique Artwork", true, true)}
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center">
+              <p className="text-xs text-success mt-2 flex items-center">
                 <Check className="w-4 h-4 mr-1" /> Artwork is ready for submission.
               </p>
             </>
           ) : (
-            <div className="text-center p-6 border-4 border-dashed border-red-500 rounded-lg bg-red-50 dark:bg-red-950/50 shadow-lg">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-600" />
-              <p className="text-lg font-bold text-red-700 dark:text-red-300">CRITICAL: Artwork Missing</p>
+            <div className="text-center p-6 border-4 border-dashed border-error rounded-lg bg-destructive/5 dark:bg-destructive/10">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-error" />
+              <p className="text-lg font-bold text-error mb-1">CRITICAL: Artwork Missing</p>
               <p className="text-sm text-muted-foreground mt-1">
                 You must generate or upload artwork before distribution.
               </p>
@@ -110,7 +99,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
           <div className="flex items-center space-x-2">
             <Checkbox id="social-media-pack" />
             <Label htmlFor="social-media-pack" className="text-sm flex items-center">
-              <DollarSign className="w-4 h-4 mr-1 text-green-500" /> Social Media Pack ($4.95/yr + 20% revenue)
+              <DollarSign className="w-4 h-4 mr-1 text-success" /> Social Media Pack ($4.95/yr + 20% revenue)
             </Label>
           </div>
           <div className="flex items-center space-x-2">
@@ -147,7 +136,6 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
 
           <Separator className="my-6" />
 
-          {/* NEW: Mark as Submitted to DistroKid */}
           <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
             <div className="space-y-1">
                 <Label htmlFor="distrokid-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">

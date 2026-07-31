@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
 interface PreFlightChecklistProps {
-  imp: { // Updated prop name
+  imp: {
     id: string;
     storage_path: string | null;
     artwork_url: string | null;
@@ -20,7 +20,7 @@ interface PreFlightChecklistProps {
   isAnalyzing: boolean;
 }
 
-const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => { // Updated prop name
+const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => {
   const hasAudioFile = !!imp.storage_path;
   const hasArtwork = !!imp.artwork_url;
   const isMetadataConfirmed = !!imp.is_metadata_confirmed;
@@ -42,7 +42,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
     status: hasArtwork ? 'passed' : 'failed',
     label: hasArtwork ? 'Artwork Generated (3000x3000)' : 'Artwork Missing',
     icon: hasArtwork ? CheckCircle : XCircle,
-    color: hasArtwork ? 'text-success' : 'text-red-500',
+    color: hasArtwork ? 'text-success' : 'text-error',
     actionLink: hasArtwork ? undefined : '#artwork-actions',
     actionLabel: hasArtwork ? undefined : 'Generate Artwork',
   };
@@ -51,7 +51,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
     status: isMetadataConfirmed ? 'passed' : (hasInsightTimerCategorization ? 'pending' : 'failed'),
     label: isMetadataConfirmed ? 'AI Metadata Confirmed' : (hasInsightTimerCategorization ? 'Review & Confirm Metadata' : 'AI Metadata Incomplete'),
     icon: isMetadataConfirmed ? CheckCircle : (hasInsightTimerCategorization ? Info : XCircle),
-    color: isMetadataConfirmed ? 'text-success' : (hasInsightTimerCategorization ? 'text-yellow-500' : 'text-red-500'),
+    color: isMetadataConfirmed ? 'text-success' : (hasInsightTimerCategorization ? 'text-warning' : 'text-error'),
     actionLink: isMetadataConfirmed ? undefined : '#insight-timer-confirmation',
     actionLabel: isMetadataConfirmed ? undefined : 'Go to Insight Timer Prep',
   };
@@ -64,16 +64,16 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
   return (
     <Card className={cn(
         "shadow-card-light dark:shadow-card-dark transition-all",
-        isReady ? "border-4 border-success/50" : (isBlocked ? "border-4 border-red-500/50" : "border-4 border-yellow-500/50")
+        isReady ? "border-4 border-success/50" : (isBlocked ? "border-4 border-error/50" : "border-4 border-warning/50")
     )}>
       <CardHeader className="pb-3">
         <CardTitle className="text-2xl font-bold flex items-center">
           {isReady ? (
             <CheckCircle className="h-6 w-6 mr-3 text-success" />
           ) : isBlocked ? (
-            <XCircle className="h-6 w-6 mr-3 text-red-500" />
+            <XCircle className="h-6 w-6 mr-3 text-error" />
           ) : (
-            <Info className="h-6 w-6 mr-3 text-yellow-500" />
+            <Info className="h-6 w-6 mr-3 text-warning" />
           )}
           Distribution Pre-Flight Checklist
         </CardTitle>

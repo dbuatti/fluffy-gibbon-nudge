@@ -2,16 +2,13 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Piano, Music, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-// Removed useUpdateImprovisation as handlers are now passed from parent
-
 interface DistributionTogglesCardProps {
-  improvisationId: string; // Renamed prop
+  improvisationId: string;
   isPiano: boolean | null;
   isInstrumental: boolean | null;
   isOriginalSong: boolean | null;
   hasExplicitLyrics: boolean | null;
-  isPending: boolean; // NEW: Pass pending state from parent
-  // NEW: Handlers passed from parent
+  isPending: boolean;
   handleUpdateIsPiano: (checked: boolean) => Promise<void>;
   handleUpdateIsInstrumental: (checked: boolean) => Promise<void>;
   handleUpdateIsOriginalSong: (checked: boolean) => Promise<void>;
@@ -19,19 +16,17 @@ interface DistributionTogglesCardProps {
 }
 
 const DistributionTogglesCard: React.FC<DistributionTogglesCardProps> = ({
-  improvisationId, // Renamed prop
+  improvisationId,
   isPiano,
   isInstrumental,
   isOriginalSong,
   hasExplicitLyrics,
-  isPending, // NEW
-  handleUpdateIsPiano, // NEW
-  handleUpdateIsInstrumental, // NEW
-  handleUpdateIsOriginalSong, // NEW
-  handleUpdateHasExplicitLyrics, // NEW
+  isPending,
+  handleUpdateIsPiano,
+  handleUpdateIsInstrumental,
+  handleUpdateIsOriginalSong,
+  handleUpdateHasExplicitLyrics,
 }) => {
-  // Removed updateMutation and its related logic, now using passed handlers
-  
   const renderToggleItem = (Icon: React.ElementType, label: string, checked: boolean | null, onCheckedChange: (checked: boolean) => Promise<void>) => (
     <div className="flex items-center justify-between pr-4 py-2 border-b last:border-b-0">
       <div className="flex items-center">

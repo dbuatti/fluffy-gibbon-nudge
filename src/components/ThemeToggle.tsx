@@ -37,6 +37,7 @@ const ThemeToggle: React.FC = () => {
       onClick={toggleTheme}
       className="h-8 w-8 text-muted-foreground hover:text-foreground"
       title="Toggle theme"
+      aria-label="Toggle theme"
     >
       {theme === 'dark' ? (
         <Sun className="h-5 w-5" />

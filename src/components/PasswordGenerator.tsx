@@ -66,18 +66,19 @@ const PasswordGenerator: React.FC = () => {
           value={password} 
           readOnly 
           className="flex-grow font-mono text-lg"
+          aria-label="Generated password"
         />
-        <Button variant="outline" size="icon" onClick={handleCopy} title="Copy Password">
+        <Button variant="outline" size="icon" onClick={handleCopy} title="Copy Password" aria-label="Copy password">
           <Copy className="h-4 w-4" />
         </Button>
-        <Button size="icon" onClick={handleGenerate} title="Generate New Password">
+        <Button size="icon" onClick={handleGenerate} title="Generate New Password" aria-label="Generate new password">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
 
       <div className="space-y-2">
-        <Label>Password Strength</Label>
-        <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+        <Label id="password-strength-label">Password Strength</Label>
+        <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700" role="progressbar" aria-labelledby="password-strength-label" aria-valuetext={strength >= 4 ? 'Strong' : strength === 3 ? 'Good' : strength === 2 ? 'Fair' : strength === 1 ? 'Weak' : 'Very weak'}>
           <div className={strengthClasses}></div>
         </div>
       </div>

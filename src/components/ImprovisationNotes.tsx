@@ -15,11 +15,10 @@ interface NoteTab {
 }
 
 interface ImprovisationNotesProps {
-  improvisationId: string; // Renamed prop
+  improvisationId: string;
   initialNotes: NoteTab[] | null;
 }
 
-// Updated color definitions for a cleaner, more defined look
 const defaultNotes: NoteTab[] = [
   { id: 'zone1', title: 'Zone 1: Structure (A-B-A, Verse/Chorus, etc.)', color: 'border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-950/30', content: '' },
   { id: 'zone2', title: 'Zone 2: Mood/Vibe (Emotional intent, feeling, imagery)', color: 'border-l-4 border-purple-500 bg-purple-50/50 dark:bg-purple-950/30', content: '' },
@@ -38,9 +37,9 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
     setSaveStatus('saving');
     try {
       const { error } = await supabase
-        .from('improvisations') // Updated table name
+        .from('improvisations')
         .update({ notes: currentNotes })
-        .eq('id', improvisationId); // Updated variable
+        .eq('id', improvisationId);
 
       if (error) throw error;
 
@@ -52,7 +51,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
       showError('Failed to autosave notes.');
       setSaveStatus('idle'); // Revert to idle on error
     }
-  }, [improvisationId]); // Updated dependency
+  }, [improvisationId]);
 
 
   // Effect to debounce saving whenever notes change
@@ -104,7 +103,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
         );
       case 'saved':
         return (
-          <span className="flex items-center text-green-600 dark:text-green-400 text-sm">
+          <span className="flex items-center text-success text-sm">
             <Check className="h-4 w-4 mr-2" /> Saved
           </span>
         );
@@ -147,6 +146,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
                           onChange={(e) => handleContentChange(note.id, e.target.value)}
                           maxLength={100}
                           className="bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary"
+                          aria-label="Next action task"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                           Focus: What is the single, most actionable task to move this idea forward?
@@ -159,6 +159,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
                       onChange={(e) => handleContentChange(note.id, e.target.value)}
                       rows={5}
                       className="min-h-[150px] bg-background/80 dark:bg-card/80 border-gray-300 dark:border-gray-700 focus:border-primary"
+                      aria-label={note.title}
                   />
               )}
             </div>

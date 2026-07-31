@@ -89,8 +89,9 @@ const EditableField: React.FC<EditableFieldProps> = ({
           variant="ghost" 
           className="h-8 w-8"
           disabled={isLoading}
+          aria-label="Save changes"
         >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-500" />}
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
         </Button>
         <Button 
           onClick={handleCancel} 
@@ -98,8 +99,9 @@ const EditableField: React.FC<EditableFieldProps> = ({
           variant="ghost" 
           className="h-8 w-8"
           disabled={isLoading}
+          aria-label="Cancel changes"
         >
-          <X className="h-4 w-4 text-red-500" />
+          <X className="h-4 w-4" />
         </Button>
       </div>
     );
@@ -116,6 +118,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
           size="icon" 
           variant="ghost" 
           className="h-6 w-6 ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-0"
+          aria-label="Edit"
         >
           <Edit2 className="h-3 w-3" />
         </Button>
