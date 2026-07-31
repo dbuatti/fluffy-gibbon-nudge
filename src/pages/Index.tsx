@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import ImprovisationList from "@/components/ImprovisationList";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Music, Clock, Zap, Search, Filter, ListOrdered, Grid3X3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
