@@ -107,7 +107,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
     switch (saveStatus) {
       case 'saving':
         return (
-          <span className="flex items-center text-yellow-600 dark:text-yellow-400 text-sm">
+          <span className="flex items-center text-warning text-sm">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Autosaving...
           </span>
         );
@@ -119,7 +119,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
         );
       case 'unsaved':
         return (
-            <span className="flex items-center text-orange-600 dark:text-orange-400 text-sm">
+            <span className="flex items-center text-warning text-sm">
                 Unsaved changes...
             </span>
         );

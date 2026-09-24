@@ -338,10 +338,10 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
           </p>
           
           {/* AI Population Button */}
-          <Button 
-            onClick={handleAIPopulateMetadata} 
-            disabled={isPopulating} 
-            className="w-full h-10 text-base bg-purple-600 hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
+<Button
+            onClick={handleAIPopulateMetadata}
+            disabled={isPopulating}
+            className="w-full h-10 text-base bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-md shadow-primary/10"
           >
             {isPopulating ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -392,7 +392,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
             <CardContent className="pt-6 space-y-4">
                 <div className="flex justify-between items-center">
                     <h4 className="font-semibold flex items-center">
-                        <Sparkles className="w-4 h-4 mr-2 text-purple-500" /> AI Description Generator
+                        <Sparkles className="w-4 h-4 mr-2 text-violet-500" /> AI Description Generator
                     </h4>
                 </div>
 
@@ -443,11 +443,11 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
       </Card>
       
       {/* Metadata Confirmation Toggle (MOVED HERE) */}
-      <Card id="insight-timer-confirmation" className="p-4 border-2 border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/50">
+      <Card id="insight-timer-confirmation" className="p-4 border-2 border-warning/40 bg-warning/5 dark:bg-warning/10">
         <div className="flex items-center justify-between">
             <div className="space-y-1">
                 <Label htmlFor="metadata-confirm" className="text-base font-bold flex items-center">
-                    <CheckCircle className="h-5 w-5 mr-2 text-yellow-700 dark:text-yellow-300" />
+                    <CheckCircle className="h-5 w-5 mr-2 text-warning" />
                     Metadata Review Confirmation
                 </Label>
                 <p className="text-sm text-muted-foreground">
@@ -549,9 +549,9 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
 
       <Separator className="my-6" />
 
-      <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-success/5 dark:bg-success/10 border border-success/30 rounded-lg">
         <div className="space-y-1">
-            <Label htmlFor="insight-timer-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">
+            <Label htmlFor="insight-timer-submitted" className="text-base font-bold flex items-center text-success">
                 <Check className="h-5 w-5 mr-2" /> Mark as Submitted to Insight Timer
             </Label>
             <p className="text-sm text-muted-foreground">

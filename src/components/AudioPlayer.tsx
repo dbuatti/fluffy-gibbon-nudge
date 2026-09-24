@@ -182,7 +182,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
             aria-label={isPlaying ? 'Pause' : 'Play'}
             className={cn(
                 "flex-shrink-0",
-                !isLoaded && "bg-gray-400 hover:bg-gray-400"
+                !isLoaded && "bg-muted-foreground/40 hover:bg-muted-foreground/40 dark:hover:bg-muted-foreground/40"
             )}
           >
             {!isLoaded && error === null ? (
@@ -225,8 +225,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
         
         {/* Error Message Display */}
         {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/50 border border-red-300 rounded-lg mt-4 flex justify-between items-center">
-                <p className="text-sm text-red-700 dark:text-red-300 font-medium flex items-center">
+            <div className="p-3 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg mt-4 flex justify-between items-center">
+                <p className="text-sm text-destructive-foreground font-medium flex items-center">
                     <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                     {error}
                 </p>

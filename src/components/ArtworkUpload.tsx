@@ -106,8 +106,8 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-yellow-50/50 dark:bg-yellow-950/50 space-y-3">
-        <h3 className="text-lg font-semibold flex items-center text-yellow-700 dark:text-yellow-300">
+    <div className="p-4 border rounded-lg bg-warning/5 dark:bg-warning/10 border-warning/30 space-y-3">
+        <h3 className="text-lg font-semibold flex items-center text-warning">
             <Upload className="h-5 w-5 mr-2" /> Manual Artwork Upload
         </h3>
         <p className="text-sm text-muted-foreground">

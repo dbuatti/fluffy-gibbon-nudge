@@ -277,7 +277,7 @@ const Instructions: React.FC = () => {
                 <CardContent className="p-6 space-y-4">
                   <h3 className="font-semibold text-lg flex items-center gap-2"><Music className="h-4 w-4 text-purple-500" /> Manual Capture</h3>
                   <p>
-                    On the Dashboard, click <strong>Capture New Idea</strong> to create an entry
+                    In the Composer workspace, click <strong>Capture New Idea</strong> to create an entry
                     with just a title. Useful for logging ideas that came to you away from the
                     computer — on a walk, in the car, etc.
                   </p>
@@ -352,7 +352,7 @@ const Instructions: React.FC = () => {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <p>
-                  From the Dashboard, click any entry to open its detail page. On the
+                  In the Composer workspace, click any entry to open its detail page. On the
                   <strong> Creative Hub</strong> tab, find the <strong>Attach Audio File</strong> card.
                   Select an MP3 or M4A (max 250 MB) to upload.
                 </p>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, ListOrdered, Grid3X3, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FilePen } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,7 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { showSuccess, showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import type { Improvisation } from '@/types/improvisation';
+import type { Improvisation, NoteTab } from '@/types/improvisation';
 
 const STALLED_THRESHOLD_HOURS = 24;
 const PAGE_SIZE = 20;
@@ -41,32 +41,45 @@ const getStatusBadge = (imp: Improvisation) => {
   const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
 
   if (isSubmitted) {
-    return <Badge variant="default" className="bg-green-700 text-white">🎉 Submitted!</Badge>;
+    return (
+      <Badge variant="default" className="bg-success text-success-foreground border-success">
+        <PartyPopper className="w-3 h-3 mr-1" /> Submitted!
+      </Badge>
+    );
   }
-  
+
   switch (imp.status) {
     case 'analyzing':
-      return <Badge variant="outline" className="bg-warning text-warning-foreground border-warning"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
+      return <Badge variant="outline" className="bg-warning/15 text-warning-foreground border-warning/40"><Clock className="w-3 h-3 mr-1 animate-spin" /> Analyzing</Badge>;
     case 'completed':
       if (imp.is_ready_for_release) {
-        return <Badge variant="default" className="bg-success text-success-foreground">✅ Ready</Badge>;
+        return <Badge variant="default" className="bg-success/15 text-success border-success/40"><CheckCircle className="w-3 h-3 mr-1" /> Ready</Badge>;
       }
-      return <Badge variant="outline" className="text-muted-foreground">Uploaded</Badge>;
+      return <Badge variant="outline" className="text-muted-foreground"><CloudUpload className="w-3 h-3 mr-1" /> Uploaded</Badge>;
     case 'failed':
-      return <Badge variant="destructive" className="bg-destructive text-destructive-foreground">❌ Failed</Badge>;
+      return <Badge variant="destructive" className="bg-destructive/15 text-destructive border-destructive/40"><XCircle className="w-3 h-3 mr-1" /> Failed</Badge>;
     default:
-      return <Badge variant="outline" className="text-muted-foreground">Uploaded</Badge>;
+      return <Badge variant="outline" className="text-muted-foreground"><CloudUpload className="w-3 h-3 mr-1" /> Uploaded</Badge>;
   }
 };
 
 // Notes Status Badge - less prominent
 const getNotesStatusBadge = (notes: NoteTab[] | null) => {
   const hasContent = notes?.some(n => n.content && n.content.trim().length > 0);
-  
+
   if (hasContent) {
-    return <Badge variant="secondary" className="text-neutral-foreground">✍️ Notes</Badge>;
+    return <Badge variant="secondary" className="text-neutral-foreground"><FilePen className="w-3 h-3 mr-1" /> Notes</Badge>;
   }
   return null;
+};
+
+const getStatusAccent = (imp: Improvisation, isStalled: boolean) => {
+  if (isStalled) return 'border-l-destructive bg-destructive/5 dark:bg-destructive/10';
+  const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
+  if (isSubmitted || (imp.status === 'completed' && imp.is_ready_for_release)) return 'border-l-success bg-success/5 dark:bg-success/10';
+  if (imp.status === 'analyzing') return 'border-l-warning bg-warning/5 dark:bg-warning/10';
+  if (imp.status === 'failed') return 'border-l-destructive bg-destructive/5 dark:bg-destructive/10';
+  return 'border-l-primary/25';
 };
 
 const getNextAction = (imp: Improvisation) => {
@@ -335,16 +348,15 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   return (
     <Card className="w-full shadow-card-light dark:shadow-card-dark">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold">Active Improvisations</CardTitle>
-        <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => setViewMode('grid')} className={cn(viewMode === 'grid' && 'bg-accent text-accent-foreground')}>
-                <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setViewMode('list')} className={cn(viewMode === 'list' && 'bg-accent text-accent-foreground')}>
-                <ListOrdered className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh</Button>
-        </div>
+        <CardTitle className="text-2xl font-semibold flex items-center gap-3">
+          Active Improvisations
+          <span className="text-sm font-medium text-muted-foreground bg-muted rounded-full px-3 py-1">
+            {totalCount} total
+          </span>
+        </CardTitle>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} title="Refresh improvisations" aria-label="Refresh improvisations">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </CardHeader>
       <CardContent>
         {sortedImprovisations && sortedImprovisations.length > 0 ? (
@@ -431,19 +443,20 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                 viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
             )}>
               {sortedImprovisations.map((imp) => {
-                const hasFile = !!imp.storage_path;
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
                 const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
                 const isSelected = selectedImprovisations.has(imp.id);
                 const notesBadge = getNotesStatusBadge(imp.notes);
-                
+
                 return (
-                  <Card 
-                    key={imp.id} 
+                  <Card
+                    key={imp.id}
                     className={cn(
-                      "relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-xl",
-                      isStalled ? 'border-l-4 border-destructive dark:border-destructive-foreground bg-destructive/5 dark:bg-destructive/10' : 'border-l-4 border-transparent',
+                      "relative group cursor-pointer transition-all duration-200 hover:shadow-xl dark:hover:shadow-none hover:-translate-y-0.5",
+                      "border-l-4",
+                      getStatusAccent(imp, isStalled),
+                      isStalled && 'border-l-destructive',
                       isSelected && 'border-2 border-primary ring-2 ring-primary/50',
                       viewMode === 'list' && 'flex items-center p-4'
                     )}
@@ -454,7 +467,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                         viewMode === 'list' && 'w-full'
                     )}>
                       <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox 
+                        <Checkbox
                             id={`select-${imp.id}`}
                             checked={isSelected}
                             onCheckedChange={(checked) => handleSelectImprovisation(imp.id, !!checked)}
@@ -462,37 +475,37 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             title={`Select improvisation: ${imp.generated_name || imp.file_name || 'Untitled Idea'}`}
                         />
                       </div>
-                      
-                      <Avatar className="h-20 w-20 rounded-md border border-border/50 shadow-sm flex-shrink-0">
-                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} />
-                        <AvatarFallback className="rounded-md bg-secondary dark:bg-accent">
+
+                      <Avatar className="h-20 w-20 rounded-xl overflow-hidden border border-border/50 shadow-sm flex-shrink-0">
+                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary/10 to-violet-600/10">
                           <ImageIcon className="h-10 w-10 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-grow space-y-1">
-                        <h3 className="font-semibold text-lg leading-tight flex items-center">
-                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-destructive flex-shrink-0" />} {/* Updated stalled icon color */}
+                        <h3 className="font-semibold text-lg leading-tight flex items-center text-foreground">
+                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-destructive flex-shrink-0" />}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {getStatusBadge(imp)} {/* Updated to pass full imp object */}
+                            {getStatusBadge(imp)}
                             {notesBadge}
                         </div>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className={cn("mt-3 h-8 px-3 text-sm justify-start w-fit")} 
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-3 h-8 px-3 text-sm justify-start w-fit hover:bg-accent"
                             onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
                         >
                             <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
                             <span className={cn("text-sm", nextAction.color)}>
                                 {nextAction.label}
                             </span>
-                            <ArrowRight className="w-3 h-3 ml-2" />
+                            <ArrowRight className="w-3 h-3 ml-2 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
                         </Button>
                       </div>
                     </CardContent>
@@ -510,10 +523,12 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
             )}
           </>
         ) : (
-          <div className="text-center p-8 text-muted-foreground">
-            <Music className="w-12 h-12 mx-auto mb-4" />
-            <p className="text-lg font-medium">No ideas captured yet.</p>
-            <p className="text-sm mt-2">Use the "Capture New Idea" button above to start your creative journey!</p>
+          <div className="text-center p-10 text-muted-foreground">
+            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <Music className="w-8 h-8" />
+            </div>
+            <p className="text-lg font-medium text-foreground">No improvisations match</p>
+            <p className="text-sm mt-1">Try adjusting your search or filter to see more ideas.</p>
           </div>
         )}
       </CardContent>

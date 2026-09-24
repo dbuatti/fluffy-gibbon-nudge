@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Check, X, Music, DollarSign, Clock, Globe, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Check, X, Music, DollarSign, Clock, Globe, ArrowRight, AlertTriangle, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -85,8 +85,9 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
           
           <Separator />
 
-          <p className="text-xs text-muted-foreground">
-            💡 Stores will reject artwork that contains a website address (URL), X name, or any image that's pixelated, rotated, or poor quality.
+          <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+            <Lightbulb className="w-3.5 h-3.5 mt-0.5 text-warning flex-shrink-0" />
+            <span>Stores will reject artwork that contains a website address (URL), X name, or any image that's pixelated, rotated, or poor quality.</span>
           </p>
         </CardContent>
       </Card>
@@ -105,13 +106,13 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
           <div className="flex items-center space-x-2">
             <Checkbox id="leave-legacy" />
             <Label htmlFor="leave-legacy" className="text-sm flex items-center">
-              <Clock className="w-4 h-4 mr-1 text-blue-500" /> Leave a Legacy ($29 one-time fee)
+              <Clock className="w-4 h-4 mr-1 text-info dark:text-info-foreground" /> Leave a Legacy ($29 one-time fee)
             </Label>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox id="store-maximizer" />
             <Label htmlFor="store-maximizer" className="text-sm flex items-center">
-              <Globe className="w-4 h-4 mr-1 text-purple-500" /> Store Maximizer ($7.95/yr)
+              <Globe className="w-4 h-4 mr-1 text-violet-500" /> Store Maximizer ($7.95/yr)
             </Label>
           </div>
           
@@ -126,8 +127,8 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
             <Input id="record-label" defaultValue="DistroKid.com" />
           </div>
 
-          <Button 
-            className={cn("w-full mt-4", !isReady && "bg-red-600 hover:bg-red-700")}
+          <Button
+            className={cn("w-full mt-4", !isReady && "bg-destructive/80 hover:bg-destructive/90")}
             disabled={!isReady}
           >
             <Music className="w-4 h-4 mr-2" /> 
@@ -136,9 +137,9 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
 
           <Separator className="my-6" />
 
-          <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-950/50 border border-green-500/50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-success/5 dark:bg-success/10 border border-success/30 rounded-lg">
             <div className="space-y-1">
-                <Label htmlFor="distrokid-submitted" className="text-base font-bold flex items-center text-green-700 dark:text-green-300">
+                <Label htmlFor="distrokid-submitted" className="text-base font-bold flex items-center text-success">
                     <Check className="h-5 w-5 mr-2" /> Mark as Submitted to DistroKid
                 </Label>
                 <p className="text-sm text-muted-foreground">

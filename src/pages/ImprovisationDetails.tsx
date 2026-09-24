@@ -178,7 +178,7 @@ const ImprovisationDetails: React.FC = () => {
 
       showSuccess(`Improvisation "${imp.generated_name || imp.file_name || 'Idea'}" deleted successfully.`);
       queryClient.invalidateQueries({ queryKey: ['improvisations'] });
-      navigate('/'); // Redirect to dashboard
+      navigate('/composer'); // Redirect to Composer workspace
 
     } catch (error) {
       console.error('Deletion failed:', error);
@@ -436,7 +436,7 @@ const ImprovisationDetails: React.FC = () => {
           <h2 className="text-2xl font-bold mb-2">Improvisation not found</h2>
           <p className="text-muted-foreground mb-6">{error?.message || "The improvisation you're looking for doesn't exist or has been deleted."}</p>
           <Button asChild>
-            <a href="/">Return to Dashboard</a>
+            <a href="/composer">Return to Composer</a>
           </Button>
         </div>
       </div>

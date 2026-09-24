@@ -138,7 +138,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <div 
           className={cn(
             "fixed inset-0 z-[9999] flex items-center justify-center transition-opacity duration-300",
-            isProcessing ? "bg-primary/80 backdrop-blur-sm" : "bg-green-600/80 backdrop-blur-sm"
+            isProcessing ? "bg-primary/85 backdrop-blur-sm" : "bg-primary/75 backdrop-blur-sm"
           )}
         >
           <div className="text-center text-white p-10 border-4 border-dashed border-white/50 rounded-xl">

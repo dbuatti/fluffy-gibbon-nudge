@@ -60,7 +60,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
   const actionButtons = (
     <>
       {isGenerating && (
-        <Badge variant="secondary" className="flex items-center text-sm px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
+        <Badge variant="secondary" className="flex items-center text-sm px-3 py-1 bg-primary/15 text-primary">
           <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating Title...
         </Badge>
       )}
@@ -84,7 +84,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         disabled={isGenerating || updateMutation.isPending}
         className="h-8 w-8"
       >
-        <Sparkles className="h-4 w-4 text-purple-500" />
+        <Sparkles className="h-4 w-4 text-violet-500" />
       </Button>
       <ImprovisationMetadataDialog
         imp={imp}

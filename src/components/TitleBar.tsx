@@ -14,20 +14,24 @@ const TitleBar: React.FC<TitleBarProps> = ({ title, backLink = '/', actions, cla
   return (
     <div className={cn("flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6", className)}>
       {/* Back Link */}
-      <Link to={backLink} className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors order-1 md:order-1" aria-label="Go back">
-        <ArrowLeft className="w-4 h-4 mr-1" /> Back
+      <Link
+        to={backLink}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors order-1 md:order-1 w-fit hover:bg-muted rounded-md px-2 -ml-2 py-1"
+        aria-label="Go back"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
       </Link>
 
       {/* Title */}
       <div className="flex-grow order-2 md:order-2">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">
           {title}
         </h1>
       </div>
 
       {/* Actions */}
       {actions && (
-        <div className="flex-shrink-0 flex items-center space-x-2 order-3 md:order-3">
+        <div className="flex-shrink-0 flex items-center gap-2 order-3 md:order-3">
           {actions}
         </div>
       )}

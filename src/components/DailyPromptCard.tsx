@@ -10,15 +10,13 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const fetchDailyPrompt = async (): Promise<string> => {
-  // Note: We use the anon key here as this is a public function call
   const { data, error } = await supabase.functions.invoke('generate-daily-prompt');
 
   if (error) {
     console.error("Failed to fetch daily prompt:", error);
-    // Propagate the error message from the Edge Function response
     throw new Error(error.message || "Failed to fetch daily prompt.");
   }
-  
+
   return data.prompt || "Compose a piece about the color blue.";
 };
 
@@ -26,51 +24,46 @@ const DailyPromptCard: React.FC = () => {
   const { data: prompt, isLoading, error, refetch } = useQuery<string>({
     queryKey: ['dailyPrompt'],
     queryFn: fetchDailyPrompt,
-    // Cache the prompt for 24 hours (86400000 ms) to ensure it's "daily"
-    staleTime: 86400000, 
+    staleTime: 86400000,
     refetchOnWindowFocus: false,
   });
-  
-  const [cooldown, setCooldown] = useState(false); // New state for cooldown
+
+  const [cooldown, setCooldown] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleRefetch = () => {
-    if (cooldown) return; // Prevent refetch if on cooldown
+    if (cooldown) return;
 
     setCooldown(true);
     refetch();
-    showSuccess("Generating a new prompt..."); // Changed to showSuccess
+    showSuccess("Generating a new prompt...");
     setTimeout(() => {
       setCooldown(false);
-    }, 15000); // 15-second cooldown
+    }, 15000);
   };
-  
-  // Clean the prompt for use as a title
+
   const cleanTitle = prompt ? prompt.replace(/^"|"$/g, '').trim() : '';
 
   return (
-    <Card className={cn(
-        "shadow-xl dark:shadow-3xl border-2",
-        "border-primary/30 bg-primary/5 dark:bg-primary/10"
-    )}>
+    <Card className="relative overflow-hidden border-2 border-primary/20 bg-card shadow-card-light dark:shadow-card-dark transition-shadow hover:shadow-xl h-full">
+      <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-gradient-to-br from-primary/15 to-violet-600/15 blur-2xl" aria-hidden />
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-xl font-bold flex items-center text-primary">
-          <Sparkles className="w-5 h-5 mr-2" /> Daily Creative Prompt
+        <CardTitle className="text-lg font-bold flex items-center text-primary">
+          <span className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center mr-2.5">
+            <Sparkles className="w-4 h-4" />
+          </span>
+          Daily Creative Prompt
         </CardTitle>
-        <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleRefetch} 
-            disabled={isLoading || cooldown}
-            title={cooldown ? "Please wait before generating a new prompt" : "Generate a new prompt"}
-            aria-label="Generate a new prompt"
-            className="text-muted-foreground hover:text-primary"
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleRefetch}
+          disabled={isLoading || cooldown}
+          title={cooldown ? "Please wait before generating a new prompt" : "Generate a new prompt"}
+          aria-label="Generate a new prompt"
+          className="text-muted-foreground hover:text-primary"
         >
-            {isLoading || cooldown ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-                <RefreshCw className="h-4 w-4" />
-            )}
+          <RefreshCw className={cn("h-4 w-4", (isLoading || cooldown) && "animate-spin")} />
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -83,7 +76,7 @@ const DailyPromptCard: React.FC = () => {
           <p className="text-sm text-error">Error loading prompt: {error.message}</p>
         ) : (
           <div className="flex items-start gap-2">
-            <p className="text-xl font-semibold italic text-foreground flex-1">
+            <p className="text-lg font-semibold italic text-foreground flex-1 leading-relaxed">
               "{prompt}"
             </p>
             <Button
@@ -103,22 +96,22 @@ const DailyPromptCard: React.FC = () => {
             </Button>
           </div>
         )}
-        
-        <CaptureIdeaDialog 
-            defaultTitle={cleanTitle} 
-            onIdeaCaptured={() => { /* Refetch logic is handled by the parent Index component */ }}
+
+        <CaptureIdeaDialog
+          defaultTitle={cleanTitle}
+          onIdeaCaptured={() => { }}
         >
-            <Button 
-                disabled={isLoading || !prompt}
-                className="w-full h-10 text-base"
-            >
-                {isLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                    <Music className="h-4 w-4 mr-2" />
-                )}
-                Start Idea Based on Prompt
-            </Button>
+          <Button
+            disabled={isLoading || !prompt}
+            className="w-full h-10 text-base bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-md shadow-primary/10"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Music className="h-4 w-4 mr-2" />
+            )}
+            Start Idea Based on Prompt
+          </Button>
         </CaptureIdeaDialog>
       </CardContent>
     </Card>

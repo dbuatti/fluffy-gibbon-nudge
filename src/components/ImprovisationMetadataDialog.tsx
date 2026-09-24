@@ -127,7 +127,7 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="font-semibold">Ready for Release:</span>
-                        <Badge variant={imp.is_ready_for_release ? 'default' : 'outline'} className="bg-green-500 hover:bg-green-500 text-white">
+                        <Badge variant={imp.is_ready_for_release ? 'default' : 'outline'} className={imp.is_ready_for_release ? "bg-success text-success-foreground hover:bg-success/90" : ""}>
                             {imp.is_ready_for_release ? <CheckCircle className="h-3 w-3 mr-1" /> : 'Pending'}
                         </Badge>
                     </div>

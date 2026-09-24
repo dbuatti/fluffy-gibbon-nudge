@@ -9,9 +9,11 @@ import DragDropOverlay from "./components/DragDropOverlay";
 import AppLayout from "./components/AppLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 const Index = React.lazy(() => import("./pages/Index"));
+const HomePage = React.lazy(() => import("./pages/Home"));
+const Arranging = React.lazy(() => import("./pages/Arranging"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const Login = React.lazy(() => import("./pages/Login"));
 const Signup = React.lazy(() => import("./pages/Signup"));
@@ -31,7 +33,14 @@ const App = () => (
         <SessionContextProvider>
           <DragDropOverlay>
             <ErrorBoundary>
-            <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+            <Suspense fallback={
+              <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/30">
+                  <Sparkles className="h-6 w-6 text-white" />
+                </div>
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            }>
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
@@ -40,7 +49,9 @@ const App = () => (
               {/* Protected Routes wrapped in AppLayout */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/composer" element={<Index />} />
+                  <Route path="/arranging" element={<Arranging />} />
                   <Route path="/improvisation/:id" element={<ImprovisationDetails />} />
                   {/* Removed /improvisations route as it's no longer a separate page */}
                   <Route path="/settings" element={<Settings />} />

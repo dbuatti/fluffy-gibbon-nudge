@@ -198,7 +198,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             {/* Artwork Preview */}
             <div className={cn(
                 "relative w-full aspect-square rounded-lg overflow-hidden border-2",
-                hasArtwork ? "border-primary/50" : "border-dashed border-red-500/50 bg-red-50/50 dark:bg-red-950/50"
+                hasArtwork ? "border-primary/50 shadow-inner" : "border-dashed border-destructive/40 bg-destructive/5 dark:bg-destructive/10"
             )}>
                 {hasArtwork ? (
                     <img 
@@ -223,7 +223,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             {/* Prompt Display */}
             <div className={cn(
                 "p-4 rounded-lg border-2 border-dashed",
-                imp.artwork_prompt ? "border-primary/50 bg-muted/50" : "border-red-500/50 bg-red-50/50 dark:bg-red-950/50"
+                imp.artwork_prompt ? "border-primary/40 bg-muted/50" : "border-destructive/40 bg-destructive/5 dark:bg-destructive/10"
             )}>
                 <h3 className="font-semibold mb-2 flex items-center">
                     {imp.artwork_prompt ? 'AI Artwork Prompt:' : 'Prompt Missing (Generate Below)'}
@@ -296,7 +296,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
         {audioPublicUrl && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl flex items-center text-red-500">
+              <CardTitle className="text-xl flex items-center text-warning">
                 <ExternalLink className="w-5 h-5 mr-2" /> Audio URL (Debug)
               </CardTitle>
             </CardHeader>

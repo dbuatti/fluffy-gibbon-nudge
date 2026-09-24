@@ -36,7 +36,7 @@ const FilePathSuggestion: React.FC<FilePathSuggestionProps> = ({ generatedName, 
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center text-xl">
-          <FolderOpen className="w-5 h-5 mr-2 text-blue-500" /> Local Folder Organization
+          <FolderOpen className="w-5 h-5 mr-2 text-primary" /> Local Folder Organization
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

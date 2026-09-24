@@ -80,9 +80,9 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
       </CardHeader>
       <CardContent className="space-y-4">
         {isAnalyzing && (
-            <div className="flex items-center p-3 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg">
-                <Loader2 className="h-5 w-5 mr-3 animate-spin text-yellow-600" />
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+            <div className="flex items-center p-3 bg-warning/10 dark:bg-warning/20 border border-warning/30 rounded-lg">
+                <Loader2 className="h-5 w-5 mr-3 animate-spin text-warning" />
+                <p className="text-sm font-medium text-warning-foreground">
                     Background processing is running. Checks may be incomplete.
                 </p>
             </div>
@@ -118,10 +118,10 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
         
         <div className="flex items-center justify-between">
             <p className="text-lg font-bold">Overall Readiness:</p>
-            <Badge 
+            <Badge
                 className={cn(
                     "text-base px-4 py-2",
-                    isReady ? "bg-success hover:bg-success/90 text-success-foreground" : (isBlocked ? "bg-red-600 hover:bg-red-600" : "bg-yellow-600 hover:bg-yellow-600")
+                    isReady ? "bg-success text-success-foreground hover:bg-success/90" : (isBlocked ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-warning text-warning-foreground hover:bg-warning/90")
                 )}
             >
                 {isReady ? 'READY TO SUBMIT' : (isBlocked ? 'BLOCKED' : 'IN PROGRESS')}
