@@ -1,6 +1,6 @@
 # Notes
 
-Branch: auto/2026-07-30 (never commit to main)
+Branch: always commit to main
 
 Key decisions:
 - Shared types extracted to src/types/improvisation.ts — consolidates 6 duplicate Improvisation interface definitions

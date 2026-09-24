@@ -61,13 +61,13 @@ const ImprovisationMetadataDialog: React.FC<ImprovisationMetadataDialogProps> = 
     </div>
   );
 
-  const renderSelectAnalysisItem = (Icon: React.ElementType, label: string, value: string | null | undefined, options: string[], key: keyof AnalysisData) => (
+  const renderSelectAnalysisItem = (Icon: React.ElementType, label: string, value: string | number | null | undefined, options: string[], key: keyof AnalysisData) => (
     <div className="flex items-center space-x-2">
       <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <span className="text-sm font-medium text-muted-foreground w-20 flex-shrink-0">{label}:</span>
       <div className="flex-grow">
         <SelectField
-          value={value}
+          value={typeof value === 'number' ? String(value) : value}
           label={label}
           options={options}
           onSave={(v) => handleUpdateAnalysisData(key, v)}
