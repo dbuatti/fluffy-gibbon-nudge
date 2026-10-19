@@ -53,6 +53,26 @@ serve(async (req) => {
 
     console.log(`Generating AI artwork with Gemini: "${prompt.substring(0, 80)}..."`);
 
+    // Try to list available models for debugging
+    let availableModels = '';
+    try {
+      const listUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+      const listResp = await fetch(listUrl, {
+        method: 'GET',
+        headers: { 'x-goog-api-key': geminiKey },
+      });
+      if (listResp.ok) {
+        const listData = await listResp.json();
+        availableModels = (listData.models || []).map((m: any) => m.name).join(', ');
+        console.log('Available models:', availableModels);
+      } else {
+        const errBody = await listResp.json().catch(() => ({}));
+        console.log('Could not list models:', listResp.status, errBody.error?.message || '');
+      }
+    } catch (e: any) {
+      console.log('Could not list models:', e.message);
+    }
+
     // Try multiple models and methods for image generation
     const modelsToTry = [
       { model: 'gemini-2.0-flash-exp', method: 'generateContent' },
@@ -137,20 +157,11 @@ serve(async (req) => {
 
     if (!base64Image) {
       console.error('Gemini no image. Errors:', errors);
-      const isLeaked = errors.some(e => e.includes('leaked'));
-      const isNotFound = errors.some(e => e.includes('not found') || e.includes('not supported'));
-      let errorMsg = 'No image returned from Gemini.';
-      if (isLeaked) {
-        errorMsg = 'Gemini API key was reported as leaked. Create a new API key at https://aistudio.google.com/apikey with image generation enabled.';
-      } else if (isNotFound) {
-        errorMsg = 'Gemini image generation models not available with this API key. Try Cloudflare mode instead, or create a new API key at https://aistudio.google.com/apikey.';
-      } else {
-        errorMsg += ' Errors: ' + errors.join('; ');
-      }
       return new Response(JSON.stringify({
-        error: errorMsg,
+        error: 'No image returned from Gemini. The API key may not have access to image generation models. Try Cloudflare mode instead, or create a new API key at https://aistudio.google.com/apikey',
         configured: true,
         debug: errors.join('; '),
+        availableModels: availableModels,
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

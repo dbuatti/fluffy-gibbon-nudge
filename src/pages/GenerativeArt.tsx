@@ -474,7 +474,7 @@ const GenerativeArt: React.FC = () => {
                   className="text-xs min-h-[80px] resize-none"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {mode === 'procedural' ? 'The prompt influences the seed for reproducible variations.' : mode === 'cloudflare' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Try simple prompts like "blue and gold abstract texture".' : 'Sent to Google Gemini 2.0 Flash. Requires GEMINI_API_KEY (already configured).'}
+                  {mode === 'procedural' ? 'The prompt influences the seed for reproducible variations.' : mode === 'cloudflare' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Try simple prompts like "blue and gold abstract texture".' : 'Gemini API key lacks image generation access. Create a new key at aistudio.google.com/apikey or use Cloudflare mode.'}
                 </p>
                 {!prompt.trim() && mode !== 'procedural' && (
                   <p className="text-[10px] text-amber-600 mt-1">⚠ Enter a prompt to enable AI generation.</p>
