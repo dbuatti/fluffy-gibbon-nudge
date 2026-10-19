@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useLocalBridge } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
@@ -83,31 +83,9 @@ const StatusIndicator = ({
 );
 
 const SyncStatusDisplay: React.FC = () => {
-  const { getSyncStatus } = useLocalBridge();
-  const [data, setData] = useState<{ items: any[]; counts: any } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { items, counts, loading, error, refetch } = useRealtimeSyncStatus();
 
-  const refresh = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getSyncStatus({ limit: 10 });
-      if (res) setData(res);
-      else setError('Failed to load sync status');
-    } catch (e) {
-      console.error('[SyncStatusDisplay] Error:', e);
-      setError('Connection error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    refresh();
-  }, []);
-
-  if (!data && !error) return <div className="text-xs text-muted-foreground">Click to load sync status…</div>;
+  if (!items && !error) return <div className="text-xs text-muted-foreground">Loading sync status…</div>;
   if (error) return <div className="text-xs text-red-500">{error}</div>;
 
   return (
@@ -115,38 +93,38 @@ const SyncStatusDisplay: React.FC = () => {
       <div className="flex items-center gap-4 text-xs">
         <Badge variant="outline" className="gap-1">
           <CheckCircle className="h-3 w-3 text-green-600" />
-          Ready: {data.counts.readyForRelease}
+          Ready: {counts.readyForRelease}
         </Badge>
         <Badge variant="outline" className="gap-1">
           <AlertTriangle className="h-3 w-3 text-amber-600" />
-          Stale (no audio): {data.counts.staleNoAudio}
+          Stale (no audio): {counts.staleNoAudio}
         </Badge>
-        <Badge variant="outline">Total: {data.counts.total}</Badge>
-        <Button variant="ghost" size="icon" onClick={refresh} disabled={loading} className="ml-auto">
+        <Badge variant="outline">Total: {counts.total}</Badge>
+        <Button variant="ghost" size="icon" onClick={refetch} disabled={loading} className="ml-auto">
           <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
         </Button>
       </div>
 
-      {data.items.length > 0 && (
+      {items.length > 0 && (
         <div className="max-h-48 overflow-y-auto space-y-1">
-          {data.items.slice(0, 8).map((item) => (
+          {items.slice(0, 8).map((item) => (
             <div key={item.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded text-xs">
-              <Badge variant={item.isReadyForRelease ? 'default' : 'outline'} className="text-xs px-2 py-0.5">
+              <Badge variant={item.is_ready_for_release ? 'default' : 'outline'} className="text-xs px-2 py-0.5">
                 {item.status}
               </Badge>
-              <span className="flex-1 truncate font-medium">{item.generatedName}</span>
-              {item.workflowMode && (
+              <span className="flex-1 truncate font-medium">{item.generated_name}</span>
+              {item.workflow_mode && (
                 <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                  {item.workflowMode}
+                  {item.workflow_mode}
                 </Badge>
               )}
-              {item.hasAudio && <Music className="h-3 w-3 text-green-600" title="Has audio" />}
-              {item.hasVideo && <Video className="h-3 w-3 text-blue-600" title="Has video" />}
+              {item.storage_path && <Music className="h-3 w-3 text-green-600" title="Has audio" />}
+              {item.video_path && <Video className="h-3 w-3 text-blue-600" title="Has video" />}
             </div>
           ))}
-          {data.items.length > 8 && (
+          {items.length > 8 && (
             <div className="text-xs text-muted-foreground text-center py-1">
-              +{data.items.length - 8} more…
+              +{items.length - 8} more…
             </div>
           )}
         </div>

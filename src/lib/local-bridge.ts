@@ -366,3 +366,103 @@ export async function setupBridgeToken(): Promise<void> {
   console.log('📋 Copy this token to your Mac:');
   console.log(`echo '${JSON.stringify({ token, port: BRIDGE_DEFAULT_PORT, allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'] }, null, 2)}' > ~/.config/composer-hub/bridge-config.json`);
 }
+
+// ============================================================================
+// Real-time Sync Status Hook (Supabase Realtime)
+// ============================================================================
+
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
+
+interface RealtimeSyncItem {
+  id: string;
+  generated_name: string;
+  status: string;
+  workflow_mode: string | null;
+  file_name: string | null;
+  storage_path: string | null;
+  video_path: string | null;
+  is_ready_for_release: boolean;
+  created_at: string;
+  nas_folder_path: string | null;
+  logic_project_path: string | null;
+}
+
+export function useRealtimeSyncStatus() {
+  const [items, setItems] = useState<RealtimeSyncItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Initial fetch
+  const fetchInitial = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('improvisations')
+        .select('id,generated_name,status,workflow_mode,file_name,storage_path,video_path,is_ready_for_release,created_at,nas_folder_path,logic_project_path')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setItems(data || []);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInitial();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('improvisations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'improvisations',
+        },
+        (payload) => {
+          console.log('[Realtime] Improvisation change:', payload.eventType, payload.new?.id);
+
+          if (payload.eventType === 'INSERT' && payload.new) {
+            setItems(prev => [payload.new as RealtimeSyncItem, ...prev.slice(0, 49)]);
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            setItems(prev => prev.map(item => item.id === payload.new.id ? payload.new : item));
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setItems(prev => prev.filter(item => item.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const counts = {
+    total: items.length,
+    readyForRelease: items.filter(i => i.is_ready_for_release).length,
+    staleNoAudio: items.filter(i =>
+      i.status === 'uploaded' &&
+      !i.storage_path &&
+      new Date(i.created_at) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    ).length,
+  };
+
+  return {
+    items,
+    counts,
+    loading,
+    error,
+    refetch: fetchInitial,
+  };
+}
