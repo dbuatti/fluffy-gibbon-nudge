@@ -72,10 +72,11 @@ serve(async (req) => {
 
     if (!geminiResponse.ok) {
       const errBody = await geminiResponse.json().catch(() => ({}));
-      console.error('Gemini API Error:', errBody);
+      console.error('Gemini API Error:', JSON.stringify(errBody));
       return new Response(JSON.stringify({
         error: errBody.error?.message || `Gemini API error: HTTP ${geminiResponse.status}`,
         configured: true,
+        debug: errBody,
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -83,6 +84,8 @@ serve(async (req) => {
     }
 
     const geminiData = await geminiResponse.json();
+    console.log('Gemini response keys:', Object.keys(geminiData));
+    console.log('Gemini candidates:', geminiData.candidates?.length);
 
     // Extract image from response parts
     let base64Image: string | null = null;
@@ -92,12 +95,18 @@ serve(async (req) => {
         base64Image = part.inlineData.data;
         break;
       }
+      if (part.inline_data?.data) {
+        base64Image = part.inline_data.data;
+        break;
+      }
     }
 
     if (!base64Image) {
+      console.error('Gemini no image. Full response:', JSON.stringify(geminiData).substring(0, 1000));
       return new Response(JSON.stringify({
         error: 'No image returned from Gemini. The model may not support image generation for this prompt.',
         configured: true,
+        debug: JSON.stringify(geminiData).substring(0, 500),
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

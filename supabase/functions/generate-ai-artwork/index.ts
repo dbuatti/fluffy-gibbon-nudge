@@ -84,12 +84,34 @@ serve(async (req) => {
       });
     }
 
-    // Cloudflare returns base64-encoded image
-    const cfData = await cfResponse.json();
-    const base64Image = cfData.result?.image;
+    // Cloudflare Workers AI returns image as binary (image/png) or JSON with base64
+    const contentType = cfResponse.headers.get('content-type') || '';
+    let base64Image: string | null = null;
+
+    if (contentType.includes('image/')) {
+      // Binary image response — convert to base64
+      const arrayBuffer = await cfResponse.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      base64Image = btoa(binary);
+    } else {
+      // JSON response — try to extract base64 image
+      const cfData = await cfResponse.json().catch(() => ({}));
+      base64Image = cfData.result?.image || cfData.image || null;
+      if (!base64Image) {
+        console.error('Unexpected Cloudflare response:', JSON.stringify(cfData).substring(0, 500));
+      }
+    }
 
     if (!base64Image) {
-      return new Response(JSON.stringify({ error: 'No image returned from Cloudflare' }), {
+      return new Response(JSON.stringify({
+        error: 'No image returned from Cloudflare. The model may have returned an unexpected format.',
+        configured: true,
+        debug: contentType,
+      }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

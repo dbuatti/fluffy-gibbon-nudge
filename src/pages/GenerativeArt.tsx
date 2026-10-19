@@ -315,11 +315,11 @@ const GenerativeArt: React.FC = () => {
                   </Button>
                 </>
               ) : mode === 'cloudflare' ? (
-                <Button onClick={generateAI} disabled={generating || !prompt.trim()} className="gap-2">
+                <Button onClick={generateAI} disabled={generating} className="gap-2">
                   <Sparkles className="h-4 w-4" /> Generate with Cloudflare
                 </Button>
               ) : (
-                <Button onClick={generateGemini} disabled={generating || !prompt.trim()} className="gap-2">
+                <Button onClick={generateGemini} disabled={generating} className="gap-2">
                   <Sparkles className="h-4 w-4" /> Generate with Gemini
                 </Button>
               )}
@@ -476,6 +476,9 @@ const GenerativeArt: React.FC = () => {
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {mode === 'procedural' ? 'The prompt influences the seed for reproducible variations.' : mode === 'cloudflare' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID.' : 'Sent to Google Gemini 2.0 Flash. Requires GEMINI_API_KEY (already configured).'}
                 </p>
+                {!prompt.trim() && mode !== 'procedural' && (
+                  <p className="text-[10px] text-amber-600 mt-1">⚠ Enter a prompt to enable AI generation.</p>
+                )}
               </CardContent>
             </Card>
           </div>
