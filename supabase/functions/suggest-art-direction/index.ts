@@ -59,7 +59,7 @@ function sanitizeSuggestions(raw: any) {
     moods,
     palettes,
     styles,
-    textures: textures.length ? textures : ['fine canvas grain'],
+    textures: textures.length ? textures : ['cold-pressed watercolour paper'],
     lighting: lighting.length ? lighting : ['soft diffused light'],
     compositions: compositions.length ? compositions : ['a centred luminous core'],
     energies: energies.length ? energies : ['gentle', 'still', 'flowing', 'turbulent'],
@@ -124,8 +124,8 @@ Return ONLY JSON with this exact shape:
   "palettes": [
     { "name": "short evocative name", "colors": ["#rrggbb", "#rrggbb", "#rrggbb", "#rrggbb", "#rrggbb"] }
   ],
-  "styles": ["4 abstract art styles"],
-  "textures": ["4 textures"],
+  "styles": ["4 painting mediums, e.g. 'wet-on-wet watercolour', 'loose ink-and-wash'"],
+  "textures": ["4 painting surfaces, e.g. 'cold-pressed watercolour paper'"],
   "lighting": ["4 lighting descriptions"],
   "compositions": ["4 abstract compositions"],
   "energies": ["still", "gentle", "flowing", "turbulent"]
@@ -134,6 +134,8 @@ Return ONLY JSON with this exact shape:
 Rules:
 - Exactly 3 palettes, each a coherent 5-colour ramp with at least one dark and one light tone.
 - Moods are single words (e.g. "contemplative", "luminous").
+- Styles must be real physical painting mediums (watercolour, ink-and-wash, gouache, pastel, oil, dye), not graphic or vector looks. Bias every style toward soft, bleeding, hand-made edges; do not offer hard-edge geometric styles.
+- Justify soft edges in the texture list too (paper grain, wet pooling, feathered washes).
 - Everything is non-representational: no objects, people, text, instruments or scenery.
 - Use the musical clues, but do not repeat the title verbatim.`
 

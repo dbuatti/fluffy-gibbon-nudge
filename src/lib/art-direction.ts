@@ -18,6 +18,21 @@ import { displayTitle } from './display-title';
 export type ArtPromptMode = 'generic' | 'metadata';
 export type ArtEnergy = 'still' | 'gentle' | 'flowing' | 'turbulent';
 
+/**
+ * How the picture is made. This matters more than the "style" word alone:
+ * image models have no negative-prompt channel, so you cannot ask for "no hard
+ * edges" — you have to positively describe a medium that behaves that way.
+ * `render` carries those medium-specific clauses.
+ */
+export interface ArtMedium {
+  id: string;
+  name: string;
+  /** Positive description of the medium, written for the model. */
+  render: string;
+  /** 0 = softest, bleeding, hand-made; 1 = crispest, graphic, vector-clean. */
+  edge: number;
+}
+
 export interface ArtClues {
   title: string;
   genre: string;
@@ -83,17 +98,86 @@ const MOODS = [
   'still', 'restless', 'tender', 'solemn', 'playful', 'mysterious',
 ];
 
+/**
+ * The styles are now genuine *mediums* rather than adjectives. Ordered from
+ * softest (bleeding, hand-made) to hardest (graphic) — `STYLE_EDGE` keeps the
+ * ordering, and the suggestion engine can bias toward the soft end.
+ */
 const STYLES = [
-  'ethereal minimalism', 'impressionist watercolour', 'cinematic abstract',
-  'textured oil painting', 'layered translucent washes', 'soft-focus colour field',
-  'sculptural light study', 'ink diffusion', 'frosted glass abstraction',
-  'brutalist minimalism',
+  'wet-on-wet watercolour',
+  'loose ink-and-wash',
+  'gouache with visible brushwork',
+  'soft pastel on textured paper',
+  'layered translucent dye',
+  'diffuse colour-field painting',
+  'misted long-exposure abstraction',
+  'impasto oil with soft edges',
+  'frosted glass abstraction',
+  'risograph grain',
+  'hard-edge geometric abstraction',
+  'vector-clean minimalism',
 ];
 
+/** Edge hardness per style, 0 (softest) → 1 (hardest). Used to bias and to warn. */
+const STYLE_EDGE: Record<string, number> = {
+  'wet-on-wet watercolour': 0.05,
+  'loose ink-and-wash': 0.15,
+  'gouache with visible brushwork': 0.25,
+  'soft pastel on textured paper': 0.2,
+  'layered translucent dye': 0.1,
+  'diffuse colour-field painting': 0.08,
+  'misted long-exposure abstraction': 0.05,
+  'impasto oil with soft edges': 0.35,
+  'frosted glass abstraction': 0.4,
+  'risograph grain': 0.55,
+  'hard-edge geometric abstraction': 0.95,
+  'vector-clean minimalism': 0.9,
+};
+
+/**
+ * Positively-worded "keep it soft" clauses. Because these models ignore
+ * negatives, softness has to be *requested*, not prohibited.
+ */
+const SOFT_EDGE_CLAUSES = [
+  'soft feathered edges throughout',
+  'every boundary dissolving rather than drawn',
+  'wet bleeding colour with no crisp outlines',
+  'forms melting into one another',
+  'no hard lines anywhere',
+];
+
+/**
+ * Medium vocabulary that reliably produces watercolour behaviour in FLUX —
+ * "material-focused" words work where the bare word "watercolour" does not.
+ */
+const MEDIUM_VOCAB: Record<string, string> = {
+  'wet-on-wet watercolour': 'transparent layered washes, pigment pooling at the edges, wet-on-wet bleeding, granulation, the white of the paper glowing through',
+  'loose ink-and-wash': 'diluted ink bleeding into wet paper, feathered edges, unpredictable blooms, restrained brush marks',
+  'gouache with visible brushwork': 'opaque matte pigment, soft blended transitions, gentle bristle marks, chalky surface',
+  'soft pastel on textured paper': 'dry pigment dust, smudged soft gradients, velvety blending, the tooth of the paper showing',
+  'layered translucent dye': 'many thin transparent layers building depth, colour glowing through colour, no opaque areas',
+  'diffuse colour-field painting': 'vast soft regions of colour, blurred boundaries, atmospheric diffusion',
+  'misted long-exposure abstraction': 'motion-blurred light, veils of colour, everything softened and continuous',
+  'impasto oil with soft edges': 'thick creamy paint, visible palette-knife passages, edges still blended and soft',
+  'frosted glass abstraction': 'hazy diffusion, light scattered through misted glass, soft glows',
+  'risograph grain': 'flat ink layers with visible paper grain, slight misregistration, soft ink spread',
+  'hard-edge geometric abstraction': 'clean flat shapes, precise edges, solid fields of colour',
+  'vector-clean minimalism': 'razor-sharp flat shapes, uniform colour, graphic precision',
+};
+
 const TEXTURES = [
-  'fine canvas grain', 'soft watercolour bleed', 'frosted glass', 'drifting mist',
-  'impasto strokes', 'raw linen', 'matte paper', 'photographic grain',
-  'silk sheen', 'weathered plaster',
+  'cold-pressed watercolour paper',
+  'soft watercolour bleed',
+  'wet pigment pooling and blooming',
+  'visible paper grain under thin washes',
+  'dry-brush scumbling',
+  'salt-textured watercolour',
+  'frosted glass',
+  'drifting mist',
+  'raw linen',
+  'matte paper',
+  'photographic grain',
+  'silk sheen',
 ];
 
 const LIGHTING = [
@@ -180,7 +264,7 @@ interface Traits {
 
 /** Keyword → visual traits. Deliberately broad: these are cues, not rules. */
 const KEYWORD_TRAITS: { re: RegExp; traits: Traits }[] = [
-  { re: /storm|thunder|wind|turbul|chaos/i, traits: { moods: ['tense', 'vast'], palettes: ['Midnight Steel', 'Slate & Sky'], textures: ['weathered plaster'], energy: 'turbulent' } },
+  { re: /storm|thunder|wind|turbul|chaos/i, traits: { moods: ['tense', 'vast'], palettes: ['Midnight Steel', 'Slate & Sky'], textures: ['wet pigment pooling and blooming'], energy: 'turbulent' } },
   { re: /rain|drizzle|mist|fog|haze|smoke/i, traits: { moods: ['mysterious', 'hushed'], palettes: ['Slate & Sky', 'Midnight Steel'], textures: ['drifting mist'], lighting: ['a single beam through haze'] } },
   { re: /sun|dawn|sunrise|morning|light|golden|daybreak/i, traits: { moods: ['hopeful', 'luminous'], palettes: ['Dawn Rose', 'Gold Leaf'], lighting: ['soft diffused dawn light'] } },
   { re: /dusk|twilight|evening|night|moon|star|midnight/i, traits: { moods: ['contemplative', 'mysterious'], palettes: ['Lavender Haze', 'Neon Dusk'], lighting: ['cool moonlit glow'] } },
@@ -197,18 +281,18 @@ const KEYWORD_TRAITS: { re: RegExp; traits: Traits }[] = [
   { re: /child|play|joy|dance|alive/i, traits: { moods: ['playful', 'luminous'], palettes: ['Sage & Peach', 'Dawn Rose'], energy: 'flowing' } },
   { re: /dark|shadow|deep|void|nightfall/i, traits: { moods: ['mysterious', 'solemn'], palettes: ['Midnight Steel', 'Ivory & Ash'] } },
   { re: /bloom|flower|spring|blossom|seed/i, traits: { moods: ['tender', 'hopeful'], palettes: ['Sage & Peach', 'Dawn Rose'] } },
-  { re: /mountain|cliff|stone|rock|canyon/i, traits: { moods: ['grounded', 'vast'], palettes: ['Clay & Moss', 'Slate & Sky'], textures: ['weathered plaster'] } },
+  { re: /mountain|cliff|stone|rock|canyon/i, traits: { moods: ['grounded', 'vast'], palettes: ['Clay & Moss', 'Slate & Sky'], textures: ['dry-brush scumbling'] } },
   { re: /time|memory|remember|yesterday|passing|fading/i, traits: { moods: ['nostalgic', 'contemplative'], palettes: ['Ivory & Ash', 'Slate & Sky'] } },
 ];
 
 /** Genre → starting point when the text has few clues. */
 const GENRE_TRAITS: { re: RegExp; traits: Traits }[] = [
-  { re: /ambient|drone|soundscape|new age/i, traits: { moods: ['serene', 'vast'], palettes: ['Deep Ocean', 'Lavender Haze', 'Slate & Sky'], styles: ['ethereal minimalism', 'soft-focus colour field'], energy: 'still' } },
-  { re: /neo.?classical|classical|piano|chamber/i, traits: { moods: ['contemplative', 'tender'], palettes: ['Ivory & Ash', 'Dawn Rose'], styles: ['impressionist watercolour', 'cinematic abstract'], energy: 'gentle' } },
-  { re: /jazz|improvis/i, traits: { moods: ['playful', 'mysterious'], palettes: ['Ember Glow', 'Neon Dusk'], styles: ['textured oil painting', 'sculptural light study'], energy: 'flowing' } },
-  { re: /electronic|synth|techno|experimental/i, traits: { moods: ['restless', 'dreamlike'], palettes: ['Neon Dusk', 'Deep Ocean'], styles: ['brutalist minimalism', 'frosted glass abstraction'], energy: 'turbulent' } },
-  { re: /folk|acoustic|singer.?songwriter/i, traits: { moods: ['grounded', 'nostalgic'], palettes: ['Clay & Moss', 'Sage & Peach'], styles: ['raw linen', 'impressionist watercolour'], energy: 'gentle' } },
-  { re: /cinematic|soundtrack|score|orchestral/i, traits: { moods: ['vast', 'tense'], palettes: ['Midnight Steel', 'Gold Leaf'], styles: ['cinematic abstract', 'sculptural light study'], energy: 'turbulent' } },
+  { re: /ambient|drone|soundscape|new age/i, traits: { moods: ['serene', 'vast'], palettes: ['Deep Ocean', 'Lavender Haze', 'Slate & Sky'], styles: ['misted long-exposure abstraction', 'diffuse colour-field painting'], energy: 'still' } },
+  { re: /neo.?classical|classical|piano|chamber/i, traits: { moods: ['contemplative', 'tender'], palettes: ['Ivory & Ash', 'Dawn Rose'], styles: ['wet-on-wet watercolour', 'loose ink-and-wash'], energy: 'gentle' } },
+  { re: /jazz|improvis/i, traits: { moods: ['playful', 'mysterious'], palettes: ['Ember Glow', 'Neon Dusk'], styles: ['gouache with visible brushwork', 'impasto oil with soft edges'], energy: 'flowing' } },
+  { re: /electronic|synth|techno|experimental/i, traits: { moods: ['restless', 'dreamlike'], palettes: ['Neon Dusk', 'Deep Ocean'], styles: ['frosted glass abstraction', 'misted long-exposure abstraction'], energy: 'turbulent' } },
+  { re: /folk|acoustic|singer.?songwriter/i, traits: { moods: ['grounded', 'nostalgic'], palettes: ['Clay & Moss', 'Sage & Peach'], styles: ['soft pastel on textured paper', 'wet-on-wet watercolour'], energy: 'gentle' } },
+  { re: /cinematic|soundtrack|score|orchestral/i, traits: { moods: ['vast', 'tense'], palettes: ['Midnight Steel', 'Gold Leaf'], styles: ['impasto oil with soft edges', 'diffuse colour-field painting'], energy: 'turbulent' } },
   { re: /blues|soul|gospel/i, traits: { moods: ['bittersweet', 'intimate'], palettes: ['Ember Glow', 'Deep Ocean'], energy: 'gentle' } },
   { re: /rock|metal|punk|grunge/i, traits: { moods: ['restless', 'tense'], palettes: ['Midnight Steel', 'Ember Glow'], energy: 'turbulent' } },
   { re: /pop|indie|alternative/i, traits: { moods: ['luminous', 'playful'], palettes: ['Dawn Rose', 'Neon Dusk'], energy: 'flowing' } },
@@ -218,6 +302,12 @@ function hashString(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   return Math.abs(hash);
+}
+
+/** Clamp to the 0–1 range, treating anything non-finite as 0. */
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
 }
 
 function mulberry32(seed: number): () => number {
@@ -298,10 +388,41 @@ function ranked<T>(pool: T[], scores: Map<T, number>, rng: () => number, count: 
 }
 
 /**
+ * Rank styles with a soft-edge bias. Hard-edge styles can still win, but they
+ * have to beat a soft one on merit — they never win by accident, which is what
+ * used to happen ("brutalist minimalism" tied with watercolour and the RNG
+ * decided).
+ *
+ * `softBias` (0 → 1) does two things at once:
+ *  - rewards softness proportionally to the medium's own edge score, and
+ *  - *shrinks the RNG jitter* as bias rises, so at full softness the softest
+ *    medium reliably leads instead of being outraced by noise. At 0 the jitter
+ *    is at its largest, which is what lets hard-edge styles surface.
+ */
+function rankStyles(
+  scores: Map<string, number>,
+  rng: () => number,
+  count: number,
+  softBias: number,
+): string[] {
+  const bias = clamp01(softBias);
+  const jitter = 0.6 * (1 - bias * 0.85);
+  return STYLES
+    .map((style) => {
+      const edge = STYLE_EDGE[style] ?? 0.5;
+      const reward = bias * 3 * (1 - edge);
+      return { style, score: (scores.get(style) || 0) + reward + rng() * jitter };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, count)
+    .map((entry) => entry.style);
+}
+
+/**
  * Suggest a full art direction from the song's clues. Deterministic for a given
  * song + salt, so "Suggest again" is the only thing that reshuffles it.
  */
-export function suggestArtDirection(clues: ArtClues, salt = 0): ArtSuggestions {
+export function suggestArtDirection(clues: ArtClues, salt = 0, softness = 0.85): ArtSuggestions {
   const scores: Scores = {
     moods: new Map(), palettes: new Map(), styles: new Map(),
     textures: new Map(), lighting: new Map(), compositions: new Map(),
@@ -329,7 +450,7 @@ export function suggestArtDirection(clues: ArtClues, salt = 0): ArtSuggestions {
   if (clues.tempo && clues.tempo < 70) {
     bump(scores.moods, 'hushed', 2);
     bump(scores.moods, 'intimate', 1);
-    bump(scores.textures, 'fine canvas grain', 1);
+    bump(scores.textures, 'visible paper grain under thin washes', 1);
   }
   if (clues.key && /m(inor)?\b/i.test(clues.key)) {
     bump(scores.moods, 'melancholic', 2);
@@ -357,10 +478,10 @@ export function suggestArtDirection(clues: ArtClues, salt = 0): ArtSuggestions {
       'contemplative', 'serene',
     ]).slice(0, 8),
     palettes: palettePicks.map((name) => ({ name, colors: ART_PALETTES[name] })),
-    styles: ranked(STYLES, scores.styles, rng, 4),
-    textures: ranked(TEXTURES, scores.textures, rng, 4),
-    lighting: ranked(LIGHTING, scores.lighting, rng, 4),
-    compositions: ranked(COMPOSITIONS, scores.compositions, rng, 4),
+    styles: rankStyles(scores.styles, rng, 5, softness),
+    textures: ranked(TEXTURES, scores.textures, rng, 5),
+    lighting: ranked(LIGHTING, scores.lighting, rng, 5),
+    compositions: ranked(COMPOSITIONS, scores.compositions, rng, 5),
     energies: ranked(['still', 'gentle', 'flowing', 'turbulent'] as ArtEnergy[], scores.energies, rng, 4),
   };
 }
@@ -400,11 +521,27 @@ function joinList(items: string[]): string {
 }
 
 const FORM_BY_ENERGY: Record<ArtEnergy, string> = {
-  still: 'quiet fields of colour, minimal gesture, generous negative space',
-  gentle: 'slow-edged organic shapes and softly overlapping translucent fields',
-  flowing: 'long sweeping curves, fluid ribbons of colour, layered depth',
-  turbulent: 'churning interlocking forms, fractured light, dense layering',
+  still: 'a quiet near-monochrome field, one or two soft breaths of colour, generous empty space',
+  gentle: 'slow overlapping translucent washes and soft-edged organic blooms drifting into one another',
+  flowing: 'long sweeping ribbons of wet colour, pigment bleeding and pooling as it travels, layered translucency',
+  turbulent: 'churning wet colour colliding and marbling, blooms bursting and softening, dense layered depth',
 };
+
+/** Medium-specific rendering clauses, so "watercolour" behaves like watercolour. */
+export const MEDIUM_RENDER: Record<string, string> = MEDIUM_VOCAB;
+
+/** Edge hardness per style, 0 (softest) → 1 (hardest). Exposed so the UI can warn. */
+export { STYLE_EDGE };
+
+/** True when a style produces crisp, graphic edges the user usually wants to avoid. */
+export function isHardEdgeStyle(style: string): boolean {
+  return (STYLE_EDGE[style] ?? 0) > 0.6;
+}
+
+/** All known style/medium names, softest first — for UI lists. */
+export function stylesBySoftness(): string[] {
+  return [...STYLES].sort((a, b) => (STYLE_EDGE[a] ?? 0.5) - (STYLE_EDGE[b] ?? 0.5));
+}
 
 /** Words that would make a model paint the object instead of the feeling. */
 const LITERAL_BLOCKLIST = /piano|guitar|drum|violin|cello|sax|voice|vocal|singer|instrument|song|track|album|music/i;
@@ -436,6 +573,11 @@ function metadataSentence(clues: ArtClues): string {
 /**
  * The prompt actually sent to the image model. Keep it abstract, explicit and
  * free of the title, names and literal objects.
+ *
+ * Written for models with *no negative-prompt channel* (FLUX), so softness is
+ * always requested positively, and the medium vocabulary carries the weight —
+ * "watercolour" alone does nothing; "wet-on-wet bleeding, pigment pooling,
+ * paper grain" does.
  */
 export function buildArtPrompt(
   direction: ArtDirection,
@@ -446,18 +588,27 @@ export function buildArtPrompt(
     .map((hex) => `${colorName(hex)} (${hex})`)
     .join(', ');
   const metadata = mode === 'metadata' ? metadataSentence(clues) : '';
+  const medium = MEDIUM_VOCAB[direction.style] || '';
+  const edge = STYLE_EDGE[direction.style] ?? 0.3;
+  const soft = edge <= 0.55;
 
   const parts = [
-    'Abstract album cover artwork, perfectly square 1:1 composition.',
+    soft
+      ? `Abstract album cover, square 1:1, painted as a ${direction.style}.`
+      : `Abstract album cover, square 1:1, in a ${direction.style} treatment.`,
+    medium ? `${medium}.` : '',
     `Mood: ${joinList(direction.moods)}; ${direction.energy} energy.`,
-    `Colour palette: ${direction.palette.name} — ${colors}.`,
-    `Form: ${FORM_BY_ENERGY[direction.energy]}; ${direction.style}.`,
-    `Composition: ${direction.composition}, balanced with generous crop-safe margins.`,
-    `Texture: ${direction.texture}.`,
+    `Palette: ${direction.palette.name} — ${colors}.`,
+    `Form: ${FORM_BY_ENERGY[direction.energy]}.`,
+    `Composition: ${direction.composition}, with generous crop-safe margins.`,
+    `Surface: ${direction.texture}.`,
     `Light: ${direction.lighting}.`,
     metadata,
+    soft ? `Absolutely no hard edges, no crisp lines, no geometric shapes, no vector flatness — ${SOFT_EDGE_CLAUSES[edge < 0.2 ? 0 : edge < 0.4 ? 1 : 2]}.` : '',
     'Strictly non-representational: no text, letters, numbers, logos, watermarks, signatures, borders, people, faces, hands, instruments, or recognizable objects.',
-    'Gallery-quality, ultra-detailed, high resolution, 3000×3000.',
+    soft
+      ? 'Hand-painted feel, gallery-quality, ultra-detailed, high resolution, 3000×3000.'
+      : 'Gallery-quality, ultra-detailed, high resolution, 3000×3000.',
   ].filter(Boolean);
 
   return parts.join(' ');
@@ -467,6 +618,8 @@ export function buildArtPrompt(
 export const ART_PROMPT_NOTES = [
   'The song title never enters the image prompt — titles leak literal objects and trip content filters.',
   'Metadata becomes atmosphere (mood, colour, light), not nouns.',
-  'Every prompt forbids text, logos, people and instruments, and keeps the subject crop-safe.',
+  'These models have no "negative prompt", so softness is asked for positively — wet bleeding, feathered edges — never just "not hard".',
+  'Styles are real mediums (watercolour, ink-and-wash, pastel), not adjectives, because FLUX responds to material words.',
+  'Hard-edge styles are available but never the default; the suggestion engine leans soft.',
   'AI images are generated at 1024px, then exported at 3000×3000 for release.',
 ];

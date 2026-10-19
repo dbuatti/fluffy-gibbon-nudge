@@ -405,6 +405,14 @@ export class BridgeClient {
     });
   }
 
+  /** Open several folders in Finder at once (one call, one toast). */
+  async openFinderPair(paths: string[], reveal = false): Promise<BridgeResponse<{ opened: { path: string; message: string }[]; failed: { path: string; error: string }[]; message: string }>> {
+    return this.request<{ opened: { path: string; message: string }[]; failed: { path: string; error: string }[]; message: string }>('/finder/open-pair', {
+      method: 'POST',
+      body: JSON.stringify({ paths, reveal }),
+    });
+  }
+
   /** Get bridge health + local system status */
   async getStatus(): Promise<BridgeResponse<BridgeStatusResponse>> {
     return this.request<BridgeStatusResponse>('/status');
@@ -759,6 +767,43 @@ export async function openFolderInFinder(folderPath: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Open several folders in Finder with a single bridge call. Reports which
+ * opened and which did not, so one unmounted volume (e.g. the NAS at home but
+ * not on the road) never hides the folder that did open.
+ */
+export async function openFoldersInFinder(folderPaths: string[]): Promise<boolean> {
+  const paths = folderPaths.filter(Boolean);
+  if (paths.length === 0) return false;
+  // A single path is just the plain helper, so the toast stays specific.
+  if (paths.length === 1) return openFolderInFinder(paths[0]);
+  try {
+    const res = await bridgeClient.openFinderPair(paths);
+    const opened = res.data?.opened || [];
+    const failed = res.data?.failed || [];
+    if (opened.length > 0) {
+      const names = opened.map((o) => o.path.split('/').filter(Boolean).pop() || o.path);
+      if (failed.length > 0) {
+        showSuccess(`Opened ${names.join(' + ')} — ${failed[0].error}`);
+      } else {
+        showSuccess(`Opened ${names.join(' + ')} in Finder`);
+      }
+      return true;
+    }
+    showError(res.error || failed[0]?.error || 'Could not open those folders in Finder');
+    return false;
+  } catch {
+    showError('Local Bridge unreachable — it runs on your Mac. Start it with: pm2 start composer-hub-bridge');
+    return false;
+  }
+}
+
+/** Local Logic projects directory (mirrors LOGIC_PROJECTS_DIR in the bridge). */
+export const LOGIC_PROJECTS_DIR = '/Users/danielebuatti/Music/Logic';
+/** NAS creation folder — deep-composition projects live here (mirrors NAS_CREATION_DIR). */
+export const NAS_CREATION_DIR = '/Volumes/Moon Prism/DBP/Creation';
+
 
 /**
  * Reveal a single staged file in Finder (selected inside its folder), so it

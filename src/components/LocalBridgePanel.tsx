@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, openFoldersInFinder, LOGIC_PROJECTS_DIR, NAS_CREATION_DIR } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -569,6 +569,27 @@ export const LocalBridgePanel: React.FC = () => {
               <code className="bg-muted px-1 rounded">DBP/Creation</code>) — copied, verified
               file-by-file, then optionally trashed locally so they can leave this Mac.
             </p>
+            <div className="flex gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openFoldersInFinder([LOGIC_PROJECTS_DIR, NAS_CREATION_DIR])}
+                className="text-xs gap-1.5 flex-1"
+                title="Open both Music/Logic and Moon Prism/DBP/Creation in Finder"
+              >
+                <FolderOpen className="h-3 w-3" /> Open Logic + Creation
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0"
+                onClick={() => openFolderInFinder(LOGIC_PROJECTS_DIR)}
+                title={`Open ${LOGIC_PROJECTS_DIR} in Finder`}
+                aria-label="Open Music/Logic in Finder"
+              >
+                <FolderOpen className="h-3 w-3" />
+              </Button>
+            </div>
             <Button
               variant="outline"
               size="sm"

@@ -697,58 +697,68 @@ async function handleOpenLogic(req, res, body) {
 }
 
 /**
+ * Open a single absolute path in Finder. Throws with a human-readable reason.
+ * Shared by /finder/open and /finder/open-pair.
+ */
+async function openPathInFinder(rawPath, wantsReveal) {
+  if (!rawPath) throw new Error('Missing path');
+  if (!rawPath.startsWith('/') || rawPath.includes('\u0000')) {
+    throw new Error('Path must be an absolute POSIX path');
+  }
+
+  // A .logicx bundle always opens as its containing folder. Anything else is
+  // opened as a folder, or — with reveal: true — selected in its folder, so
+  // a single staged file can be dragged straight into an upload page.
+  let targetPath = rawPath.endsWith('.logicx') ? path.dirname(rawPath) : rawPath;
+  targetPath = targetPath.replace(/\/+$/, '');
+  if (!targetPath) throw new Error('Could not resolve folder from path');
+
+  // SMB mounts can be stale for a moment right after connecting (Finder
+  // already shows the volume, but stat() on deep paths fails) — wait
+  // briefly and retry once before concluding anything.
+  const existsWithRetry = async (p) => {
+    if (fs.existsSync(p)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    return fs.existsSync(p);
+  };
+
+  if (!(await existsWithRetry(targetPath))) {
+    const volume = targetPath.startsWith('/Volumes/') ? targetPath.split('/')[2] : null;
+    if (volume) {
+      if (fs.existsSync(`/Volumes/${volume}`)) {
+        throw new Error(`Volume is mounted, but the folder isn't there anymore: ${targetPath} — was it moved or renamed?`);
+      }
+      throw new Error(`Folder not reachable — volume "${volume}" is not mounted. Use "Mount NAS" and try again.`);
+    }
+    throw new Error(`Folder not found on this Mac: ${targetPath}`);
+  }
+
+  const stat = await fs.promises.stat(targetPath);
+  const isFolder = stat.isDirectory();
+  if (!isFolder && !wantsReveal) throw new Error(`Not a folder: ${targetPath}`);
+
+  await new Promise((resolve, reject) => {
+    execFile('open', isFolder ? [targetPath] : ['-R', targetPath], { timeout: 10000 },
+      (err) => (err ? reject(err) : resolve()));
+  });
+
+  const message = isFolder
+    ? `Opened in Finder: ${targetPath}`
+    : `Revealed in Finder: ${path.basename(targetPath)}`;
+  return { targetPath, message };
+}
+
+/**
  * POST /finder/open — open the song's folder in Finder.
  * Accepts either a folder path or a .logicx bundle path (the bundle's parent
  * directory is opened, since .logicx is a package, not a browsable folder).
  */
 async function handleFinderOpen(req, res, body) {
   try {
-    const rawPath = typeof body.path === 'string' ? body.path.trim() : '';
-    if (!rawPath) throw new Error('Missing path');
-    if (!rawPath.startsWith('/') || rawPath.includes('\u0000')) {
-      throw new Error('Path must be an absolute POSIX path');
-    }
-
-    // A .logicx bundle always opens as its containing folder. Anything else is
-    // opened as a folder, or — with reveal: true — selected in its folder, so
-    // a single staged file can be dragged straight into an upload page.
-    const wantsReveal = body.reveal === true;
-    let targetPath = rawPath.endsWith('.logicx') ? path.dirname(rawPath) : rawPath;
-    targetPath = targetPath.replace(/\/+$/, '');
-    if (!targetPath) throw new Error('Could not resolve folder from path');
-
-    // SMB mounts can be stale for a moment right after connecting (Finder
-    // already shows the volume, but stat() on deep paths fails) — wait
-    // briefly and retry once before concluding anything.
-    const existsWithRetry = async (p) => {
-      if (fs.existsSync(p)) return true;
-      await new Promise((resolve) => setTimeout(resolve, 750));
-      return fs.existsSync(p);
-    };
-
-    if (!(await existsWithRetry(targetPath))) {
-      const volume = targetPath.startsWith('/Volumes/') ? targetPath.split('/')[2] : null;
-      if (volume) {
-        if (fs.existsSync(`/Volumes/${volume}`)) {
-          throw new Error(`Volume is mounted, but the folder isn't there anymore: ${targetPath} — was it moved or renamed?`);
-        }
-        throw new Error(`Folder not reachable — volume "${volume}" is not mounted. Use "Mount NAS" and try again.`);
-      }
-      throw new Error(`Folder not found on this Mac: ${targetPath}`);
-    }
-
-    const stat = await fs.promises.stat(targetPath);
-    const isFolder = stat.isDirectory();
-    if (!isFolder && !wantsReveal) throw new Error(`Not a folder: ${targetPath}`);
-
-    await new Promise((resolve, reject) => {
-      execFile('open', isFolder ? [targetPath] : ['-R', targetPath], { timeout: 10000 },
-        (err) => (err ? reject(err) : resolve()));
-    });
-
-    const message = isFolder
-      ? `Opened in Finder: ${targetPath}`
-      : `Revealed in Finder: ${path.basename(targetPath)}`;
+    const { targetPath, message } = await openPathInFinder(
+      typeof body.path === 'string' ? body.path.trim() : '',
+      body.reveal === true,
+    );
     sendJson(res, 200, {
       success: true,
       data: { success: true, path: targetPath, message },
@@ -759,6 +769,41 @@ async function handleFinderOpen(req, res, body) {
     sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
+
+/**
+ * POST /finder/open-pair — open several folders at once (used by the
+ * "Open Logic + Creation" shortcut). Each path is opened independently, so one
+ * unmounted volume never stops the others; the response reports what worked.
+ *
+ * Body: { paths: string[], reveal?: boolean }
+ */
+async function handleFinderOpenPair(req, res, body) {
+  const paths = Array.isArray(body.paths) ? body.paths.filter((p) => typeof p === 'string' && p.trim()) : [];
+  if (paths.length === 0) {
+    sendJson(res, 400, { success: false, error: 'Missing paths', timestamp: new Date().toISOString() }, req);
+    return;
+  }
+
+  const opened = [];
+  const failed = [];
+  for (const raw of paths) {
+    try {
+      const { targetPath, message } = await openPathInFinder(raw.trim(), body.reveal === true);
+      opened.push({ path: targetPath, message });
+    } catch (e) {
+      failed.push({ path: raw.trim(), error: e.message });
+    }
+  }
+
+  // Success if at least one window opened; the caller shows which failed.
+  sendJson(res, opened.length ? 200 : 500, {
+    success: opened.length > 0,
+    data: { opened, failed, message: `${opened.length} of ${paths.length} folders opened in Finder` },
+    ...(opened.length ? {} : { error: failed[0]?.error || 'No folders could be opened' }),
+    timestamp: new Date().toISOString(),
+  }, req);
+}
+
 
 async function handleSyncStatus(req, res, query) {
   try {
@@ -2233,6 +2278,8 @@ async function startServer() {
           await handleOpenLogic(req, res, parsedBody);
         } else if (pathname === '/finder/open' && req.method === 'POST') {
           await handleFinderOpen(req, res, parsedBody);
+        } else if (pathname === '/finder/open-pair' && req.method === 'POST') {
+          await handleFinderOpenPair(req, res, parsedBody);
         } else if (pathname === '/sync/status' && req.method === 'GET') {
           await handleSyncStatus(req, res, query);
         } else if (pathname === '/nas/mount' && req.method === 'POST') {
@@ -2283,6 +2330,7 @@ async function startServer() {
     console.log('  POST /meld/scene              - Switch Meld scene');
     console.log('  POST /logic/open              - Open Logic project');
     console.log('  POST /finder/open             - Open song folder in Finder');
+    console.log('  POST /finder/open-pair        - Open several folders in Finder at once');
     console.log('  GET  /sync/status             - Query Supabase sync status');
     console.log('  POST /nas/mount               - Open macOS mount dialog for the NAS');
     console.log('  GET  /nas/status              - NAS mount + reachability status');

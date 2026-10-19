@@ -45,8 +45,8 @@ function cleanDirection(raw: Direction | undefined): Required<{
       name: (raw?.palette?.name || 'Soft tonal').trim(),
       colors: colors.length ? colors : ['#EFEAF7', '#D6CCEB', '#B3A3D9', '#7E6BA8', '#3B3350'],
     },
-    style: (raw?.style || 'ethereal minimalism').trim(),
-    texture: (raw?.texture || 'fine canvas grain').trim(),
+    style: (raw?.style || 'wet-on-wet watercolour').trim(),
+    texture: (raw?.texture || 'cold-pressed watercolour paper').trim(),
     lighting: (raw?.lighting || 'soft diffused light').trim(),
     composition: (raw?.composition || 'a centred luminous core').trim(),
     energy: (raw?.energy || 'gentle').trim(),
@@ -133,11 +133,13 @@ function fallbackPrompt(
   const colors = direction.palette.colors
     .map((hex) => `${colorName(hex)} (${hex})`)
     .join(', ')
+  // Positively-worded forms. These models have no negative prompt, so softness
+  // is requested, never merely forbidden.
   const forms: Record<string, string> = {
-    still: 'quiet fields of colour, minimal gesture, generous negative space',
-    gentle: 'slow-edged organic shapes and softly overlapping translucent fields',
-    flowing: 'long sweeping curves, fluid ribbons of colour, layered depth',
-    turbulent: 'churning interlocking forms, fractured light, dense layering',
+    still: 'a quiet near-monochrome field, one or two soft breaths of colour, generous empty space',
+    gentle: 'slow overlapping translucent washes and soft-edged organic blooms drifting into one another',
+    flowing: 'long sweeping ribbons of wet colour, pigment bleeding and pooling as it travels, layered translucency',
+    turbulent: 'churning wet colour colliding and marbling, blooms bursting and softening, dense layered depth',
   }
   const themes = imp ? themesOf(imp) : []
   const analysis = imp?.analysis_data || {}
@@ -153,16 +155,17 @@ function fallbackPrompt(
     : ''
 
   return [
-    'Abstract album cover artwork, perfectly square 1:1 composition.',
+    `Abstract album cover, square 1:1, painted as a ${direction.style}.`,
     `Mood: ${direction.moods.join(', ')}; ${direction.energy} energy.`,
-    `Colour palette: ${direction.palette.name} — ${colors}.`,
-    `Form: ${forms[direction.energy] || forms.gentle}; ${direction.style}.`,
-    `Composition: ${direction.composition}, balanced with generous crop-safe margins.`,
-    `Texture: ${direction.texture}.`,
+    `Palette: ${direction.palette.name} — ${colors}.`,
+    `Form: ${forms[direction.energy] || forms.gentle}.`,
+    `Composition: ${direction.composition}, with generous crop-safe margins.`,
+    `Surface: ${direction.texture}.`,
     `Light: ${direction.lighting}.`,
     atmosphere.trim(),
+    'Absolutely no hard edges, no crisp lines, no geometric shapes — every boundary dissolving rather than drawn, wet bleeding colour with no crisp outlines.',
     'Strictly non-representational: no text, letters, numbers, logos, watermarks, signatures, borders, people, faces, hands, instruments, or recognizable objects.',
-    'Gallery-quality, ultra-detailed, high resolution, 3000×3000.',
+    'Hand-painted feel, gallery-quality, ultra-detailed, high resolution, 3000×3000.',
   ].filter(Boolean).join(' ')
 }
 
@@ -178,19 +181,19 @@ ${themeInstruction}
 
 The prompt should describe:
 - Abstract, atmospheric artwork (no recognizable objects, people, or text)
-- Soft flowing shapes, gradients, or textures
+- A real physical painting medium, named explicitly (wet-on-wet watercolour, loose ink-and-wash, soft pastel) and how it behaves
+- Soft, bleeding, feathered edges — pigment pooling, washes running into one another
 - Calming, contemplative mood
 - Color palette (specific colors)
 - Lighting and atmosphere
-- Texture (canvas, watercolour, oil painting, etc.)
 - Overall feeling (dreamlike, serene, melancholic, etc.)
 
-Style: minimalist, impressionistic, ethereal. Square format (1:1). No text, no people, no instruments.
+Style: painterly and impressionistic, hand-made, minimalist, ethereal. Square format (1:1). No hard edges, no crisp lines, no geometric shapes, no vector flatness. No text, no people, no instruments.
 
 Respond ONLY with the prompt text, nothing else. Keep it under 100 words.`
 
   const text = await callGemini(key, prompt, 0.9)
-  return sanitize(text) || 'A soft, abstract field of muted colour, gentle gradients, hazy light and fine canvas grain. Square 1:1, no text, no objects.'
+  return sanitize(text) || 'A soft, abstract field of muted watercolour, wet pigment bleeding into cold-pressed paper, gentle gradients and hazy light, no hard edges. Square 1:1, no text, no objects.'
 }
 
 async function callGemini(key: string, prompt: string, temperature: number): Promise<string> {
@@ -309,14 +312,15 @@ serve(async (req) => {
       return json({ success: true, prompt, source: 'fallback', cluesUsed, reason: 'GEMINI_API_KEY not set' })
     }
 
-    const instruction = `You are a senior art director writing a single image-generation prompt for a square abstract album cover.
+    const spec = `\n\nAlways describe the medium positively — these models have no negative prompt, so softness must be asked for (wet bleeding, feathered edges, pigment pooling), never merely forbidden. Never describe a hard-edged or geometric result unless the selected style is explicitly hard-edge.`;
+  const instruction = `You are a senior art director writing a single image-generation prompt for a square abstract album cover.
 
 SELECTED DIRECTION (honour every line):
 - Moods: ${direction.moods.join(', ')}
 - Palette: ${direction.palette.name} — ${direction.palette.colors.map((c) => `${colorName(c)} ${c}`).join(', ')}
-- Form / style: ${direction.style}
+- Medium / style: ${direction.style}
 - Composition: ${direction.composition}
-- Texture: ${direction.texture}
+- Surface / texture: ${direction.texture}
 - Lighting: ${direction.lighting}
 - Energy: ${direction.energy}
 
@@ -326,8 +330,9 @@ HARD RULES:
 - Purely abstract and non-representational. No recognizable objects, people, faces, hands, instruments, landscapes, buildings, ships, plants or animals.
 - No text, letters, numbers, logos, watermarks or signatures.
 - Translate emotion into colour, light, texture, composition and movement.
+- Name the physical medium and how it behaves (e.g. "wet-on-wet watercolour, pigment pooling, feathered edges, cold-pressed paper"). Material words matter more than adjectives.
 - Square 1:1, centred subject with crop-safe margins, ultra-detailed, high resolution.
-- 80–120 words, one paragraph, no preamble, no quotation marks, no bullet points.`
+- 80–120 words, one paragraph, no preamble, no quotation marks, no bullet points.${spec}`
 
     let prompt = ''
     let source = 'gemini'

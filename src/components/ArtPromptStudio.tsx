@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import type { Improvisation } from '@/types/improvisation';
 import {
   ART_PROMPT_NOTES, ART_PALETTES, buildArtPrompt, collectArtClues, colorName,
-  defaultDirection, reconcileDirection, suggestArtDirection,
+  defaultDirection, reconcileDirection, suggestArtDirection, STYLE_EDGE, isHardEdgeStyle,
   type ArtDirection, type ArtPromptMode, type ArtSuggestions,
 } from '@/lib/art-direction';
 import { base64ToBlob, saveToRepository } from '@/lib/art-repository';
@@ -59,8 +59,11 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
 
   const [mode, setMode] = useState<ArtPromptMode>(clues.rich ? 'metadata' : 'generic');
   const [salt, setSalt] = useState(0);
-  const [suggestions, setSuggestions] = useState<ArtSuggestions>(() => suggestArtDirection(clues, 0));
-  const [direction, setDirection] = useState<ArtDirection>(() => defaultDirection(suggestArtDirection(clues, 0)));
+  // 0–1 spectrum: 1 = every style soft and bleeding (the house default),
+  // 0 = hard-edge graphics allowed. Song metadata never sets this; it is taste.
+  const [softness, setSoftness] = useState(0.85);
+  const [suggestions, setSuggestions] = useState<ArtSuggestions>(() => suggestArtDirection(clues, 0, 0.85));
+  const [direction, setDirection] = useState<ArtDirection>(() => defaultDirection(suggestArtDirection(clues, 0, 0.85)));
 
   const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
   const [aiPromptLoading, setAiPromptLoading] = useState(false);
@@ -75,7 +78,7 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
 
   // A different song gets a fresh brief; a refetch of the same song does not.
   useEffect(() => {
-    const next = suggestArtDirection(clues, 0);
+    const next = suggestArtDirection(clues, 0, softness);
     setSuggestions(next);
     setDirection(defaultDirection(next));
     setSalt(0);
@@ -86,6 +89,15 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imp.id]);
 
+  // Changing the softness spectrum reshuffles the *available* mediums without
+  // discarding a palette or moods the user already picked.
+  const applySoftness = (value: number) => {
+    setSoftness(value);
+    const next = suggestArtDirection(clues, salt, value);
+    setSuggestions(next);
+    setDirection((current) => reconcileDirection(current, next));
+  };
+
   const applySuggestions = (next: ArtSuggestions) => {
     setSuggestions(next);
     setDirection((current) => reconcileDirection(current, next));
@@ -94,7 +106,7 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
   const shuffle = () => {
     const nextSalt = salt + 1;
     setSalt(nextSalt);
-    applySuggestions(suggestArtDirection(clues, nextSalt));
+    applySuggestions(suggestArtDirection(clues, nextSalt, softness));
   };
 
   const aiSuggest = async () => {
@@ -356,6 +368,30 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
         </div>
 
         <div className="space-y-3">
+          <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium">Soft ↔ graphic</p>
+              <span className="text-[10px] text-muted-foreground">
+                {softness >= 0.999 ? 'all soft, hand-painted' : softness <= 0.001 ? 'hard edges allowed' : 'leaning soft'}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={softness}
+              onChange={(e) => applySoftness(Number(e.target.value))}
+              className="w-full accent-primary"
+              aria-label="Softness spectrum"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              These image models have no "negative prompt", so softness is asked for
+              directly (wet bleeding, feathered edges). Slide left only if you actually
+              want clean graphic shapes.
+            </p>
+          </div>
+
           <Field label="Moods (pick 1–3)">
             {suggestions.moods.map((mood) => (
               <Chip
@@ -398,13 +434,15 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Style">
+            <Field label="Medium (a painting style, not a graphic one)">
               {suggestions.styles.map((style) => (
                 <Chip key={style} active={direction.style === style}
-                  onClick={() => setDirection((d) => ({ ...d, style }))}>{style}</Chip>
+                  onClick={() => setDirection((d) => ({ ...d, style }))}>
+                  {isHardEdgeStyle(style) ? `${style} ⚠︎` : style}
+                </Chip>
               ))}
             </Field>
-            <Field label="Texture">
+            <Field label="Texture / surface">
               {suggestions.textures.map((texture) => (
                 <Chip key={texture} active={direction.texture === texture}
                   onClick={() => setDirection((d) => ({ ...d, texture }))}>{texture}</Chip>
@@ -423,6 +461,18 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
               ))}
             </Field>
           </div>
+
+          {isHardEdgeStyle(direction.style) && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+              <span aria-hidden>⚠︎</span>
+              <span>
+                <strong>{direction.style}</strong> produces crisp, geometric edges — the
+                look you said you usually dislike. The prompt will drop the soft-edge
+                language for this style. Pick a medium above, or slide Soft ↔ graphic left,
+                to get soft bleeding edges back.
+              </span>
+            </p>
+          )}
 
           <Field label="Energy">
             {suggestions.energies.map((energy) => (

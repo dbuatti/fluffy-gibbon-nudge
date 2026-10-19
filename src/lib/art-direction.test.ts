@@ -5,7 +5,11 @@ import {
   buildArtPrompt,
   collectArtClues,
   defaultDirection,
+  isHardEdgeStyle,
+  MEDIUM_RENDER,
   reconcileDirection,
+  STYLE_EDGE,
+  stylesBySoftness,
   suggestArtDirection,
 } from './art-direction';
 
@@ -110,5 +114,82 @@ describe('art direction engine', () => {
     const reconciled = reconcileDirection({ ...first, moods: [chosenMood] }, next);
     expect(reconciled.moods).toEqual([chosenMood]);
     expect(next.palettes).toContainEqual(reconciled.palette);
+  });
+
+  describe('soft-edge spectrum', () => {
+    it('defaults every suggested style to a soft medium', () => {
+      const clues = collectArtClues(song);
+      const s = suggestArtDirection(clues, 0);
+      for (const style of s.styles) {
+        expect(isHardEdgeStyle(style)).toBe(false);
+      }
+    });
+
+    it('keeps styles soft across many salts at the default softness', () => {
+      const clues = collectArtClues(song);
+      for (let salt = 0; salt < 25; salt++) {
+        const s = suggestArtDirection(clues, salt);
+        expect(s.styles.some(isHardEdgeStyle)).toBe(false);
+      }
+    });
+
+    it('lets hard-edge styles through at softness 0 across salts', () => {
+      const clues = collectArtClues(song);
+      // With no soft bias, hard-edge mediums are genuinely in play — over a few
+      // "Suggest again" presses at least one surfaces.
+      const surfaced = Array.from({ length: 25 }, (_, salt) =>
+        suggestArtDirection(clues, salt, 0).styles.some(isHardEdgeStyle),
+      );
+      expect(surfaced.some(Boolean)).toBe(true);
+    });
+
+    it('only ever surfaces the softest mediums at full softness', () => {
+      const clues = collectArtClues(song);
+      // wet-on-wet watercolour and misted long-exposure share the softest edge
+      // score, so either may lead — but nothing harder than the softest tier
+      // should appear at the top at full softness.
+      const softestEdge = STYLE_EDGE[stylesBySoftness()[0]];
+      const softTier = stylesBySoftness().filter((s) => STYLE_EDGE[s] === softestEdge);
+      for (let salt = 0; salt < 15; salt++) {
+        const s = suggestArtDirection(clues, salt, 1);
+        expect(softTier).toContain(s.styles[0]);
+        expect(s.styles.some(isHardEdgeStyle)).toBe(false);
+      }
+    });
+
+    it('ranks styles monotonically softer as the spectrum rises', () => {
+      const clues = collectArtClues(song);
+      const averageEdge = (styles: string[]) =>
+        styles.reduce((sum, s) => sum + (isHardEdgeStyle(s) ? 1 : 0), 0);
+      const softPass = suggestArtDirection(clues, 2, 1).styles;
+      const loosePass = suggestArtDirection(clues, 2, 0).styles;
+      expect(averageEdge(softPass)).toBeLessThanOrEqual(averageEdge(loosePass));
+    });
+
+    it('asks for softness positively rather than only forbidding hard edges', () => {
+      const clues = collectArtClues(song);
+      const direction = { ...defaultDirection(suggestArtDirection(clues, 0)), style: 'wet-on-wet watercolour' };
+      const prompt = buildArtPrompt(direction, clues, 'generic');
+      // Positive medium vocabulary (what actually makes FLUX render watercolour).
+      expect(prompt).toMatch(/pigment pooling/i);
+      expect(prompt).toMatch(/bleeding|feathered/i);
+      expect(prompt).toMatch(/no hard edges/i);
+    });
+
+    it('drops the softness clause for an explicitly hard-edge medium', () => {
+      const clues = collectArtClues(song);
+      const direction = { ...defaultDirection(suggestArtDirection(clues, 0)), style: 'vector-clean minimalism' };
+      const prompt = buildArtPrompt(direction, clues, 'generic');
+      expect(prompt).not.toMatch(/no hard edges/i);
+      expect(prompt).toMatch(/razor-sharp|graphic precision/i);
+    });
+
+    it('keeps every style name a real medium the prompt can render', () => {
+      const clues = collectArtClues(song);
+      const s = suggestArtDirection(clues, 0);
+      for (const style of s.styles) {
+        expect(MEDIUM_RENDER[style]).toBeTruthy();
+      }
+    });
   });
 });
