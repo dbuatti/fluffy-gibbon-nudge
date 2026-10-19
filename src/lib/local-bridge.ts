@@ -83,6 +83,19 @@ export interface OpenLogicResponse {
   message: string;
 }
 
+// --- Finder Folder Open ---
+
+export interface OpenFinderRequest {
+  /** Absolute POSIX path — either the song folder or its .logicx bundle (bridge resolves to the parent folder). */
+  path: string;
+}
+
+export interface OpenFinderResponse {
+  success: boolean;
+  path: string;
+  message: string;
+}
+
 // --- Status / Health ---
 
 export interface BridgeStatusResponse {
@@ -209,6 +222,16 @@ export class BridgeClient {
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
+        // Bridge errors come back as JSON { success: false, error } — surface
+        // the human-readable error instead of the whole serialized body.
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed.error === 'string') {
+            return { success: false, error: parsed.error, timestamp: parsed.timestamp || new Date().toISOString() };
+          }
+        } catch {
+          // not JSON — fall through to raw text
+        }
         return { success: false, error: `HTTP ${res.status}: ${text}`, timestamp: new Date().toISOString() };
       }
 
@@ -274,6 +297,14 @@ export class BridgeClient {
   /** Open a Logic project */
   async openLogic(req: OpenLogicRequest): Promise<BridgeResponse<OpenLogicResponse>> {
     return this.request<OpenLogicResponse>('/logic/open', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  /** Open the song's folder in Finder on the Mac running the bridge */
+  async openFinder(req: OpenFinderRequest): Promise<BridgeResponse<OpenFinderResponse>> {
+    return this.request<OpenFinderResponse>('/finder/open', {
       method: 'POST',
       body: JSON.stringify(req),
     });
@@ -409,6 +440,10 @@ export function useLocalBridge() {
     return res;
   };
 
+  const openFinder = async (folderPath: string) => {
+    return openFolderInFinder(folderPath);
+  };
+
   const getSyncStatus = async (req?: SyncStatusRequest) => {
     const res = await client.getSyncStatus(req);
     return res.success ? res.data : null;
@@ -454,6 +489,7 @@ export function useLocalBridge() {
     launchPicker,
     setMeldScene,
     openLogic,
+    openFinder,
     getSyncStatus,
     configureToken,
     mountNas,
@@ -464,6 +500,30 @@ export function useLocalBridge() {
     latency,
     hasToken: client.hasToken(),
   };
+}
+
+/**
+ * Fire-and-forget: open a song's folder in Finder on the Mac running the
+ * Local Bridge. Toasts the result — success path or a readable reason it
+ * failed (bridge offline, NAS unmounted, folder missing).
+ *
+ * Uses the singleton bridgeClient directly rather than useLocalBridge so it
+ * can be called from any component without adding another status poller.
+ */
+export async function openFolderInFinder(folderPath: string): Promise<boolean> {
+  if (!folderPath) return false;
+  try {
+    const res = await bridgeClient.openFinder({ path: folderPath });
+    if (res.success) {
+      showSuccess(res.data?.message || `Opened in Finder: ${folderPath}`);
+      return true;
+    }
+    showError(res.error || 'Could not open the folder in Finder');
+    return false;
+  } catch {
+    showError('Local Bridge unreachable — it runs on your Mac. Start it with: pm2 start composer-hub-bridge');
+    return false;
+  }
 }
 
 // ============================================================================

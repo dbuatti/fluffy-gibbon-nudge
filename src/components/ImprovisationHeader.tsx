@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Sparkles, Loader2, Palette } from 'lucide-react';
+import { RefreshCw, Sparkles, Loader2, Palette, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EditableField from './EditableField';
@@ -9,7 +9,8 @@ import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
 import TitleBar from './TitleBar';
-import FolderPathLine from './FolderPathLine';
+import FolderPathLine, { getSongFolderPath } from './FolderPathLine';
+import { openFolderInFinder } from '@/lib/local-bridge';
 import type { Improvisation, AnalysisData } from '@/types/improvisation';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,6 +41,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
   const navigate = useNavigate();
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
+  const songFolderPath = getSongFolderPath(imp);
 
   const titleContent = (
     <div className="flex flex-col items-start">
@@ -101,6 +103,18 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
       >
         <Palette className="h-4 w-4 text-pink-500" />
       </Button>
+      {songFolderPath && (
+        <Button
+          onClick={() => openFolderInFinder(songFolderPath)}
+          size="icon"
+          variant="outline"
+          title={`Open this song's folder in Finder\n${songFolderPath}`}
+          aria-label="Open Folder in Finder"
+          className="h-8 w-8"
+        >
+          <FolderOpen className="h-4 w-4 text-sky-500" />
+        </Button>
+      )}
       <ImprovisationMetadataDialog
         imp={imp}
         isPending={updateMutation.isPending}

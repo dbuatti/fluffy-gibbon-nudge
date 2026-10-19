@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -441,6 +441,16 @@ export const LocalBridgePanel: React.FC = () => {
                         <Sparkles className="h-3 w-3" />
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 flex-shrink-0"
+                      onClick={() => openFolderInFinder(c.fullPath)}
+                      title={`Open capture folder in Finder: ${c.fullPath}`}
+                      aria-label="Open capture folder in Finder"
+                    >
+                      <FolderOpen className="h-3 w-3" />
+                    </Button>
                     <span className="text-muted-foreground whitespace-nowrap">
                       {new Date(c.mtime).toLocaleDateString()}
                     </span>

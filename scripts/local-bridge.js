@@ -89,7 +89,7 @@ function loadConfig() {
 // ============================================================================
 
 function getAllowedOrigin(req) {
-  const origin = req.headers.origin;
+  const origin = req && req.headers ? req.headers.origin : null;
   if (origin && config.allowedOrigins.includes(origin)) return origin;
   return null;
 }
@@ -110,12 +110,12 @@ function sendJson(res, statusCode, data, req) {
 function requireAuth(req, res) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
-    sendJson(res, 401, { success: false, error: 'Missing or invalid Authorization header', timestamp: new Date().toISOString() });
+    sendJson(res, 401, { success: false, error: 'Missing or invalid Authorization header', timestamp: new Date().toISOString() }, req);
     return false;
   }
   const token = auth.slice(7);
   if (token !== config.token) {
-    sendJson(res, 403, { success: false, error: 'Invalid token', timestamp: new Date().toISOString() });
+    sendJson(res, 403, { success: false, error: 'Invalid token', timestamp: new Date().toISOString() }, req);
     return false;
   }
   return true;
@@ -577,6 +577,48 @@ async function handleOpenLogic(req, res, body) {
   }
 }
 
+/**
+ * POST /finder/open — open the song's folder in Finder.
+ * Accepts either a folder path or a .logicx bundle path (the bundle's parent
+ * directory is opened, since .logicx is a package, not a browsable folder).
+ */
+async function handleFinderOpen(req, res, body) {
+  try {
+    const rawPath = typeof body.path === 'string' ? body.path.trim() : '';
+    if (!rawPath) throw new Error('Missing path');
+    if (!rawPath.startsWith('/') || rawPath.includes('\u0000')) {
+      throw new Error('Path must be an absolute POSIX path');
+    }
+
+    let folderPath = rawPath.endsWith('.logicx') ? path.dirname(rawPath) : rawPath;
+    folderPath = folderPath.replace(/\/+$/, '');
+    if (!folderPath) throw new Error('Could not resolve folder from path');
+
+    if (!fs.existsSync(folderPath)) {
+      const volume = folderPath.startsWith('/Volumes/') ? folderPath.split('/')[2] : null;
+      if (volume) {
+        throw new Error(`Folder not reachable — volume "${volume}" is not mounted. Use "Mount NAS" and try again.`);
+      }
+      throw new Error(`Folder not found on this Mac: ${folderPath}`);
+    }
+
+    const stat = await fs.promises.stat(folderPath);
+    if (!stat.isDirectory()) throw new Error(`Not a folder: ${folderPath}`);
+
+    await new Promise((resolve, reject) => {
+      execFile('open', [folderPath], { timeout: 10000 }, (err) => (err ? reject(err) : resolve()));
+    });
+
+    sendJson(res, 200, {
+      success: true,
+      data: { success: true, path: folderPath, message: `Opened in Finder: ${folderPath}` },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
 async function handleSyncStatus(req, res, query) {
   try {
     // Use composer-hub.js getSyncSummary
@@ -660,6 +702,8 @@ async function startServer() {
           await handleMeldScene(req, res, parsedBody);
         } else if (pathname === '/logic/open' && req.method === 'POST') {
           await handleOpenLogic(req, res, parsedBody);
+        } else if (pathname === '/finder/open' && req.method === 'POST') {
+          await handleFinderOpen(req, res, parsedBody);
         } else if (pathname === '/sync/status' && req.method === 'GET') {
           await handleSyncStatus(req, res, query);
         } else if (pathname === '/nas/mount' && req.method === 'POST') {
@@ -691,6 +735,7 @@ async function startServer() {
     console.log('  POST /workflow/launch         - Launch Workflow Picker mode');
     console.log('  POST /meld/scene              - Switch Meld scene');
     console.log('  POST /logic/open              - Open Logic project');
+    console.log('  POST /finder/open             - Open song folder in Finder');
     console.log('  GET  /sync/status             - Query Supabase sync status');
     console.log('');
     console.log('Press Ctrl+C to stop');
