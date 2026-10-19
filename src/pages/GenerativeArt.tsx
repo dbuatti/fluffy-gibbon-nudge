@@ -42,6 +42,7 @@ const GenerativeArt: React.FC = () => {
   const [paletteName, setPaletteName] = useState('Calming Earth');
   const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
   const [promptLoading, setPromptLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const generatePromptWithGemini = useCallback(async () => {
     setPromptLoading(true);
