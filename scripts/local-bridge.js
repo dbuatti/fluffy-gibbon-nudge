@@ -133,7 +133,7 @@ function runScript(scriptName, args = []) {
     child.on('close', code => {
       clearTimeout(timer);
       if (code === 0) resolve(stdout.trim());
-      else reject(new Error(stderr || `Exit code ${code}`));
+      else reject(new Error((stderr || stdout || `Exit code ${code}`).trim()));
     });
     child.on('error', err => { clearTimeout(timer); reject(err); });
   });
