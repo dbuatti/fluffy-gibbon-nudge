@@ -178,6 +178,11 @@ export const LocalBridgePanel: React.FC = () => {
     configureToken,
     mountNas,
   } = useLocalBridge();
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (status) setLastChecked(new Date());
+  }, [status]);
   const [tokenInput, setTokenInput] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : ''));
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
@@ -267,10 +272,15 @@ export const LocalBridgePanel: React.FC = () => {
               {connected ? 'Connected' : 'Disconnected'}
             </Badge>
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={checkConnection} disabled={loading}>
+          <Button variant="ghost" size="icon" onClick={checkConnection} disabled={loading} title="Refresh connection">
             <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
           </Button>
         </div>
+        {lastChecked && (
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Last checked {lastChecked.toLocaleTimeString()}
+          </p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-3">

@@ -18,7 +18,6 @@ import { useStreakTracker } from '@/hooks/useStreakTracker';
 import { GEMINI_URL, DISTROKID_URL, INSIGHT_TIMER_URL } from '@/lib/constants';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { LocalBridgePanel } from '@/components/LocalBridgePanel';
 
 interface ImprovisationDate {
   created_at: string;
@@ -218,9 +217,6 @@ const Index = () => {
           filterStatus={filterStatus}
           sortOption={sortOption}
         />
-
-        {/* Local Bridge Panel */}
-        <LocalBridgePanel />
 
         {/* Quick Links */}
         <div className="space-y-4">
