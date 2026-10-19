@@ -64,7 +64,7 @@ export interface ArtDirection {
 export const ART_PALETTES: Record<string, string[]> = {
   'Lavender Haze': ['#EFEAF7', '#D6CCEB', '#B3A3D9', '#7E6BA8', '#3B3350'],
   'Sage & Peach': ['#F7EDE3', '#EFCDB4', '#C7D2B4', '#8FA184', '#4D5A46'],
-  'Storm Steel': ['#0D141E', '#1E2B3B', '#3E5168', '#7E93AC', '#C9D6E2'],
+  'Midnight Steel': ['#0D141E', '#1E2B3B', '#3E5168', '#7E93AC', '#C9D6E2'],
   'Ember Glow': ['#120D09', '#3B2013', '#7C3D1F', '#C8702F', '#E9B45F'],
   'Deep Ocean': ['#04121F', '#0B2B42', '#1D5A73', '#5FA6B2', '#D2EAEA'],
   'Ivory & Ash': ['#F7F3EA', '#DED6C6', '#AAA294', '#6F685C', '#2C2924'],
@@ -180,8 +180,8 @@ interface Traits {
 
 /** Keyword → visual traits. Deliberately broad: these are cues, not rules. */
 const KEYWORD_TRAITS: { re: RegExp; traits: Traits }[] = [
-  { re: /storm|thunder|wind|turbul|chaos/i, traits: { moods: ['tense', 'vast'], palettes: ['Storm Steel', 'Slate & Sky'], textures: ['weathered plaster'], energy: 'turbulent' } },
-  { re: /rain|drizzle|mist|fog|haze|smoke/i, traits: { moods: ['mysterious', 'hushed'], palettes: ['Slate & Sky', 'Storm Steel'], textures: ['drifting mist'], lighting: ['a single beam through haze'] } },
+  { re: /storm|thunder|wind|turbul|chaos/i, traits: { moods: ['tense', 'vast'], palettes: ['Midnight Steel', 'Slate & Sky'], textures: ['weathered plaster'], energy: 'turbulent' } },
+  { re: /rain|drizzle|mist|fog|haze|smoke/i, traits: { moods: ['mysterious', 'hushed'], palettes: ['Slate & Sky', 'Midnight Steel'], textures: ['drifting mist'], lighting: ['a single beam through haze'] } },
   { re: /sun|dawn|sunrise|morning|light|golden|daybreak/i, traits: { moods: ['hopeful', 'luminous'], palettes: ['Dawn Rose', 'Gold Leaf'], lighting: ['soft diffused dawn light'] } },
   { re: /dusk|twilight|evening|night|moon|star|midnight/i, traits: { moods: ['contemplative', 'mysterious'], palettes: ['Lavender Haze', 'Neon Dusk'], lighting: ['cool moonlit glow'] } },
   { re: /fire|ember|burn|flame|smoulder/i, traits: { moods: ['warm', 'restless'], palettes: ['Ember Glow', 'Gold Leaf'], energy: 'flowing' } },
@@ -190,12 +190,12 @@ const KEYWORD_TRAITS: { re: RegExp; traits: Traits }[] = [
   { re: /winter|snow|ice|frost|cold/i, traits: { moods: ['still', 'solemn'], palettes: ['Slate & Sky', 'Ivory & Ash'], textures: ['frosted glass'] } },
   { re: /autumn|harvest|amber|rust|october/i, traits: { moods: ['nostalgic', 'bittersweet'], palettes: ['Ember Glow', 'Gold Leaf'] } },
   { re: /love|heart|tender|embrace|longing/i, traits: { moods: ['tender', 'intimate'], palettes: ['Dawn Rose', 'Sage & Peach'] } },
-  { re: /grief|loss|goodbye|farewell|mourn|alone|absence/i, traits: { moods: ['melancholic', 'hushed'], palettes: ['Ivory & Ash', 'Storm Steel'], energy: 'still' } },
+  { re: /grief|loss|goodbye|farewell|mourn|alone|absence/i, traits: { moods: ['melancholic', 'hushed'], palettes: ['Ivory & Ash', 'Midnight Steel'], energy: 'still' } },
   { re: /hope|rise|renew|heal|home|return/i, traits: { moods: ['hopeful', 'serene'], palettes: ['Dawn Rose', 'Gold Leaf'] } },
   { re: /dream|sleep|drift|float|weightless/i, traits: { moods: ['dreamlike', 'weightless'], palettes: ['Lavender Haze', 'Deep Ocean'], energy: 'gentle' } },
   { re: /prayer|sacred|spirit|hymn|devotion|meditat|silence/i, traits: { moods: ['serene', 'solemn'], palettes: ['Gold Leaf', 'Ivory & Ash'], lighting: ['soft diffused dawn light'], energy: 'still' } },
   { re: /child|play|joy|dance|alive/i, traits: { moods: ['playful', 'luminous'], palettes: ['Sage & Peach', 'Dawn Rose'], energy: 'flowing' } },
-  { re: /dark|shadow|deep|void|nightfall/i, traits: { moods: ['mysterious', 'solemn'], palettes: ['Storm Steel', 'Ivory & Ash'] } },
+  { re: /dark|shadow|deep|void|nightfall/i, traits: { moods: ['mysterious', 'solemn'], palettes: ['Midnight Steel', 'Ivory & Ash'] } },
   { re: /bloom|flower|spring|blossom|seed/i, traits: { moods: ['tender', 'hopeful'], palettes: ['Sage & Peach', 'Dawn Rose'] } },
   { re: /mountain|cliff|stone|rock|canyon/i, traits: { moods: ['grounded', 'vast'], palettes: ['Clay & Moss', 'Slate & Sky'], textures: ['weathered plaster'] } },
   { re: /time|memory|remember|yesterday|passing|fading/i, traits: { moods: ['nostalgic', 'contemplative'], palettes: ['Ivory & Ash', 'Slate & Sky'] } },
@@ -208,9 +208,9 @@ const GENRE_TRAITS: { re: RegExp; traits: Traits }[] = [
   { re: /jazz|improvis/i, traits: { moods: ['playful', 'mysterious'], palettes: ['Ember Glow', 'Neon Dusk'], styles: ['textured oil painting', 'sculptural light study'], energy: 'flowing' } },
   { re: /electronic|synth|techno|experimental/i, traits: { moods: ['restless', 'dreamlike'], palettes: ['Neon Dusk', 'Deep Ocean'], styles: ['brutalist minimalism', 'frosted glass abstraction'], energy: 'turbulent' } },
   { re: /folk|acoustic|singer.?songwriter/i, traits: { moods: ['grounded', 'nostalgic'], palettes: ['Clay & Moss', 'Sage & Peach'], styles: ['raw linen', 'impressionist watercolour'], energy: 'gentle' } },
-  { re: /cinematic|soundtrack|score|orchestral/i, traits: { moods: ['vast', 'tense'], palettes: ['Storm Steel', 'Gold Leaf'], styles: ['cinematic abstract', 'sculptural light study'], energy: 'turbulent' } },
+  { re: /cinematic|soundtrack|score|orchestral/i, traits: { moods: ['vast', 'tense'], palettes: ['Midnight Steel', 'Gold Leaf'], styles: ['cinematic abstract', 'sculptural light study'], energy: 'turbulent' } },
   { re: /blues|soul|gospel/i, traits: { moods: ['bittersweet', 'intimate'], palettes: ['Ember Glow', 'Deep Ocean'], energy: 'gentle' } },
-  { re: /rock|metal|punk|grunge/i, traits: { moods: ['restless', 'tense'], palettes: ['Storm Steel', 'Ember Glow'], energy: 'turbulent' } },
+  { re: /rock|metal|punk|grunge/i, traits: { moods: ['restless', 'tense'], palettes: ['Midnight Steel', 'Ember Glow'], energy: 'turbulent' } },
   { re: /pop|indie|alternative/i, traits: { moods: ['luminous', 'playful'], palettes: ['Dawn Rose', 'Neon Dusk'], energy: 'flowing' } },
 ];
 
@@ -418,16 +418,19 @@ function atmosphericThemes(clues: ArtClues): string[] {
   ).slice(0, 4);
 }
 
+const article = (phrase: string): string => (/^[aeiou]/i.test(phrase) ? 'an' : 'a');
+
 function metadataSentence(clues: ArtClues): string {
   const kind = [clues.genre, clues.genre2].filter(Boolean).join(' / ').toLowerCase();
-  const facts: string[] = [];
-  if (kind) facts.push(kind);
-  if (clues.key) facts.push(`in ${clues.key}`);
-  if (clues.tempo) facts.push(`at ${clues.tempo} BPM`);
+  const detail = [
+    clues.key ? `in ${clues.key}` : '',
+    clues.tempo ? `at ${clues.tempo} BPM` : '',
+  ].filter(Boolean).join(' ');
   const themes = atmosphericThemes(clues);
-  const atmosphere = themes.length ? ` shaped by ${joinList(themes)}` : '';
-  if (!facts.length && !atmosphere) return '';
-  return `Translating the atmosphere of ${facts.length ? `a ${facts.join(' ')} piece` : 'the piece'}${atmosphere} into pure colour, light and texture.`;
+  const atmosphere = themes.length ? `, shaped by ${joinList(themes)},` : '';
+  if (!kind && !detail && !atmosphere) return '';
+  const subject = kind ? `${article(kind)} ${kind} piece` : 'the piece';
+  return `Translating the atmosphere of ${subject}${detail ? ` ${detail}` : ''}${atmosphere} into pure colour, light and texture.`;
 }
 
 /**

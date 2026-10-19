@@ -141,12 +141,15 @@ function fallbackPrompt(
   }
   const themes = imp ? themesOf(imp) : []
   const analysis = imp?.analysis_data || {}
-  const facts: string[] = []
-  if (imp?.primary_genre) facts.push(String(imp.primary_genre).toLowerCase())
-  if (analysis.simulated_key) facts.push(`in ${analysis.simulated_key}`)
-  if (analysis.simulated_tempo) facts.push(`at ${analysis.simulated_tempo} BPM`)
-  const atmosphere = mode === 'metadata' && (facts.length || themes.length)
-    ? ` Translating the atmosphere of ${facts.length ? `a ${facts.join(' ')} piece` : 'the piece'}${themes.length ? ` shaped by ${themes.join(', ')}` : ''} into pure colour, light and texture.`
+  const kind = imp?.primary_genre ? String(imp.primary_genre).toLowerCase() : ''
+  const detail = [
+    analysis.simulated_key ? `in ${analysis.simulated_key}` : '',
+    analysis.simulated_tempo ? `at ${analysis.simulated_tempo} BPM` : '',
+  ].filter(Boolean).join(' ')
+  const article = kind && /^[aeiou]/i.test(kind) ? 'an' : 'a'
+  const subject = kind ? `${article} ${kind} piece` : 'the piece'
+  const atmosphere = mode === 'metadata' && (kind || detail || themes.length)
+    ? ` Translating the atmosphere of ${subject}${detail ? ` ${detail}` : ''}${themes.length ? `, shaped by ${themes.join(', ')},` : ''} into pure colour, light and texture.`
     : ''
 
   return [
