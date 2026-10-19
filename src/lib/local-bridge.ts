@@ -308,6 +308,13 @@ export class BridgeClient {
   async getCaptures(): Promise<BridgeResponse<{ captures: LocalCapture[]; count: number }>> {
     return this.request<{ captures: LocalCapture[]; count: number }>('/captures');
   }
+
+  async createCaptureEntry(name: string): Promise<BridgeResponse<{ id: string; title: string; message: string }>> {
+    return this.request<{ id: string; title: string; message: string }>('/captures/create-entry', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
 }
 
 // Singleton instance for React hooks
@@ -418,8 +425,8 @@ export function useLocalBridge() {
     return res;
   };
 
-  const getCaptures = async () => {
-    return client.getCaptures();
+  const createCaptureEntry = async (name: string) => {
+    return client.createCaptureEntry(name);
   };
 
   return {
@@ -436,6 +443,7 @@ export function useLocalBridge() {
     configureToken,
     mountNas,
     getCaptures,
+    createCaptureEntry,
     setBridgeHost,
     host,
     latency,

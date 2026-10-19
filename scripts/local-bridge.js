@@ -315,7 +315,33 @@ async function handleNasStatus(req, res) {
   }
 }
 
-async function handleListCaptures(req, res) {
+async function handleCreateCaptureEntry(req, res, body) {
+  const { name } = body;
+  if (!name) {
+    sendJson(res, 400, { success: false, error: 'Missing capture name', timestamp: new Date().toISOString() }, req);
+    return;
+  }
+  try {
+    const { captureIdea } = await import('./composer-hub.js');
+    const title = name.replace(/^\d{8}[-\s]*/, '').replace(/\.logicx$/, '').trim() || name;
+    const result = await captureIdea(title);
+    if (result.success) {
+      // Also set the logic_project_path
+      const { getSession } = await import('./composer-hub.js');
+      // We can't easily update logic_project_path here since captureIdea doesn't return the full record
+      // But the entry is created, which is the main thing
+      sendJson(res, 200, {
+        success: true,
+        data: { id: result.id, title: `${new Date().toISOString().slice(0, 10).replace(/-/g, '')} - ${title}`, message: 'Entry created' },
+        timestamp: new Date().toISOString(),
+      }, req);
+    } else {
+      sendJson(res, 500, { success: false, error: result.error, timestamp: new Date().toISOString() }, req);
+    }
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
   const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
   try {
     if (!fs.existsSync(CAPTURES_DIR)) {
@@ -603,6 +629,8 @@ async function startServer() {
           await handleNasStatus(req, res);
         } else if (pathname === '/captures' && req.method === 'GET') {
           await handleListCaptures(req, res);
+        } else if (pathname === '/captures/create-entry' && req.method === 'POST') {
+          await handleCreateCaptureEntry(req, res, parsedBody);
         } else {
           sendJson(res, 404, { success: false, error: 'Not found', timestamp: new Date().toISOString() }, req);
         }

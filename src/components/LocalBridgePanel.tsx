@@ -192,6 +192,7 @@ export const LocalBridgePanel: React.FC = () => {
     configureToken,
     mountNas,
     getCaptures,
+    createCaptureEntry,
     setBridgeHost,
     host,
     latency,
@@ -415,6 +416,23 @@ export const LocalBridgePanel: React.FC = () => {
                   <div key={c.name} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]">
                     <Music className="h-3 w-3 text-primary flex-shrink-0" />
                     <span className="flex-1 truncate">{c.stem}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 flex-shrink-0"
+                      onClick={async () => {
+                        const res = await createCaptureEntry(c.name);
+                        if (res?.success) {
+                          showSuccess(`Created entry: ${res.data?.title}`);
+                          setLastResult({ success: true, message: `Created entry for ${c.stem}` });
+                        } else {
+                          showError(res?.error || 'Failed to create entry');
+                        }
+                      }}
+                      title="Create app entry"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                    </Button>
                     <span className="text-muted-foreground whitespace-nowrap">
                       {new Date(c.mtime).toLocaleDateString()}
                     </span>
