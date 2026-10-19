@@ -291,6 +291,30 @@ async function handleMountNas(req, res) {
   }
 }
 
+async function handleNasStatus(req, res) {
+  try {
+    const [mounted, tailscale, reachability] = await Promise.all([
+      checkNasMounted(),
+      checkTailscaleConnected(),
+      checkNasReachable(),
+    ]);
+    sendJson(res, 200, {
+      success: true,
+      data: {
+        mounted,
+        nasPath: mounted ? '/Volumes/Moon Prism' : null,
+        tailscaleConnected: tailscale,
+        nasReachable: reachability.reachable,
+        nasIp: reachability.ip,
+        nasCandidates: ['100.124.90.53', '192.168.1.102', 'Crystal-Tokyo.local'],
+      },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
 async function handleListCaptures(req, res) {
   const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
   try {
@@ -316,28 +340,6 @@ async function handleListCaptures(req, res) {
     sendJson(res, 200, {
       success: true,
       data: { captures: entries, count: entries.length },
-      timestamp: new Date().toISOString(),
-    }, req);
-  } catch (e) {
-    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
-  }
-}
-  try {
-    const [mounted, tailscale, reachability] = await Promise.all([
-      checkNasMounted(),
-      checkTailscaleConnected(),
-      checkNasReachable(),
-    ]);
-    sendJson(res, 200, {
-      success: true,
-      data: {
-        mounted,
-        nasPath: mounted ? '/Volumes/Moon Prism' : null,
-        tailscaleConnected: tailscale,
-        nasReachable: reachability.reachable,
-        nasIp: reachability.ip,
-        nasCandidates: ['100.124.90.53', '192.168.1.102', 'Crystal-Tokyo.local'],
-      },
       timestamp: new Date().toISOString(),
     }, req);
   } catch (e) {
