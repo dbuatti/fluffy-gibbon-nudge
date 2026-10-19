@@ -29,7 +29,7 @@ const GenerativeArt: React.FC = () => {
   const [improvisationTags, setImprovisationTags] = useState<string[]>([]);
   const [params, setParams] = useState<ArtParams>(() => createParams());
   const [seedLocked, setSeedLocked] = useState(false);
-  const [prompt, setPrompt] = useState('blue and gold abstract texture');
+  const [prompt, setPrompt] = useState('Abstract album cover art, soft flowing shapes, calming colours, minimal, no text.');
   const [paletteName, setPaletteName] = useState('Calming Earth');
   const [generating, setGenerating] = useState(false);
   const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
