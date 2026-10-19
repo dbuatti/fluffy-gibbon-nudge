@@ -84,7 +84,7 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
               <item.icon className={cn("h-[18px] w-[18px]", active && "text-primary")} strokeWidth={2.2} />
               <span>{item.label}</span>
               {item.to === '/local-bridge' && (
-                <span className={cn('ml-auto h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-red-500')} title={connected ? 'Bridge connected' : 'Bridge disconnected'} />
+                <span className={cn('ml-auto h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-red-500')} title={connected ? 'Bridge connected' : 'Bridge disconnected'} aria-label={connected ? 'Bridge connected' : 'Bridge disconnected'} />
               )}
               {active && item.to !== '/local-bridge' && (
                 <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />

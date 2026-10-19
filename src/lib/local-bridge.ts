@@ -446,11 +446,10 @@ export async function generateBridgeToken(): Promise<string> {
 export async function setupBridgeToken(): Promise<void> {
   const token = await generateBridgeToken();
   localStorage.setItem('composer-hub-bridge-token', token);
-  console.log('🔐 Bridge token generated and stored in localStorage:');
-  console.log(token);
+  console.log('🔐 Bridge token generated and stored in localStorage.');
+  console.log('📋 Copy this token to your Mac (see bridge config file).');
   console.log('');
-  console.log('📋 Copy this token to your Mac:');
-  console.log(`echo '${JSON.stringify({ token, port: BRIDGE_DEFAULT_PORT, allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'] }, null, 2)}' > ~/.config/composer-hub/bridge-config.json`);
+  console.log('To retrieve the token later, run in console: localStorage.getItem("composer-hub-bridge-token")');
 }
 
 // ============================================================================

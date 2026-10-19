@@ -106,15 +106,15 @@ const Settings: React.FC = () => {
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="w-full sm:w-auto">
-                Delete Account
+                Sign Out & Clear Local Data
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogTitle>Sign out?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete your account and all associated data.
-                  This action cannot be undone.
+                  This will sign you out and clear locally cached data (bridge token, preferences).
+                  Your account and cloud data will NOT be deleted.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -122,11 +122,12 @@ const Settings: React.FC = () => {
                 <AlertDialogAction
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={async () => {
+                    localStorage.clear();
                     await supabase.auth.signOut();
                     navigate('/login');
                   }}
                 >
-                  Delete My Account
+                  Sign Out
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

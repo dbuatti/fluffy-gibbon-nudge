@@ -82,7 +82,6 @@ const Arranging: React.FC = () => {
   const handleDelete = async () => {
     if (!deletingId) return;
     setIsDeleting(true);
-    showSuccess('Deleting arrangement...');
 
     try {
       const { error } = await supabase

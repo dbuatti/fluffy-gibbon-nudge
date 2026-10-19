@@ -26,22 +26,30 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    const acceptedMimeTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a'];
+    const acceptedExtensions = ['.mp3', '.m4a'];
+    const acceptedMimeTypes = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/mp3', ''];
     
     if (!selectedFile) {
         setFile(null);
         return;
     }
 
-    if (!acceptedMimeTypes.includes(selectedFile.type)) {
+    const ext = '.' + (selectedFile.name.split('.').pop() || '').toLowerCase();
+    const mimeOk = acceptedMimeTypes.includes(selectedFile.type);
+    const extOk = acceptedExtensions.includes(ext);
+
+    if (!mimeOk && !extOk) {
       setFile(null);
       showError('Please select a valid MP3 or M4A audio file.');
+      // Reset input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
         setFile(null);
         showError('File size exceeds the 250MB limit. Please compress or use a smaller file.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
     }
 
@@ -111,6 +119,7 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
       }
       
       setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       onUploadSuccess(); // Notify parent component to refetch details
 
     } catch (error) {

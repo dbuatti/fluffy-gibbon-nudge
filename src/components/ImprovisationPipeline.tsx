@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Clock, Edit2, AlertTriangle, CheckCircle, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Edit2, AlertTriangle, CheckCircle, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/integrations/supabase/session-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,7 +69,7 @@ const ImprovisationPipeline: React.FC = () => {
       status: 'analyzing',
       label: 'Processing File',
       count: totalAnalyzing,
-      icon: Clock,
+      icon: Loader2,
       iconWrap: 'bg-warning/15 text-warning dark:text-warning-foreground',
       accent: 'text-warning dark:text-warning-foreground',
       border: 'border-warning/40',
