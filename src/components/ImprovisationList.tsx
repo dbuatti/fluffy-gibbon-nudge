@@ -17,6 +17,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import type { Improvisation } from '@/types/improvisation';
+import { displayTitle } from '@/lib/display-title';
 import FolderPathLine from '@/components/FolderPathLine';
 
 const STALLED_THRESHOLD_HOURS = 24;
@@ -501,7 +502,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                 const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
                 const isSelected = selectedImprovisations.has(imp.id);
-                const title = imp.generated_name || imp.file_name || 'Untitled Idea';
+                const title = displayTitle(imp.generated_name || imp.file_name);
                 const dateLabel = format(new Date(imp.created_at), 'MMM d, yyyy');
                 const openDetail = () => navigate(`/improvisation/${imp.id}${nextAction.tab ? `?tab=${nextAction.tab}` : ''}`);
                 const openDefault = () => navigate(`/improvisation/${imp.id}`);

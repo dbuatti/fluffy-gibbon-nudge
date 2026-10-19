@@ -85,21 +85,6 @@ async function getSession() {
 }
 
 /**
- * Today's date as YYYYMMDD, in the machine's local timezone — not UTC.
- * Using toISOString() here would be wrong: it reports the UTC date, which is
- * a different calendar day than local time for a chunk of every 24 hours
- * (e.g. ~2am AEST is still the previous day in UTC). Since this only ever
- * runs locally on this Mac, the local date is always the correct one to use.
- */
-function localDatePrefix() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}${mm}${dd}`;
-}
-
-/**
  * Creates a new improvisation entry in Composer Hub.
  *
  * The title is free-form and always editable later in the app. When a local
@@ -119,8 +104,9 @@ async function captureIdea(title, meta = {}) {
     return { success: false, error: 'Not logged in. Run: node composer-hub-login.js' };
   }
 
-  const datePrefix = localDatePrefix();
-  const finalTitle = `${datePrefix} - ${title}`;
+  // Title is the raw creative name — no date prefix. The date lives on the
+  // record (created_at) and, for local projects, in the folder name itself.
+  const finalTitle = (title || '').trim() || 'Untitled Idea';
 
   // original_name is derived from the folder/file basename — the sacred,
   // never-changing link to the local project.

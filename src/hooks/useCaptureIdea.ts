@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { format } from 'date-fns';
 import { useSession } from '@/integrations/supabase/session-context';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,10 +24,9 @@ export const useCaptureIdea = () => {
 
     const { title = 'Quick Capture', isImprovisation = true } = options;
 
-    // 1. Determine the final title: use user input or a fallback
-    const datePrefix = format(new Date(), 'yyyyMMdd');
-    const baseTitle = title.trim();
-    const finalTitle = `${datePrefix} - ${baseTitle}`;
+    // 1. Title is the raw creative name — no date prefix. The date lives on
+    //    the record (created_at) and, for local projects, in the folder name.
+    const finalTitle = title.trim() || 'Quick Capture';
 
     try {
       const { data: newImpData, error: dbError } = await supabase // Renamed variable

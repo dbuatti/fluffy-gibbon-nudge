@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Music, Loader2, Settings2 } from 'lucide-react';
 import { showError } from '@/utils/toast';
-import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSession } from '@/integrations/supabase/session-context';
 import { useCaptureIdea } from '@/hooks/useCaptureIdea'; // Import new hook
@@ -25,10 +24,8 @@ const CaptureIdeaDialog: React.FC<CaptureIdeaDialogProps> = ({ onIdeaCaptured, d
   const [isImprovisation, setIsImprovisation] = useState('true'); // Default to improvisation
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
-  // Calculate dynamic title preview
-  const datePrefix = format(new Date(), 'yyyyMMdd');
-  const baseTitle = ideaName.trim() || 'Quick Capture';
-  const finalTitlePreview = `${datePrefix} - ${baseTitle}`;
+  // Title preview — raw creative name; the date lives on created_at
+  const finalTitlePreview = ideaName.trim() || 'Quick Capture';
 
   // Reset state when dialog opens/closes
   const handleOpenChange = (open: boolean) => {

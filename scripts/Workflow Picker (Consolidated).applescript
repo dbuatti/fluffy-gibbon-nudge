@@ -81,8 +81,9 @@ on duplicateAndOpenTemplate(templatePOSIXPath, labelPrefix)
 	do shell script "mkdir -p " & quoted form of captureFolder
 	set stamp to do shell script "date +%Y%m%d-%H%M%S"
 	-- Date-first naming (e.g. "20260722-172057 Piano.logicx") — matches
-	-- Composer Hub's own date-prefixed titles and Deep Composition's folder
-	-- naming, and sorts chronologically in Finder regardless of label.
+	-- Deep Composition's folder naming and sorts chronologically in Finder
+	-- regardless of label. (Creative titles themselves no longer carry a
+	-- date prefix — the folder stamp and created_at cover that.)
 	set newPath to captureFolder & stamp & " " & labelPrefix & ".logicx"
 	do shell script "cp -R " & quoted form of templatePOSIXPath & " " & quoted form of newPath
 	do shell script "open " & quoted form of newPath
