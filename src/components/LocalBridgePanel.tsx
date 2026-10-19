@@ -330,6 +330,7 @@ export const LocalBridgePanel: React.FC = () => {
               <StatusIndicator label="Meld Studio" connected={status.meldConnected} />
               <StatusIndicator label="Logic Pro" connected={status.logicRunning} />
               <StatusIndicator label="NAS (Moon Prism)" connected={status.nasMounted} />
+              <StatusIndicator label="Tailscale" connected={status.tailscaleConnected} />
               <StatusIndicator label="Bridge Uptime" value={`${Math.floor(status.uptimeSeconds / 60)}m`} />
             </div>
           )}

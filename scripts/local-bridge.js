@@ -192,18 +192,26 @@ async function checkNasMounted() {
 }
 
 async function checkTailscaleConnected() {
-  try {
-    const { stdout } = await new Promise((resolve, reject) => {
-      execFile('tailscale', ['status', '--json'], (err, stdout) => {
-        if (err) reject(err);
-        else resolve({ stdout });
+  const tailscalePaths = [
+    '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+    '/usr/local/bin/tailscale',
+    'tailscale',
+  ];
+  for (const tsPath of tailscalePaths) {
+    try {
+      const { stdout } = await new Promise((resolve, reject) => {
+        execFile(tsPath, ['status', '--json'], (err, stdout) => {
+          if (err) reject(err);
+          else resolve({ stdout });
+        });
       });
-    });
-    const status = JSON.parse(stdout);
-    return status.BackendState === 'Running';
-  } catch {
-    return false;
+      const status = JSON.parse(stdout);
+      return status.BackendState === 'Running';
+    } catch {
+      // Try next path
+    }
   }
+  return false;
 }
 
 async function checkNasReachable() {
@@ -228,22 +236,53 @@ async function checkNasReachable() {
 }
 
 async function handleMountNas(req, res) {
-  const candidates = ['smb://Crystal-Tokyo.local', 'smb://100.124.90.53', 'smb://192.168.1.102'];
+  const smbCandidates = [
+    { host: '100.124.90.53', url: 'smb://100.124.90.53/Moon%20Prism' },
+    { host: 'Crystal-Tokyo.local', url: 'smb://Crystal-Tokyo.local/Moon%20Prism' },
+    { host: '192.168.1.102', url: 'smb://192.168.1.102/Moon%20Prism' },
+  ];
+
   try {
-    execFile('open', [candidates[0]], (err) => {
-      if (err) execFile('open', [candidates[1]], () => {});
+    // Method 1: Silent mount via mount_smbfs (fastest, no Finder needed)
+    // Tries Tailscale IP first, then Bonjour, then local IP
+    for (const c of smbCandidates) {
+      try {
+        await new Promise((resolve, reject) => {
+          execFile('mount_smbfs', [`//guest@${c.host}/Moon%20Prism`, '/Volumes/Moon Prism'], { timeout: 8000 }, (err) => {
+            if (err) reject(err);
+            else resolve(true);
+          });
+        });
+        // Give the mount a moment to settle
+        await new Promise(r => setTimeout(r, 1000));
+        if (await checkNasMounted()) {
+          sendJson(res, 200, {
+            success: true,
+            data: { message: `NAS mounted via Tailscale (${c.host}) — no Finder needed.`, mounted: true, method: 'mount_smbfs', host: c.host },
+            timestamp: new Date().toISOString(),
+          }, req);
+          return;
+        }
+      } catch {
+        // mount_smbfs failed (probably needs auth) — try next
+      }
+    }
+
+    // Method 2: Fallback to Finder mount dialog (handles Keychain auth)
+    execFile('open', [smbCandidates[0].url], (err) => {
+      if (err) execFile('open', [smbCandidates[2].url], () => {});
     });
-    // Wait briefly to see if mount succeeded
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 2500));
     const mounted = await checkNasMounted();
     sendJson(res, 200, {
       success: true,
       data: {
         message: mounted
           ? 'NAS mounted successfully.'
-          : 'Mount dialog opened in Finder. Complete authentication if prompted, then retry.',
+          : 'Mount dialog opened in Finder. Complete authentication if prompted, then the NAS will appear.',
         mounted,
-        candidates,
+        method: 'finder',
+        candidates: smbCandidates.map(c => c.url),
       },
       timestamp: new Date().toISOString(),
     }, req);
@@ -281,10 +320,11 @@ async function handlePing(req, res) {
 }
 
 async function handleStatus(req, res) {
-  const [meldConnected, logicRunning, nasMounted] = await Promise.all([
+  const [meldConnected, logicRunning, nasMounted, tailscaleConnected] = await Promise.all([
     checkMeldConnected(),
     checkLogicRunning(),
     checkNasMounted(),
+    checkTailscaleConnected(),
   ]);
   sendJson(res, 200, {
     success: true,
@@ -295,6 +335,7 @@ async function handleStatus(req, res) {
       meldConnected,
       logicRunning,
       nasMounted,
+      tailscaleConnected,
       nasPath: nasMounted ? '/Volumes/Moon Prism' : undefined,
       config: { port: config.port, bindHost: config.bindHost || '127.0.0.1', allowedOrigins: config.allowedOrigins },
     },

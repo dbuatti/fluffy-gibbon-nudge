@@ -92,6 +92,7 @@ export interface BridgeStatusResponse {
   meldConnected: boolean;
   logicRunning: boolean;
   nasMounted: boolean;
+  tailscaleConnected?: boolean;
   nasPath?: string;
   config: Pick<BridgeConfig, 'port' | 'allowedOrigins'> & { bindHost?: string };
 }
