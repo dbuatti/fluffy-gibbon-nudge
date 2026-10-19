@@ -185,7 +185,7 @@ const GenerativeArt: React.FC = () => {
       renderArt(canvasRef.current!, p);
       // Save to history
       const dataUrl = canvasRef.current!.toDataURL('image/png');
-      setHistory((h) => [{ type: 'procedural', image: dataUrl, prompt: prompt || '', seed: p.seed }, ...h].slice(0, 12));
+      setHistory((h) => [{ type: 'procedural' as const, image: dataUrl, prompt: prompt || '', seed: p.seed }, ...h].slice(0, 12));
       // Persist to repository
       canvasToBlob(canvasRef.current!, 'procedural')
         .then((blob) => persistGeneration(blob, 'procedural', prompt || '', p.seed))
@@ -218,7 +218,7 @@ const GenerativeArt: React.FC = () => {
       if (data?.image) {
         setAiImage(data.image);
         setAiConfigured(true);
-        setHistory((h) => [{ type: 'cloudflare', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
+        setHistory((h) => [{ type: 'cloudflare' as const, image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('AI artwork generated');
         // Persist to repository (FLUX returns PNG)
         persistGeneration(base64ToBlob(data.image), 'cloudflare', prompt.trim()).catch(() => {});
@@ -262,7 +262,7 @@ const GenerativeArt: React.FC = () => {
       if (data?.image) {
         setAiImage(data.image);
         setAiConfigured(true);
-        setHistory((h) => [{ type: 'gemini', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
+        setHistory((h) => [{ type: 'gemini' as const, image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('Gemini artwork generated');
         persistGeneration(base64ToBlob(data.image), 'gemini', prompt.trim()).catch(() => {});
       }

@@ -23,6 +23,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { pathToFileURL } from 'url';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'composer-hub');
 const AUTH_FILE = path.join(CONFIG_DIR, 'auth.json');
@@ -56,18 +57,27 @@ async function getSession() {
 
   if (!auth.refresh_token) return null;
 
-  const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-    method: 'POST',
-    headers: {
-      'apikey': ANON_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ refresh_token: auth.refresh_token }),
-  });
+  let res;
+  try {
+    res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: {
+        'apikey': ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: auth.refresh_token }),
+    });
+  } catch {
+    // Network trouble (offline, VPN flap, Supabase down) — keep the cached
+    // token, it may still be perfectly valid. Callers treat null as "no
+    // session for now".
+    return null;
+  }
 
   if (!res.ok) {
-    // Token expired or invalid — wipe it so next run prompts re-login
-    fs.unlinkSync(AUTH_FILE);
+    // Only discard the token on definitive auth failures — a transient 5xx
+    // shouldn't log you out.
+    if ([400, 401, 403, 404].includes(res.status)) fs.unlinkSync(AUTH_FILE);
     return null;
   }
 
@@ -405,7 +415,9 @@ export { captureIdea, getDailyPrompt, uploadAudio, getPendingReleases, getStaleI
 //   node composer-hub.js "My Title" --path "/path/Project.logicx" -> idea + folder link
 //   node composer-hub.js "My Title" --path "..." --mode piano_improvisation
 //   node composer-hub.js --prompt                                -> prints a fresh daily prompt (plain text, for scripting)
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+// pathToFileURL handles spaces/symlinks in argv[1] that a raw `file://` +
+// path concat would get wrong.
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const args = process.argv.slice(2);
   const arg = args.find(a => !a.startsWith('--'));
@@ -426,6 +438,9 @@ if (isMain) {
         console.error(result.error);
         process.exit(1);
       }
+    }).catch((err) => {
+      console.error(`✗ ${err.message}`);
+      process.exit(1);
     });
   } else if (!arg) {
     console.error('Usage: node composer-hub.js "Title for the idea" [--path "/path/Project.logicx"] [--mode piano_improvisation]  |  node composer-hub.js --prompt');
@@ -441,6 +456,9 @@ if (isMain) {
       } else {
         process.exit(1);
       }
+    }).catch((err) => {
+      console.error(`✗ Capture failed: ${err.message}`);
+      process.exit(1);
     });
   }
 }

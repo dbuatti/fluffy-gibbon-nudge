@@ -102,7 +102,13 @@ export async function assignArtworkToImprovisation(improvisationId: string, item
     .update({ artwork_url: item.public_url, artwork_prompt: item.prompt })
     .eq('id', improvisationId);
   if (error) throw error;
-  await supabase.from('art_repository').update({ improvisation_id: improvisationId }).eq('id', item.id).catch(() => {});
+  try {
+    // Best-effort link back from the repository entry — the artwork is
+    // already assigned above, so a failure here is not fatal.
+    await supabase.from('art_repository').update({ improvisation_id: improvisationId }).eq('id', item.id);
+  } catch {
+    // ignore
+  }
 }
 
 /**

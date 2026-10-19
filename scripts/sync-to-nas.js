@@ -16,7 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execFileSync } from 'child_process';
+import { execFileSync, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,14 +83,17 @@ function checkNasMounted() {
   }
 }
 
-function tryMountNas() {
+async function tryMountNas() {
   const candidates = ['smb://100.124.90.53/Moon%20Prism', 'smb://Crystal-Tokyo.local/Moon%20Prism', 'smb://192.168.1.102/Moon%20Prism'];
   for (const url of candidates) {
     try {
       execFileSync('open', [url], { stdio: 'ignore', timeout: 5000 });
-      const start = Date.now();
-      while (Date.now() - start < 3000) {
+      // Poll (rather than busy-spin) for the volume to appear — mounting over
+      // SMB/Tailscale usually takes a couple of seconds.
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
         if (checkNasMounted()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 250));
       }
     } catch {
       // Try next candidate
@@ -150,6 +153,54 @@ async function updateNasFolderPath(session, improvisationId, nasPath) {
   if (!res.ok) throw new Error(`Supabase update failed: ${res.status}`);
 }
 
+/**
+ * Recursive folder size in MB (source is always local, so this is cheap).
+ * Shown before each copy so a long NAS transfer is never a silent "hang".
+ */
+function dirSizeMB(dirPath) {
+  let bytes = 0;
+  const stack = [dirPath];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue; // unreadable subfolder — size is an estimate anyway
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+      } else if (entry.isFile()) {
+        try { bytes += fs.statSync(fullPath).size; } catch { /* raced away */ }
+      }
+    }
+  }
+  return bytes / (1024 * 1024);
+}
+
+/**
+ * Copy a .logicx bundle to the NAS with visible progress. Prefers rsync
+ * (--progress streams live per-file output, and same-size/same-mtime files
+ * are skipped, so an interrupted --apply resumes instead of restarting);
+ * falls back to a plain recursive copy if rsync is unavailable.
+ */
+function copyTree(src, dest) {
+  // A partial dest bundle (from an interrupted run) should have contents
+  // synced into it; otherwise copy src AS dest — which also preserves the
+  // sanitised rename that getNasSyncPath computed.
+  const plainArgs = fs.existsSync(dest) && fs.statSync(dest).isDirectory()
+    ? ['-a', `${src}/`, `${dest}/`]
+    : ['-a', src, dest];
+  for (const args of [['-a', '--progress', ...plainArgs.slice(1)], plainArgs]) {
+    const result = spawnSync('rsync', args, { stdio: ['ignore', 'inherit', 'inherit'] });
+    if (result.error && result.error.code === 'ENOENT') break; // rsync not installed → cpSync fallback
+    if (result.status === 0) return;
+  }
+  fs.cpSync(src, dest, { recursive: true });
+}
+
 async function main() {
   console.log('🔄 sync-to-nas');
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN (use --apply to copy)' : 'APPLY'}`);
@@ -159,7 +210,7 @@ async function main() {
   let nasMounted = checkNasMounted();
   if (!nasMounted) {
     console.log('NAS not mounted. Attempting to mount via Tailscale...');
-    nasMounted = tryMountNas();
+    nasMounted = await tryMountNas();
   }
   console.log(`NAS mounted: ${nasMounted ? '✅' : '❌'} (${nasMounted ? 'OK' : 'Not mounted — check Tailscale connection'})`);
   if (!nasMounted) {
@@ -221,11 +272,14 @@ async function main() {
       // Ensure NAS directory exists
       fs.mkdirSync(path.dirname(nasPath), { recursive: true });
 
-      // Copy file (logicx is a directory, copy recursively)
+      // Copy the bundle (a .logicx is a directory tree). copyTree uses rsync
+      // with live progress — which also resumes cleanly if a previous --apply
+      // was interrupted — and falls back to a plain recursive copy.
       if (fs.existsSync(c.fullPath)) {
-        // Use cp -R equivalent
-        fs.cpSync(c.fullPath, nasPath, { recursive: true });
-        console.log(`  ✅ Copied: ${c.name}`);
+        console.log(`    (${dirSizeMB(c.fullPath).toFixed(1)} MB — progress below)`);
+        const startedAt = Date.now();
+        copyTree(c.fullPath, nasPath);
+        console.log(`  ✅ Copied: ${c.name} (${((Date.now() - startedAt) / 1000).toFixed(1)}s)`);
         copied++;
       } else {
         console.log(`  ⚠️ Source missing: ${c.fullPath}`);

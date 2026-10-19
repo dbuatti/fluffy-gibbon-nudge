@@ -104,8 +104,9 @@ async function connectWithRetry() {
 }
 
 async function main() {
-  const [sceneName, flag] = process.argv.slice(2);
-  const shouldRecord = flag === '--record';
+  const args = process.argv.slice(2);
+  const shouldRecord = args.includes('--record');
+  const sceneName = args.find((a) => a !== '--record');
 
   if (!sceneName) {
     console.error('Usage: node meld-scene.js "<Scene Name>" [--record]');
@@ -124,6 +125,14 @@ async function main() {
     );
     process.exit(1);
   }
+
+  // Fail fast instead of hanging forever if Meld accepts the socket but never
+  // answers (e.g. mid-update). Every success path exits on its own, so this
+  // only ever fires on a genuine hang.
+  setTimeout(() => {
+    console.error('Timed out after 20s waiting for Meld to respond — is it stuck?');
+    process.exit(1);
+  }, 20000);
 
   ws.onerror = (err) => {
     console.error('Meld connection error:', err.message || err);

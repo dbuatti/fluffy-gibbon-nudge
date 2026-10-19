@@ -29,6 +29,11 @@ const FILES = [
   'finish-take.js',
   'local-bridge.js',
   'sync-to-nas.js',
+  'qwebchannel.cache.js',
+  // The Workflow Picker source must be synced too — osacompile below builds
+  // the .app from the TARGET copy, so without this the live app silently
+  // stays frozen at whatever version was last copied by hand.
+  'Workflow Picker (Consolidated).applescript',
 ];
 
 async function main() {

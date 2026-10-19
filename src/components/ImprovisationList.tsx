@@ -540,7 +540,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                           </Avatar>
                           <div className="min-w-0 flex-1">
                             <h3 className="text-sm font-semibold leading-snug line-clamp-2 flex items-start gap-1.5">
-                              {isStalled && <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-destructive flex-shrink-0" title="Stalled — captured but untouched" />}
+                              {isStalled && <span title="Stalled — captured but untouched"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-destructive flex-shrink-0" /></span>}
                               <span className="min-w-0 break-words">{title}</span>
                             </h3>
                             <FolderPathLine imp={imp} className="mt-1" />
@@ -606,7 +606,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
                     <div className="min-w-0 flex-1">
                       <h3 className="text-sm font-semibold leading-tight flex items-center gap-1.5 min-w-0">
-                        {isStalled && <AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" title="Stalled — captured but untouched" />}
+                        {isStalled && <span title="Stalled — captured but untouched"><AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" /></span>}
                         <span className="truncate">{title}</span>
                         {getStatusBadge(imp)}
                       </h3>

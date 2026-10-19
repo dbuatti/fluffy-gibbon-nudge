@@ -304,9 +304,8 @@ else if workflowChoice is "Piano Improvisation" then
 			set promptChoice to "Skip Title"
 		end try
 		if promptChoice is "Skip Title" then
-			-- Just the sound + time, no date — composer-hub.js already prepends
-			-- today's date to every title, so including it here too would show
-			-- up twice (e.g. "20260722 - Piano 2026-07-22 16:10").
+			-- Just the sound + time — titles are free-form now (no date prefix;
+			-- the date lives on the record and in the folder name).
 			set finalTitle to soundChoice & " " & (do shell script "date +%H:%M")
 			exit repeat
 		else if promptChoice is "Let's Play" then

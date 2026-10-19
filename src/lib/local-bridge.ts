@@ -202,7 +202,7 @@ export class BridgeClient {
     return '';
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<BridgeResponse<T>> {
+  private async request<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 15000): Promise<BridgeResponse<T>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
@@ -212,7 +212,7 @@ export class BridgeClient {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
         ...options,
@@ -237,10 +237,17 @@ export class BridgeClient {
 
       return res.json();
     } catch (e: any) {
-      if (e.name === 'AbortError') {
-        return { success: false, error: 'Request timed out', timestamp: new Date().toISOString() };
+      // Never throw — every caller just shows res.error, so resolve to a
+      // friendly failure instead. (This also stops unhandled rejections from
+      // fire-and-forget callers like setMeldScene/openLogic/mountNas.)
+      if (e?.name === 'AbortError' || e?.name === 'TimeoutError') {
+        return { success: false, error: `Bridge request timed out after ${Math.round(timeoutMs / 1000)}s`, timestamp: new Date().toISOString() };
       }
-      throw e;
+      return {
+        success: false,
+        error: 'Local Bridge unreachable — it runs on your Mac. Start it with: pm2 start composer-hub-bridge',
+        timestamp: new Date().toISOString(),
+      };
     } finally {
       clearTimeout(timer);
     }
@@ -280,10 +287,15 @@ export class BridgeClient {
 
   /** Launch a Workflow Picker mode */
   async launchPicker(req: LaunchPickerRequest): Promise<BridgeResponse<LaunchPickerResponse>> {
+    // The bridge runs the local script inline: finish_take/upload_audio are
+    // capped at 120s server-side, sync_nas at 10min (NAS copies of Logic
+    // bundles take a while). Give each mode just enough headroom so the
+    // bridge's own timeout — which carries a real error message — always wins.
+    const timeoutMs = req.mode === 'sync_nas' ? 610000 : 130000;
     return this.request<LaunchPickerResponse>('/workflow/launch', {
       method: 'POST',
       body: JSON.stringify(req),
-    });
+    }, timeoutMs);
   }
 
   /** Switch Meld Studio scene */
@@ -332,7 +344,9 @@ export class BridgeClient {
 
   /** Open macOS mount dialog for the NAS (Moon Prism) */
   async mountNas(): Promise<BridgeResponse<{ message: string; mounted: boolean; candidates: string[] }>> {
-    return this.request<{ message: string; mounted: boolean; candidates: string[] }>('/nas/mount', { method: 'POST' });
+    // The bridge tries up to three SMB hosts with waits in between (~30s worst
+    // case) — the default 15s would give up while it was still mounting.
+    return this.request<{ message: string; mounted: boolean; candidates: string[] }>('/nas/mount', { method: 'POST' }, 45000);
   }
 
   async getNasStatus(): Promise<BridgeResponse<NasStatusResponse>> {
@@ -372,20 +386,7 @@ export function useLocalBridge() {
   const warnedOfflineRef = useRef(false); // one-shot console.info per offline transition
 
   const checkConnection = useCallback(async () => {
-    try {
-      const start = Date.now();
-      const res = await client.ping();
-      const elapsed = Date.now() - start;
-      setLatency(elapsed);
-      setConnected(res.success);
-      warnedOfflineRef.current = false; // any success resets the one-shot warning
-      if (res.success) {
-        const statusRes = await client.getStatus();
-        if (statusRes.success && statusRes.data) {
-          setStatus(statusRes.data);
-        }
-      }
-    } catch {
+    const markOffline = () => {
       // Bridge offline is a normal state (e.g. opened on another machine or
       // via composerhub.vercel.app) — degrade silently instead of spamming
       // the console every 30s. Only warn once per offline transition.
@@ -396,6 +397,23 @@ export function useLocalBridge() {
         warnedOfflineRef.current = true;
         console.info('[LocalBridge] Bridge offline — running in web-only mode. Start it with: pm2 start composer-hub-bridge');
       }
+    };
+    try {
+      const start = Date.now();
+      const res = await client.ping();
+      if (!res.success) {
+        markOffline();
+        return;
+      }
+      setLatency(Date.now() - start);
+      setConnected(true);
+      warnedOfflineRef.current = false; // any success resets the one-shot warning
+      const statusRes = await client.getStatus();
+      if (statusRes.success && statusRes.data) {
+        setStatus(statusRes.data);
+      }
+    } catch {
+      markOffline();
     }
   }, [client]);
 

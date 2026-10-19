@@ -39,11 +39,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { uploadAudio, getEntryStatus } from './composer-hub.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getSyncSummary, uploadAudio } from './composer-hub.js';
 
 const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
 const INBOX_DIR = '/Users/danielebuatti/Movies/_Inbox'; // point Meld's Local Destination here, once
@@ -128,7 +124,6 @@ async function uploadAudioOnlyMain() {
   console.log(`🎵 Found: ${audioFile.name}`);
 
   // Find matching entry in Supabase
-  const { getSyncSummary, uploadAudio } = await import('./composer-hub.js');
   const syncResult = await getSyncSummary({ limit: 100 });
 
   if (!syncResult.success) {
@@ -156,7 +151,7 @@ async function uploadAudioOnlyMain() {
   }
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const uploadAudioOnly = args.includes('--upload-audio-only');
   const title = sanitizeTitle(args.find(a => !a.startsWith('--')));
@@ -284,7 +279,6 @@ async function uploadMatchingAudio(targetStem, logicxName) {
     console.log(`🎵 Found bounced audio: ${audioFile.name}`);
 
     // Find matching improvisation by logic_project_path
-    const { getSyncSummary } = await import('./composer-hub.js');
     const syncResult = await getSyncSummary({ limit: 100 });
     if (!syncResult.success) {
       console.log('⚠️  Could not fetch sync status to find matching entry');
@@ -302,7 +296,6 @@ async function uploadMatchingAudio(targetStem, logicxName) {
 
     console.log(`📤 Uploading audio to entry: ${match.generatedName} (${match.id})`);
 
-    const { uploadAudio } = await import('./composer-hub.js');
     const uploadResult = await uploadAudio(match.id, audioFile.fullPath);
 
     if (uploadResult.success) {
@@ -315,4 +308,7 @@ async function uploadMatchingAudio(targetStem, logicxName) {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(`\n✗ ${err.message}`);
+  process.exit(1);
+});

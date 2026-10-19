@@ -16,6 +16,7 @@ import readline from 'readline';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { pathToFileURL } from 'url';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'composer-hub');
 const AUTH_FILE = path.join(CONFIG_DIR, 'auth.json');
@@ -27,6 +28,29 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 async function prompt(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => rl.question(question, (answer) => { rl.close(); resolve(answer); }));
+}
+
+/**
+ * Like prompt(), but echoes * per character instead of the typed text, so
+ * the password doesn't end up in scrollback or over the shoulder.
+ */
+function promptHidden(question) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    // readline echoes keystrokes through _writeToOutput — swap it for a
+    // masked version while the secret is being typed. (The prompt itself is
+    // written synchronously inside question(), before muting kicks in.)
+    rl._writeToOutput = (stringToWrite) => {
+      rl.output.write(rl.stdoutMuted ? '*' : stringToWrite);
+    };
+    rl.question(question, (answer) => {
+      rl.stdoutMuted = false;
+      process.stdout.write('\n');
+      rl.close();
+      resolve(answer);
+    });
+    rl.stdoutMuted = true;
+  });
 }
 
 /**
@@ -88,7 +112,7 @@ function extractSessionFromChrome() {
 
 async function loginWithPassword() {
   const email = await prompt('Supabase email: ');
-  const password = await prompt('Supabase password: ');
+  const password = await promptHidden('Supabase password: ');
 
   console.log('\nSigning in...');
 
@@ -235,7 +259,10 @@ async function main() {
       console.error('Login failed.');
       process.exit(1);
     }
-    await validateAndSave(result.refresh_token, result.email);
+    if (!(await validateAndSave(result.refresh_token, result.email))) {
+      console.error('Login failed.');
+      process.exit(1);
+    }
     return;
   }
 
@@ -274,10 +301,15 @@ async function main() {
     process.exit(1);
   }
 
-  await validateAndSave(result.refresh_token, result.email);
+  if (!(await validateAndSave(result.refresh_token, result.email))) {
+    console.error('Login failed.');
+    process.exit(1);
+  }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+// pathToFileURL handles spaces/symlinks in argv[1] that a raw `file://` +
+// path concat would get wrong.
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   main().catch((err) => {
     console.error('Unexpected error:', err);

@@ -114,20 +114,23 @@ function requireAuth(req, res) {
     return false;
   }
   const token = auth.slice(7);
-  if (token !== config.token) {
+  // Constant-time compare — cheap hardening against timing side channels.
+  const expected = Buffer.from(config.token);
+  const provided = Buffer.from(token);
+  if (expected.length !== provided.length || !crypto.timingSafeEqual(expected, provided)) {
     sendJson(res, 403, { success: false, error: 'Invalid token', timestamp: new Date().toISOString() }, req);
     return false;
   }
   return true;
 }
 
-function runScript(scriptName, args = []) {
+function runScript(scriptName, args = [], timeoutMs = 120000) {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(SCRIPTS_DIR, scriptName);
     const child = spawn('node', ['--no-warnings', scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('Script timed out after 120s')); }, 120000);
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`Script timed out after ${Math.round(timeoutMs / 1000)}s`)); }, timeoutMs);
     child.stdout.on('data', d => stdout += d);
     child.stderr.on('data', d => stderr += d);
     child.on('close', code => {
@@ -337,7 +340,7 @@ async function handleCreateCaptureEntry(req, res, body) {
         success: true,
         data: {
           id: result.id,
-          title: `${new Date().toISOString().slice(0, 10).replace(/-/g, '')} - ${title || derivedTitle}`,
+          title: title || derivedTitle,
           originalName: result.originalName,
           logicProjectPath: fullPath,
           message: 'Entry created with folder link',
@@ -522,7 +525,9 @@ async function handleLaunchPicker(req, res, body) {
       }
 
       case 'sync_nas': {
-        const output = await runScript('sync-to-nas.js', ['--apply']);
+        // NAS copies of Logic bundles can take many minutes — give this mode a
+        // long leash (the client matches with an even larger timeout).
+        const output = await runScript('sync-to-nas.js', ['--apply'], 600000);
         result = {
           launched: true,
           message: 'NAS sync initiated',
@@ -690,7 +695,13 @@ async function startServer() {
         sendJson(res, 413, { success: false, error: 'Request body too large', timestamp: new Date().toISOString() }, req);
         return;
       }
-      const parsedBody = body ? JSON.parse(body) : {};
+      let parsedBody = {};
+      try {
+        parsedBody = body ? JSON.parse(body) : {};
+      } catch {
+        sendJson(res, 400, { success: false, error: 'Invalid JSON in request body', timestamp: new Date().toISOString() }, req);
+        return;
+      }
       const query = Object.fromEntries(url.searchParams);
 
       try {
@@ -737,6 +748,10 @@ async function startServer() {
     console.log('  POST /logic/open              - Open Logic project');
     console.log('  POST /finder/open             - Open song folder in Finder');
     console.log('  GET  /sync/status             - Query Supabase sync status');
+    console.log('  POST /nas/mount               - Open macOS mount dialog for the NAS');
+    console.log('  GET  /nas/status              - NAS mount + reachability status');
+    console.log('  GET  /captures                - List local Logic captures');
+    console.log('  POST /captures/create-entry   - Create app entry for a capture');
     console.log('');
     console.log('Press Ctrl+C to stop');
   });
