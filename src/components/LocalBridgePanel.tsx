@@ -178,7 +178,7 @@ export const LocalBridgePanel: React.FC = () => {
     configureToken,
     mountNas,
   } = useLocalBridge();
-  const [tokenInput, setTokenInput] = useState('');
+  const [tokenInput, setTokenInput] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : ''));
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
   const handleLaunch = async (mode: string, extras: Record<string, unknown> = {}) => {
