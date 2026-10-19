@@ -76,10 +76,20 @@ function getDimensions(ar: ArtParams['aspectRatio']): [number, number] {
   }
 }
 
-// Simplex-like noise (simplified Perlin)
-function noise2D(x: number, y: number, seed: number): number {
-  const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
-  return n - Math.floor(n);
+// Simplex-like noise (multi-octave)
+function noise2D(x: number, y: number, seed: number, octaves = 3): number {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = 1;
+  let maxValue = 0;
+  for (let o = 0; o < octaves; o++) {
+    const n = Math.sin(x * 12.9898 * frequency + y * 78.233 * frequency + seed * (o + 1)) * 43758.5453;
+    value += (n - Math.floor(n)) * amplitude;
+    maxValue += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  return value / maxValue;
 }
 
 export function renderArt(canvas: HTMLCanvasElement, params: ArtParams): void {
@@ -92,11 +102,24 @@ export function renderArt(canvas: HTMLCanvasElement, params: ArtParams): void {
   const rng = mulberry32(params.seed + (params.prompt ? hashString(params.prompt) : 0));
   const palette = params.palette;
 
-  // Background gradient
+  // Background gradient with more stops
   const grad = ctx.createLinearGradient(0, 0, w, h);
   grad.addColorStop(0, palette[0]);
+  grad.addColorStop(0.3, palette[1] || palette[0]);
+  grad.addColorStop(0.7, palette[palette.length - 2] || palette[palette.length - 1]);
   grad.addColorStop(1, palette[palette.length - 1]);
   ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Focal point glow
+  const focalX = w * (0.3 + rng() * 0.4);
+  const focalY = h * (0.3 + rng() * 0.4);
+  const focalR = Math.min(w, h) * (0.3 + rng() * 0.2);
+  const focalGrad = ctx.createRadialGradient(focalX, focalY, 0, focalX, focalY, focalR);
+  focalGrad.addColorStop(0, palette[Math.floor(rng() * palette.length)] + '60');
+  focalGrad.addColorStop(0.5, palette[Math.floor(rng() * palette.length)] + '20');
+  focalGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = focalGrad;
   ctx.fillRect(0, 0, w, h);
 
   // Layered color fields
@@ -115,29 +138,33 @@ export function renderArt(canvas: HTMLCanvasElement, params: ArtParams): void {
     ctx.fillRect(0, 0, w, h);
   }
 
-  // Flow field particles
+  // Flow field particles with multi-octave noise
   if (params.flow > 0) {
-    const numParticles = Math.round(params.density * 200);
-    const steps = Math.round(params.complexity * 50);
-    ctx.lineWidth = 0.5 + params.flow * 1.5;
+    const numParticles = Math.round(params.density * 300);
+    const steps = Math.round(params.complexity * 80);
+    ctx.lineWidth = 0.3 + params.flow * 1.2;
+    ctx.globalCompositeOperation = 'lighter';
 
     for (let p = 0; p < numParticles; p++) {
       let x = rng() * w;
       let y = rng() * h;
       const color = palette[Math.floor(rng() * palette.length)];
-      ctx.strokeStyle = color + '80';
+      const alpha = Math.round((0.3 + rng() * 0.4) * 255).toString(16).padStart(2, '0');
+      ctx.strokeStyle = color + alpha;
       ctx.beginPath();
       ctx.moveTo(x, y);
 
       for (let s = 0; s < steps; s++) {
-        const angle = noise2D(x / 200, y / 200, params.seed) * Math.PI * 2 * params.flow;
-        x += Math.cos(angle) * 2;
-        y += Math.sin(angle) * 2;
+        const n = noise2D(x / 300, y / 300, params.seed, 4);
+        const angle = n * Math.PI * 4 * params.flow;
+        x += Math.cos(angle) * 1.5;
+        y += Math.sin(angle) * 1.5;
         if (x < 0 || x > w || y < 0 || y > h) break;
         ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // Organic shapes
