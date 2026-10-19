@@ -1,131 +1,110 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, XCircle, Music, Image as ImageIcon, Info, Loader2, BookOpen } from 'lucide-react';
+import { CheckCircle, XCircle, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import type { ReleaseReadiness } from '@/lib/release-readiness';
 
 interface PreFlightChecklistProps {
-  imp: {
-    id: string;
-    storage_path: string | null;
-    artwork_url: string | null;
-    is_metadata_confirmed: boolean | null;
-    insight_benefits: string[] | null;
-    insight_practices: string | null;
-    insight_themes: string[] | null;
-  };
+  readiness: ReleaseReadiness;
   isAnalyzing: boolean;
+  onOpenTab: (tab: string) => void;
 }
 
-const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzing }) => {
-  const hasAudioFile = !!imp.storage_path;
-  const hasArtwork = !!imp.artwork_url;
-  const isMetadataConfirmed = !!imp.is_metadata_confirmed;
-  
-  // Check if Insight Timer categorization is complete (used as a proxy for full metadata review)
-  const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
-
-  // --- Individual Checks ---
-  const audioCheck = {
-    status: hasAudioFile ? 'passed' : 'skipped',
-    label: hasAudioFile ? 'Audio File Uploaded' : 'Audio File (Optional)',
-    icon: hasAudioFile ? CheckCircle : Music,
-    color: hasAudioFile ? 'text-success' : 'text-muted-foreground',
-    actionLink: hasAudioFile ? undefined : '#audio-upload-cta',
-    actionLabel: hasAudioFile ? undefined : 'Upload Audio',
-  };
-
-  const artworkCheck = {
-    status: hasArtwork ? 'passed' : 'failed',
-    label: hasArtwork ? 'Artwork Generated (3000x3000)' : 'Artwork Missing',
-    icon: hasArtwork ? CheckCircle : XCircle,
-    color: hasArtwork ? 'text-success' : 'text-destructive',
-    actionLink: hasArtwork ? undefined : '#artwork-actions',
-    actionLabel: hasArtwork ? undefined : 'Generate Artwork',
-  };
-  
-  const metadataCheck = {
-    status: isMetadataConfirmed ? 'passed' : (hasInsightTimerCategorization ? 'pending' : 'failed'),
-    label: isMetadataConfirmed ? 'AI Metadata Confirmed' : (hasInsightTimerCategorization ? 'Review & Confirm Metadata' : 'AI Metadata Incomplete'),
-    icon: isMetadataConfirmed ? CheckCircle : (hasInsightTimerCategorization ? Info : XCircle),
-    color: isMetadataConfirmed ? 'text-success' : (hasInsightTimerCategorization ? 'text-warning' : 'text-destructive'),
-    actionLink: isMetadataConfirmed ? undefined : '#insight-timer-confirmation',
-    actionLabel: isMetadataConfirmed ? undefined : 'Go to Insight Timer Prep',
-  };
-  
-  // --- Overall Status ---
-  const allChecks = [audioCheck, artworkCheck, metadataCheck];
-  const isReady = allChecks.every(c => c.status === 'passed');
-  const isBlocked = allChecks.some(c => c.status === 'failed');
+/**
+ * Distribution pre-flight summary.
+ *
+ * This used to keep its own private list of checks that disagreed with the
+ * Overview tab and with the distribution tabs (it claimed artwork was
+ * "3000x3000" without ever looking, and treated audio as a blocker). It now
+ * renders the required tasks straight from the shared readiness model, so the
+ * three surfaces can never disagree again.
+ */
+const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAnalyzing, onOpenTab }) => {
+  const { blockers, readyToSubmit, completed, total } = readiness;
 
   return (
-    <Card className={cn(
-        "shadow-card-light dark:shadow-card-dark transition-all",
-        isReady ? "border-4 border-success/50" : (isBlocked ? "border-4 border-destructive/50" : "border-4 border-warning/50")
-    )}>
+    <Card
+      className={cn(
+        'shadow-card-light dark:shadow-card-dark transition-all border-2',
+        readyToSubmit ? 'border-success/50' : 'border-warning/50',
+      )}
+    >
       <CardHeader className="pb-3">
-        <CardTitle className="text-2xl font-bold flex items-center">
-          {isReady ? (
-            <CheckCircle className="h-6 w-6 mr-3 text-success" />
-          ) : isBlocked ? (
-            <XCircle className="h-6 w-6 mr-3 text-destructive" />
+        <CardTitle className="text-xl font-bold flex items-center gap-3">
+          {readyToSubmit ? (
+            <CheckCircle className="h-5 w-5 text-success" />
           ) : (
-            <Info className="h-6 w-6 mr-3 text-warning" />
+            <Info className="h-5 w-5 text-warning" />
           )}
-          Distribution Pre-Flight Checklist
+          Distribution Pre-Flight
+          <span className="ml-auto text-sm font-normal text-muted-foreground">
+            {completed}/{total} steps
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {isAnalyzing && (
-            <div className="flex items-center p-3 bg-warning/10 dark:bg-warning/20 border border-warning/30 rounded-lg">
-                <Loader2 className="h-5 w-5 mr-3 animate-spin text-warning" />
-                <p className="text-sm font-medium text-warning-foreground">
-                    Background processing is running. Checks may be incomplete.
-                </p>
-            </div>
+          <div className="flex items-center p-3 bg-warning/10 border border-warning/30 rounded-lg">
+            <Loader2 className="h-5 w-5 mr-3 animate-spin text-warning" />
+            <p className="text-sm font-medium text-muted-foreground">
+              Background processing is running. These checks may be incomplete.
+            </p>
+          </div>
         )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {allChecks.map((check, index) => {
-            const Icon = check.icon;
-            return (
-              <div key={index} className="p-3 border rounded-lg space-y-2 bg-background/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold flex items-center">
-                    <Icon className={cn("h-4 w-4 mr-2", check.color)} />
-                    {check.label}
+
+        {readyToSubmit ? (
+          <p className="text-sm text-muted-foreground">
+            Every item that blocks distribution is complete. The remaining steps on the
+            Overview tab are optional polish.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {blockers.length === 1
+                ? 'One item must be fixed before this release can be submitted.'
+                : `${blockers.length} items must be fixed before this release can be submitted.`}
+            </p>
+            <ul className="space-y-2">
+              {blockers.map((task) => (
+                <li
+                  key={task.id}
+                  className="flex items-start gap-3 p-3 border border-destructive/30 rounded-lg bg-destructive/5"
+                >
+                  <XCircle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{task.label}</span>
+                    <span className="block text-xs text-muted-foreground mt-0.5">{task.why}</span>
                   </span>
-                  <Badge variant={check.status === 'passed' ? 'default' : (check.status === 'failed' ? 'destructive' : (check.status === 'skipped' ? 'outline' : 'secondary'))}>
-                    {check.status.toUpperCase()}
-                  </Badge>
-                </div>
-                {check.actionLink && (
-                    <Link to={`/improvisation/${imp.id}${check.actionLink.includes('#') ? '?tab=' + (check.actionLink.includes('artwork') ? 'assets-downloads' : 'analysis-distro') + check.actionLink : ''}`}> {/* Updated path */}
-                        <Button variant="link" size="sm" className="h-6 p-0 text-xs justify-start">
-                            {check.actionLabel} &rarr;
-                        </Button>
-                    </Link>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => onOpenTab(task.tab)}
+                  >
+                    Fix
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
         <Separator />
-        
+
         <div className="flex items-center justify-between">
-            <p className="text-lg font-bold">Overall Readiness:</p>
-            <Badge
-                className={cn(
-                    "text-base px-4 py-2",
-                    isReady ? "bg-success text-success-foreground hover:bg-success/90" : (isBlocked ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "bg-warning text-warning-foreground hover:bg-warning/90")
-                )}
-            >
-                {isReady ? 'READY TO SUBMIT' : (isBlocked ? 'BLOCKED' : 'IN PROGRESS')}
-            </Badge>
+          <p className="text-sm font-semibold">Overall readiness</p>
+          <Badge
+            variant={readyToSubmit ? 'default' : 'secondary'}
+            className={cn(
+              'text-sm px-3 py-1',
+              readyToSubmit && 'bg-success text-success-foreground hover:bg-success/90',
+            )}
+          >
+            {readyToSubmit ? 'READY TO SUBMIT' : 'BLOCKED'}
+          </Badge>
         </div>
       </CardContent>
     </Card>

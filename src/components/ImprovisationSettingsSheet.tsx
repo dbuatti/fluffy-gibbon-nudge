@@ -3,7 +3,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescri
 import { Button } from '@/components/ui/button';
 import { Menu, Trash2, Loader2, Settings, AlertTriangle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Separator } from '@/components/ui/separator';
 
 interface ImprovisationSettingsSheetProps {
   improvisationId: string;
@@ -31,15 +30,6 @@ const ImprovisationSettingsSheet: React.FC<ImprovisationSettingsSheetProps> = ({
         </SheetHeader>
         
         <div className="py-6 space-y-6">
-          <h3 className="text-lg font-semibold">General Actions</h3>
-          
-          {/* Placeholder for future settings */}
-          <div className="text-sm text-muted-foreground p-4 border rounded-md">
-            Future settings like privacy toggles or metadata locking will appear here.
-          </div>
-
-          <Separator />
-
           <h3 className="text-lg font-semibold text-destructive flex items-center">
             <AlertTriangle className="h-5 w-5 mr-2" /> Danger Zone
           </h3>

@@ -195,6 +195,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ publicUrl, fileName, onClearF
           {/* Waveform and Time Display */}
           <div className="flex-grow space-y-1">
             <WaveformVisualizer 
+                src={publicUrl}
                 duration={duration}
                 currentTime={currentTime}
                 isPlaying={isPlaying}

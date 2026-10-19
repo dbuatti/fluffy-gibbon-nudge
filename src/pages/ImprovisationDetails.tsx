@@ -8,8 +8,9 @@ import AudioPlayer from '@/components/AudioPlayer';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { useAIAugmentation } from '@/hooks/useAIAugmentation';
 import ImprovisationHeader from '@/components/ImprovisationHeader';
-import ImprovisationProgressCard from '@/components/ImprovisationProgressCard';
 import ImprovisationTabs from '@/components/ImprovisationTabs';
+import OverviewTab from '@/components/OverviewTab';
+import { computeReleaseReadiness } from '@/lib/release-readiness';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSession } from '@/integrations/supabase/session-context';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,7 +47,7 @@ const ImprovisationDetails: React.FC = () => {
 
   // --- Tab State Management using URL Query Params ---
   const query = new URLSearchParams(location.search);
-  const currentTab = query.get('tab') || 'creative-hub';
+  const currentTab = query.get('tab') || 'overview';
 
   const handleTabChange = (newTab: string) => {
     navigate(`?tab=${newTab}`, { replace: true });
@@ -70,8 +71,6 @@ const ImprovisationDetails: React.FC = () => {
   // Determine if we are loading the initial data OR if the status is actively analyzing
   const isAnalyzing = imp?.status === 'analyzing';
   const showLoadingSpinner = isLoading || isSessionLoading || isAnalyzing;
-  const hasAudioFile = !!imp?.storage_path;
-  const isReadyForRelease = imp?.is_ready_for_release;
   
   // Get public URL for the audio file
   const audioPublicUrl = getPublicAudioUrl(imp?.storage_path || null);
@@ -263,151 +262,10 @@ const ImprovisationDetails: React.FC = () => {
     return updateMutation.mutateAsync({ analysis_data: newAnalysisData });
   };
   
-  // --- Progress Logic (Gamification) ---
-  let progressValue = 0;
-  let progressMessage = "Start by capturing your idea."; // Default message if no imp or first step not met
-  let primaryAction: { label: string; onClick: () => void; variant: "default" | "secondary" | "outline" } | null = null;
-
-  if (imp) {
-    const hasNotes = imp.notes?.some(n => n.content.trim().length > 0);
-    const hasUserTags = (imp.user_tags?.length || 0) > 0;
-    const hasInsightTimerCategorization = 
-        !!imp.insight_content_type &&
-        !!imp.insight_language &&
-        !!imp.insight_primary_use &&
-        !!imp.insight_audience_level &&
-        (imp.insight_benefits?.length || 0) > 0 &&
-        !!imp.insight_practices &&
-        (imp.insight_themes?.length || 0) > 0 &&
-        !!imp.insight_voice &&
-        !!imp.description; // Check for description as well
-
-    // Define steps and their conditions, with messages as instructions for the *next* action
-    const steps: { 
-        condition: boolean; 
-        message: string; 
-        action: { label: string; onClick: () => void; variant: "default" | "secondary" | "outline" } | null 
-    }[] = [
-      // Step 1: Improvisation Type
-      { 
-          condition: imp.is_improvisation !== null, 
-          message: "Set improvisation type.", 
-          action: { 
-              label: "Set Improvisation Type", 
-              onClick: () => {
-                  const button = document.querySelector('[title="Edit Improvisation Metadata"]');
-                  if (button instanceof HTMLButtonElement) {
-                      button.click();
-                  }
-              }, 
-              variant: "default" 
-          } 
-      },
-      // Step 3: Core Musical Metadata
-      { 
-          condition: isCoreMetadataComplete, 
-          message: "Set core musical metadata (Key, Tempo, Mood).", 
-          action: { 
-              label: "Edit Core Metadata", 
-              onClick: () => {
-                  const button = document.querySelector('[title="Edit Improvisation Metadata"]');
-                  if (button instanceof HTMLButtonElement) {
-                      button.click();
-                  }
-              }, 
-              variant: "default" 
-          } 
-      },
-      // Step 4: Creative Notes
-      { 
-          condition: hasNotes, 
-          message: "Add creative notes.", 
-          action: { label: "Add Creative Notes", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } 
-      },
-      // Step 5: User Tags
-      { 
-          condition: hasUserTags, 
-          message: "Add user tags.", 
-          action: { label: "Add User Tags", onClick: () => document.getElementById('improvisation-notes')?.scrollIntoView({ behavior: 'smooth' }), variant: "secondary" } 
-      },
-      // Step 6: Artwork Prompt Generation
-      { 
-          condition: !!imp.artwork_prompt, 
-          message: "Generate AI artwork prompt.", 
-          action: { label: "Generate AI Artwork Prompt", onClick: handleRegenerateArtwork, variant: "outline" } 
-      },
-      // Step 7: Artwork Upload
-      { 
-          condition: !!imp.artwork_url, 
-          message: "Upload your artwork.", 
-          action: { label: "Upload Artwork", onClick: () => handleTabChange('assets-downloads'), variant: "default" } 
-      },
-      // Step 8: Insight Timer Metadata Population
-      { 
-          condition: hasInsightTimerCategorization, 
-          message: "Populate Insight Timer metadata.", 
-          action: { label: "AI Populate Metadata", onClick: handleAIPopulateMetadata, variant: "default" } 
-      },
-      // Step 9: Metadata Confirmation
-      { 
-          condition: !!imp.is_metadata_confirmed, 
-          message: "Confirm metadata review.", 
-          action: { label: "Confirm Metadata Review", onClick: () => handleTabChange('analysis-distro'), variant: "default" } 
-      },
-      // Step 10: Ready for Release
-      { 
-          condition: !!imp.is_ready_for_release, 
-          message: "Mark as Ready for Release.", 
-          action: { label: "Mark as Ready for Release", onClick: handleMarkReady, variant: "default" } 
-      },
-    ];
-
-    let completedStepsCount = 0;
-    for (let i = 0; i < steps.length; i++) {
-      if (steps[i].condition) {
-        completedStepsCount++;
-      } else {
-        // This is the first uncompleted step, so its message and action are the current ones.
-        progressMessage = steps[i].message;
-        primaryAction = steps[i].action;
-        break; // Found the first uncompleted step, so we set its message/action and stop.
-      }
-    }
-
-    progressValue = Math.round((completedStepsCount / steps.length) * 100);
-    if (progressValue > 100) progressValue = 100; // Cap at 100%
-
-    // If all steps are completed, set the final "Ready for Release" message and action
-    if (completedStepsCount === steps.length) {
-        progressValue = 100;
-        progressMessage = "Improvisation is 100% ready for release! Time to submit.";
-        primaryAction = {
-            label: "Go to Distribution Prep",
-            onClick: () => handleTabChange('analysis-distro'),
-            variant: "default"
-        };
-    }
-
-    // Post-readiness submission status overrides
-    if (imp.is_ready_for_release && (imp.is_submitted_to_distrokid || imp.is_submitted_to_insight_timer)) {
-        let submittedCount = 0;
-        if (imp.is_submitted_to_distrokid) submittedCount++;
-        if (imp.is_submitted_to_insight_timer) submittedCount++;
-
-        if (submittedCount === 2) {
-            progressMessage = "Project fully submitted! Congratulations!";
-            primaryAction = null; // No further action needed
-        } else {
-            progressMessage = "One submission complete. Finish the other!";
-            primaryAction = {
-                label: "Complete Submissions",
-                onClick: () => handleTabChange('analysis-distro'),
-                variant: "default"
-            };
-        }
-    }
-  }
-
+  // --- Progress Logic ---
+  // One source of truth, shared with the Overview tab and every other surface
+  // that used to invent its own answer. See src/lib/release-readiness.ts.
+  const readiness = imp ? computeReleaseReadiness(imp) : null;
 
   if (!id) {
     return <Navigate to="/" replace />;
@@ -465,9 +323,10 @@ const ImprovisationDetails: React.FC = () => {
         handleUpdateIsImprovisation={handleUpdateIsImprovisation}
       />
       
-      {/* 2. TABS (MOVED HERE) */}
+      {/* 2. TABS */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6">
-        <TabsList className="flex w-full h-auto p-1 overflow-x-auto md:grid md:grid-cols-4">
+        <TabsList className="flex w-full h-auto p-1 overflow-x-auto md:grid md:grid-cols-5">
+          <TabsTrigger value="overview" className="text-base py-2">Overview</TabsTrigger>
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
           <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
@@ -475,8 +334,8 @@ const ImprovisationDetails: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger id="social-tab-trigger" value="social" className="text-base py-2">Social</TabsTrigger>
         </TabsList>
-        
-        {/* 3. AUDIO PLAYER (MOVED BELOW TABS) */}
+
+        {/* 3. AUDIO PLAYER — available on every tab, so it lives above them */}
         {audioPublicUrl && imp.file_name && imp.storage_path && (
           <AudioPlayer 
             publicUrl={audioPublicUrl} 
@@ -486,20 +345,17 @@ const ImprovisationDetails: React.FC = () => {
           />
         )}
 
-        {/* 4. PROGRESS CARD (MOVED BELOW AUDIO PLAYER) */}
-        <ImprovisationProgressCard
-          progressValue={progressValue}
-          progressMessage={progressMessage}
-          primaryAction={primaryAction}
-          isAnalyzing={isAnalyzing}
-          isMarkingReady={isMarkingReady}
-          isPopulating={isPopulating}
-          isReadyForRelease={isReadyForRelease}
-          isSubmittedToDistroKid={imp.is_submitted_to_distrokid}
-          isSubmittedToInsightTimer={imp.is_submitted_to_insight_timer}
-        />
-        
-        {/* 5. Tab Content */}
+        {/* 4. Tab Content */}
+        {readiness && currentTab === 'overview' && (
+          <OverviewTab
+            imp={imp}
+            readiness={readiness}
+            isAnalyzing={isAnalyzing}
+            onOpenTab={handleTabChange}
+            onMarkReady={handleMarkReady}
+            isMarkingReady={isMarkingReady}
+          />
+        )}
         <ImprovisationTabs
           imp={imp}
           currentTab={currentTab}
@@ -521,6 +377,7 @@ const ImprovisationDetails: React.FC = () => {
           handleAIPopulateMetadata={handleAIPopulateMetadata}
           setAiGeneratedDescription={setAiGeneratedDescription}
           isPending={updateMutation.isPending}
+          readiness={readiness}
           handleUpdateDescription={handleUpdateDescription}
           handleUpdateInsightContentType={handleUpdateInsightContentType}
           handleUpdateInsightLanguage={handleUpdateInsightLanguage}

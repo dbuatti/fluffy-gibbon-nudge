@@ -22,6 +22,7 @@ import ArtworkUpload from './ArtworkUpload';
 import ArtPromptStudio from './ArtPromptStudio';
 import DistributionTogglesCard from './DistributionTogglesCard';
 import type { Improvisation } from '@/types/improvisation';
+import type { ReleaseReadiness } from '@/lib/release-readiness';
 import { DISTROKID_URL, INSIGHT_TIMER_URL, IMAGE_RESIZER_URL, VISUALGPT_AI_IMAGE_EDITOR_URL } from '@/lib/constants';
 
 interface ImprovisationTabsProps {
@@ -40,6 +41,7 @@ interface ImprovisationTabsProps {
   isAnalyzing: boolean;
   isRegenerating: boolean;
   audioPublicUrl: string | null;
+  readiness: ReleaseReadiness | null;
   // AI Augmentation Props
   isPopulating: boolean;
   aiGeneratedDescription: string;
@@ -88,6 +90,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   isAnalyzing,
   isRegenerating,
   audioPublicUrl,
+  readiness,
   isPopulating,
   aiGeneratedDescription,
   handleAIPopulateMetadata,
@@ -161,8 +164,8 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
       downloadBlob(square, `${(imp.generated_name || 'artwork').replace(/[^\w\- ]+/g, '')}_3000x3000.jpg`);
       const dims = await getImageDimensions(square);
       showSuccess(`Downloaded ${describeImage(square, dims)} — Insight Timer ready`);
-    } catch (e: any) {
-      showError(e.message || 'Download failed');
+    } catch (e) {
+      showError(e instanceof Error ? e.message : 'Download failed');
     }
   };
   
@@ -175,9 +178,9 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
     }
   };
   
-  // A improvisation is blocked if any critical asset or confirmation is missing.
-  const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
-  const isBlocked = !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
+  // Distribution is blocked by the same required tasks the Overview tab shows —
+  // a single definition instead of a second, subtly different inline one.
+  const isBlocked = readiness ? !readiness.readyToSubmit : true;
 
   // --- Conditional Content Rendering ---
 
@@ -359,19 +362,14 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
     return (
       <TabsContent value="analysis-distro" className="space-y-8 mt-6">
         
-        {/* NEW: Pre-Flight Checklist */}
-        <PreFlightChecklist 
-            imp={{
-                id: imp.id,
-                storage_path: imp.storage_path,
-                artwork_url: imp.artwork_url,
-                is_metadata_confirmed: imp.is_metadata_confirmed,
-                insight_benefits: imp.insight_benefits,
-                insight_practices: imp.insight_practices,
-                insight_themes: imp.insight_themes,
-            }}
+        {/* NEW: Pre-Flight Checklist (required tasks only, from the shared readiness model) */}
+        {readiness && (
+          <PreFlightChecklist
+            readiness={readiness}
             isAnalyzing={isAnalyzing}
-        />
+            onOpenTab={handleTabChange}
+          />
+        )}
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
