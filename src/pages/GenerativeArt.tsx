@@ -35,6 +35,7 @@ const GenerativeArt: React.FC = () => {
   const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
   const [aiImage, setAiImage] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [history, setHistory] = useState<{ type: 'procedural' | 'cloudflare' | 'gemini'; image: string; prompt: string; seed?: number }[]>([]);
 
   useEffect(() => {
     document.title = 'Generative Art - AI Composer Hub';
@@ -75,6 +76,9 @@ const GenerativeArt: React.FC = () => {
       if (seedLocked) p.seed = params.seed;
       setParams(p);
       renderArt(canvasRef.current!, p);
+      // Save to history
+      const dataUrl = canvasRef.current!.toDataURL('image/png');
+      setHistory((h) => [{ type: 'procedural', image: dataUrl, prompt: prompt || '', seed: p.seed }, ...h].slice(0, 12));
       setGenerating(false);
     }, 50);
   }, [params, paletteName, prompt, seedLocked]);
@@ -103,6 +107,7 @@ const GenerativeArt: React.FC = () => {
       if (data?.image) {
         setAiImage(data.image);
         setAiConfigured(true);
+        setHistory((h) => [{ type: 'cloudflare', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('AI artwork generated');
       }
     } catch (e: any) {
@@ -136,6 +141,7 @@ const GenerativeArt: React.FC = () => {
       if (data?.image) {
         setAiImage(data.image);
         setAiConfigured(true);
+        setHistory((h) => [{ type: 'gemini', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('Gemini artwork generated');
       }
     } catch (e: any) {
@@ -474,6 +480,41 @@ const GenerativeArt: React.FC = () => {
             </Card>
           </div>
         </div>
+
+        {/* Gallery */}
+        {history.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold mb-3">Recent Generations</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {history.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (item.type === 'procedural' && item.seed) {
+                      const p = createParams({ ...params, seed: item.seed, prompt: item.prompt || undefined });
+                      setParams(p);
+                      setPrompt(item.prompt);
+                      if (canvasRef.current) renderArt(canvasRef.current, p);
+                      setMode('procedural');
+                      setAiImage(null);
+                    } else {
+                      setAiImage(item.image.replace('data:image/png;base64,', ''));
+                      setMode(item.type as 'cloudflare' | 'gemini');
+                      setPrompt(item.prompt);
+                    }
+                  }}
+                  className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors"
+                  title={item.prompt || 'Generated artwork'}
+                >
+                  <img src={item.image} alt={item.prompt} className="w-full h-full object-cover" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate">
+                    {item.type === 'procedural' ? 'Procedural' : item.type === 'cloudflare' ? 'Cloudflare' : 'Gemini'} {item.prompt?.substring(0, 20) || ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
