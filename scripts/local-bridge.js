@@ -599,9 +599,21 @@ async function handleFinderOpen(req, res, body) {
     folderPath = folderPath.replace(/\/+$/, '');
     if (!folderPath) throw new Error('Could not resolve folder from path');
 
-    if (!fs.existsSync(folderPath)) {
+    // SMB mounts can be stale for a moment right after connecting (Finder
+    // already shows the volume, but stat() on deep paths fails) — wait
+    // briefly and retry once before concluding anything.
+    const existsWithRetry = async (p) => {
+      if (fs.existsSync(p)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      return fs.existsSync(p);
+    };
+
+    if (!(await existsWithRetry(folderPath))) {
       const volume = folderPath.startsWith('/Volumes/') ? folderPath.split('/')[2] : null;
       if (volume) {
+        if (fs.existsSync(`/Volumes/${volume}`)) {
+          throw new Error(`Volume is mounted, but the folder isn't there anymore: ${folderPath} — was it moved or renamed?`);
+        }
         throw new Error(`Folder not reachable — volume "${volume}" is not mounted. Use "Mount NAS" and try again.`);
       }
       throw new Error(`Folder not found on this Mac: ${folderPath}`);
@@ -620,6 +632,7 @@ async function handleFinderOpen(req, res, body) {
       timestamp: new Date().toISOString(),
     }, req);
   } catch (e) {
+    console.error(`[finder/open] failed for "${typeof body.path === 'string' ? body.path : '(no path)'}": ${e.message}`);
     sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
