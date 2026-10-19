@@ -11,8 +11,12 @@ import { Input } from '@/components/ui/input';
 import {
   Loader2, Sparkles, Film, FolderOpen, Copy, Instagram, Youtube, Music2,
   Play, RefreshCw, Check, Info, Clock, ExternalLink, Palette, ChevronDown,
+  Save, Image as ImageIcon,
 } from 'lucide-react';
-import { useLocalBridge, openFolderInFinder, type SocialKit, type SocialKitFile } from '@/lib/local-bridge';
+import {
+  useLocalBridge, openFolderInFinder, revealInFinder, type SocialKit, type SocialKitFile,
+  type SocialCaptionPlatform, type SocialCaptions,
+} from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import type { Improvisation } from '@/types/improvisation';
 
@@ -42,8 +46,9 @@ function parseTime(input: string): number | null {
 }
 
 /**
- * Upload pages open in a new tab — no API keys, no review process. The kit
- * folder is already open in Finder, so it's drag-file → paste-caption → post.
+ * Upload pages open in a new tab — no API keys, no review process. Clicking one
+ * copies its caption and reveals the matching file in Finder, so the flow is
+ * drag → paste → post.
  */
 const PLATFORMS = [
   {
@@ -51,32 +56,54 @@ const PLATFORMS = [
     label: 'Instagram Reels',
     url: 'https://www.instagram.com/reels/',
     icon: Instagram,
-    fileHint: 'Drag the 9:16 video',
+    ratio: 'reels',
+    captionPlatform: 'instagram' as SocialCaptionPlatform,
+    fileHint: 'Copies the caption + shows the 9:16 video',
   },
   {
     key: 'tiktok',
     label: 'TikTok',
     url: 'https://www.tiktok.com/upload?lang=en',
     icon: Music2,
-    fileHint: 'Drag the 9:16 video',
+    ratio: 'reels',
+    captionPlatform: 'tiktok' as SocialCaptionPlatform,
+    fileHint: 'Copies the caption + shows the 9:16 video',
   },
   {
     key: 'youtube',
     label: 'YouTube',
     url: 'https://studio.youtube.com/videos/upload',
     icon: Youtube,
-    fileHint: 'Drag the 16:9 video',
+    ratio: 'youtube',
+    captionPlatform: 'youtube' as SocialCaptionPlatform,
+    fileHint: 'Copies title/description + shows the 16:9 video',
   },
 ] as const;
+
+/** YouTube captions keep the title on the first line; split it for the two fields. */
+function splitYouTube(text: string): { title: string; body: string } {
+  const lines = text.split('\n');
+  return {
+    title: (lines[0] || '').trim(),
+    body: lines.slice(1).join('\n').replace(/^\n+/, ''),
+  };
+}
+
+const CAPTION_TABS: { key: SocialCaptionPlatform; label: string; hint: string }[] = [
+  { key: 'instagram', label: 'Instagram / Reels', hint: 'Hook, a line about the take, and hashtags.' },
+  { key: 'tiktok', label: 'TikTok', hint: 'Short and casual, with a few broad tags.' },
+  { key: 'youtube', label: 'YouTube', hint: 'Title on the first line, then the description.' },
+];
 
 /** Rough, honest progress narration — we only get a response at the end. */
 const BUILD_PHASES = [
   'Finding the finished audio…',
   'Preparing artwork…',
+  'Listening for the strongest passage…',
   'Rendering the 9:16 video…',
   'Rendering the 1:1 video…',
   'Rendering the 16:9 video…',
-  'Writing the caption…',
+  'Writing captions & thumbnail…',
 ];
 
 const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
@@ -87,7 +114,10 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [loadingKit, setLoadingKit] = useState(false);
   const [building, setBuilding] = useState(false);
   const [phase, setPhase] = useState(0);
-  const [caption, setCaption] = useState('');
+  const [captions, setCaptions] = useState<SocialCaptions>({});
+  const [savedCaptions, setSavedCaptions] = useState<SocialCaptions>({});
+  const [captionTab, setCaptionTab] = useState<SocialCaptionPlatform>('instagram');
+  const [savingCaption, setSavingCaption] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -101,6 +131,23 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     [imp.original_name, imp.generated_name],
   );
 
+  /** Adopt a kit from either the build response or the status endpoint. */
+  const applyKit = useCallback((next: SocialKit) => {
+    setKit(next);
+    const caps: SocialCaptions =
+      next.captions && Object.values(next.captions).some(Boolean)
+        ? next.captions
+        : { instagram: next.caption || '' };
+    // Kits built before per-platform captions only have the Instagram one.
+    const complete: SocialCaptions = {
+      instagram: caps.instagram || '',
+      tiktok: caps.tiktok || caps.instagram || '',
+      youtube: caps.youtube || caps.instagram || '',
+    };
+    setCaptions(complete);
+    setSavedCaptions(complete);
+  }, []);
+
   // --- Load any existing kit (so re-opening the page is instant) ---
   useEffect(() => {
     let cancelled = false;
@@ -109,8 +156,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     client.getSocialKit(imp.id).then((res) => {
       if (cancelled) return;
       if (res.success && res.data?.built) {
-        setKit(res.data);
-        setCaption(res.data.caption || '');
+        applyKit(res.data);
         // Mirror the existing excerpt into the controls so "rebuild" reproduces
         // the same cut instead of silently reverting to the automatic one.
         const trimmed = (res.data.files || []).find(
@@ -124,7 +170,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       setLoadingKit(false);
     });
     return () => { cancelled = true; };
-  }, [connected, imp.id, client]);
+  }, [connected, imp.id, client, applyKit]);
 
   // Advance the narrated phase while a build runs.
   useEffect(() => {
@@ -146,8 +192,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         clipStartSec: parseTime(startAt) ?? undefined,
       });
       if (res.success && res.data) {
-        setKit(res.data);
-        setCaption(res.data.caption || '');
+        applyKit(res.data);
         showSuccess(res.data.message || 'Social kit ready');
       } else {
         showError(res.error || 'Could not build the social kit');
@@ -155,16 +200,20 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     } finally {
       setBuilding(false);
     }
-  }, [client, imp.id, clipSec, startAt]);
+  }, [client, imp.id, clipSec, startAt, applyKit]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
   };
 
-  const handleCopyCaption = async () => {
+  const copyText = async (text: string, what: string) => {
+    if (!text.trim()) {
+      showError(`No ${what} yet`);
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(caption);
-      showSuccess('Caption copied — paste it into the post');
+      await navigator.clipboard.writeText(text);
+      showSuccess(`${what} copied — paste it into the post`);
     } catch {
       showError('Could not access the clipboard');
     }
@@ -176,6 +225,26 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       showSuccess('File path copied');
     } catch {
       showError('Could not access the clipboard');
+    }
+  };
+
+  const handleSaveCaption = async () => {
+    const text = captions[captionTab] || '';
+    if (!text.trim()) {
+      showError('Caption is empty');
+      return;
+    }
+    setSavingCaption(true);
+    try {
+      const res = await client.saveSocialCaption(imp.id, captionTab, text);
+      if (res.success) {
+        setSavedCaptions((prev) => ({ ...prev, [captionTab]: text }));
+        showSuccess('Caption saved to the kit folder');
+      } else {
+        showError(res.error || 'Could not save the caption');
+      }
+    } finally {
+      setSavingCaption(false);
     }
   };
 
@@ -197,10 +266,39 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     setPreviewLoading(false);
   };
 
+  /**
+   * One click = caption on the clipboard + the right file selected in Finder +
+   * the upload page open. No thinking about which asset goes where.
+   */
+  const handlePlatform = (platform: (typeof PLATFORMS)[number]) => {
+    const text = captions[platform.captionPlatform] || '';
+    // YouTube publishes title and description in separate fields — send the
+    // description, so pasting doesn't duplicate the title.
+    const payload = platform.captionPlatform === 'youtube' ? splitYouTube(text).body : text;
+    if (payload.trim()) {
+      navigator.clipboard.writeText(payload).catch(() => showError('Could not copy the caption'));
+    } else {
+      showError('No caption for that platform yet');
+    }
+
+    window.open(platform.url, '_blank', 'noopener,noreferrer');
+
+    const target = (kit?.files || []).find((f) => f.kind === 'video' && f.ratio === platform.ratio);
+    if (target) {
+      void revealInFinder(target.path);
+    } else if (kit?.folder) {
+      openFolderInFinder(kit.folder);
+    }
+  };
+
   const videos = (kit?.files || []).filter((f) => f.kind === 'video');
   const stills = (kit?.files || []).filter((f) => f.kind !== 'video');
   const longSong = (kit?.durationSec || 0) > 90;
   const trimmedVideos = videos.filter((v) => (v.clipStartSec || 0) > 0);
+  const autoPicked = trimmedVideos.some((v) => v.autoExcerpt);
+  const activeCaption = captions[captionTab] || '';
+  const captionDirty = activeCaption !== (savedCaptions[captionTab] || '');
+  const isImagePreview = !!previewName && /\.(png|jpe?g)$/i.test(previewName);
 
   // --- Not connected: explain, don't dead-end ---
   if (!connected) {
@@ -249,7 +347,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
           <p className="text-sm text-muted-foreground">
             One click turns <span className="font-medium text-foreground">{title}</span> into a
             vertical cut (Reels/TikTok/Shorts), a square cut, and a full-length YouTube video —
-            with cover art and a caption, staged in a folder on your Desktop.
+            with cover art, a thumbnail, and captions, staged in a folder on your Desktop.
           </p>
 
           {building ? (
@@ -292,6 +390,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
               Recording is {fmt(kit.durationSec)} long.
+              {autoPicked && ' The short cuts were trimmed to the strongest passage.'}
             </p>
           ) : null}
 
@@ -301,7 +400,8 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               <AlertDescription className="text-xs">
                 This recording is {fmt(kit?.durationSec)} — too long for Reels/TikTok/Shorts.
                 Those cuts are trimmed to a shareable excerpt
-                ({trimmedVideos.map((v) => `${fmt(v.clipStartSec)}–${fmt((v.clipStartSec || 0) + (v.clipSec || 0))}`).join(', ')});
+                ({trimmedVideos.map((v) => `${fmt(v.clipStartSec)}–${fmt((v.clipStartSec || 0) + (v.clipSec || 0))}`).join(', ')}
+                {autoPicked ? ', picked automatically' : ''});
                 the 16:9 YouTube file keeps the full piece.
               </AlertDescription>
             </Alert>
@@ -339,7 +439,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Applies to the Reels/TikTok and square cuts. Leave the start blank and the kit
-                  picks a spot automatically. Songs shorter than the clip length are never trimmed.
+                  picks the most active passage. Songs shorter than the clip length are never trimmed.
                 </p>
               </CollapsibleContent>
             </Collapsible>
@@ -372,7 +472,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                       {file.clipSec ? ` · ${fmt(file.clipSec)} clip from ${fmt(file.clipStartSec)}` : ''}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <Button
                       size="sm"
                       variant="outline"
@@ -384,6 +484,14 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                         : <Play className="w-4 h-4" />}
                       <span className="ml-2">Preview</span>
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => revealInFinder(file.path)}
+                      title="Show this file in Finder (ready to drag)"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => handleCopyPath(file)} title="Copy file path">
                       <Copy className="w-4 h-4" />
                     </Button>
@@ -393,7 +501,16 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
 
               {previewUrl && (
                 <div className="rounded-lg overflow-hidden border bg-black">
-                  <video key={previewUrl} src={previewUrl} controls autoPlay className="w-full max-h-[420px]" />
+                  {isImagePreview ? (
+                    <img
+                      key={previewUrl}
+                      src={previewUrl}
+                      alt={previewName || 'Kit image'}
+                      className="w-full max-h-[420px] object-contain"
+                    />
+                  ) : (
+                    <video key={previewUrl} src={previewUrl} controls autoPlay className="w-full max-h-[420px]" />
+                  )}
                 </div>
               )}
 
@@ -406,6 +523,17 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                       : <Info className="w-4 h-4 flex-shrink-0" />}
                     <span className="truncate">{file.name}</span>
                     {file.sizeMB ? <span className="ml-auto text-xs">{file.sizeMB} MB</span> : null}
+                    {file.kind === 'image' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2"
+                        onClick={() => handlePreview(file)}
+                        title="Preview image"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -419,47 +547,86 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Open a platform, drag the matching file in from the Finder window, then paste the
-                caption below. (Opening the upload page in a new tab — no accounts connected here.)
+                Each button opens the upload page, copies that platform's caption, and selects the
+                matching file in Finder. Drag it in, paste, post.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {PLATFORMS.map(({ key, label, url, icon: Icon, fileHint }) => (
-                  <Button
-                    key={key}
-                    variant="outline"
-                    className="h-auto py-3 flex-col items-start gap-1"
-                    onClick={() => {
-                      window.open(url, '_blank', 'noopener,noreferrer');
-                      handleReveal();
-                    }}
-                  >
-                    <span className="flex items-center gap-2 font-medium">
-                      <Icon className="w-4 h-4" /> {label}
-                      <ExternalLink className="w-3 h-3 opacity-60" />
-                    </span>
-                    <span className="text-xs text-muted-foreground">{fileHint}</span>
-                  </Button>
-                ))}
+                {PLATFORMS.map((platform) => {
+                  const Icon = platform.icon;
+                  return (
+                    <Button
+                      key={platform.key}
+                      variant="outline"
+                      className="h-auto py-3 flex-col items-start gap-1"
+                      onClick={() => handlePlatform(platform)}
+                    >
+                      <span className="flex items-center gap-2 font-medium">
+                        <Icon className="w-4 h-4" /> {platform.label}
+                        <ExternalLink className="w-3 h-3 opacity-60" />
+                      </span>
+                      <span className="text-xs text-muted-foreground text-left">{platform.fileHint}</span>
+                    </Button>
+                  );
+                })}
               </div>
 
               <Separator />
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Caption</span>
-                  <Button size="sm" variant="outline" onClick={handleCopyCaption}>
-                    <Copy className="w-4 h-4 mr-2" /> Copy caption
-                  </Button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {CAPTION_TABS.map((tab) => (
+                    <Button
+                      key={tab.key}
+                      size="sm"
+                      variant={captionTab === tab.key ? 'default' : 'outline'}
+                      onClick={() => setCaptionTab(tab.key)}
+                    >
+                      {tab.label}
+                      {captions[tab.key] !== savedCaptions[tab.key] && (
+                        <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-amber-400" title="Unsaved changes" />
+                      )}
+                    </Button>
+                  ))}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {CAPTION_TABS.find((t) => t.key === captionTab)?.hint}
+                </p>
                 <Textarea
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  rows={6}
+                  value={activeCaption}
+                  onChange={(e) => setCaptions((prev) => ({ ...prev, [captionTab]: e.target.value }))}
+                  rows={8}
                   className="text-sm"
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => copyText(activeCaption, 'Caption')}>
+                    <Copy className="w-4 h-4 mr-2" /> Copy
+                  </Button>
+                  {captionTab === 'youtube' && splitYouTube(activeCaption).title && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyText(splitYouTube(activeCaption).title, 'Title')}
+                    >
+                      <Copy className="w-4 h-4 mr-2" /> Copy title
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={handleSaveCaption}
+                    disabled={!captionDirty || savingCaption}
+                  >
+                    {savingCaption
+                      ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      : <Save className="w-4 h-4 mr-2" />}
+                    Save to kit
+                  </Button>
+                  {captionDirty && (
+                    <span className="text-xs text-muted-foreground">Unsaved edits</span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Edits here are just for copying — rebuild the kit to regenerate the file.
+                  Saved as a text file next to the videos, so it's there when you post from Finder.
                 </p>
               </div>
             </CardContent>

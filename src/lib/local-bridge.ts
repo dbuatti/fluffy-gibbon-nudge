@@ -88,6 +88,8 @@ export interface OpenLogicResponse {
 export interface OpenFinderRequest {
   /** Absolute POSIX path — either the song folder or its .logicx bundle (bridge resolves to the parent folder). */
   path: string;
+  /** Select a file in its folder (Finder reveal) instead of opening the folder. */
+  reveal?: boolean;
 }
 
 export interface OpenFinderResponse {
@@ -166,6 +168,11 @@ export interface SyncStatusResponse {
 
 // --- Social Kit ---
 
+export type SocialCaptionPlatform = 'instagram' | 'tiktok' | 'youtube';
+
+/** Written captions per destination; each is also saved as a .txt in the kit. */
+export type SocialCaptions = Partial<Record<SocialCaptionPlatform, string>>;
+
 export interface SocialKitFile {
   name: string;
   path: string;
@@ -173,9 +180,13 @@ export interface SocialKitFile {
   /** Present on rendered videos: which platform cut this file is for. */
   ratio?: 'reels' | 'feed' | 'youtube' | string;
   ratioLabel?: string;
+  /** Present on caption text files: which destination it belongs to. */
+  platform?: SocialCaptionPlatform;
   /** Trim window for long songs (seconds into the original). */
   clipStartSec?: number;
   clipSec?: number;
+  /** True when the excerpt was chosen automatically (strongest passage). */
+  autoExcerpt?: boolean;
   sizeMB?: number;
 }
 
@@ -185,7 +196,9 @@ export interface SocialKit {
   title: string;
   /** Full length of the source recording. */
   durationSec?: number;
+  /** Instagram/Reels caption (kept for older kits). */
   caption?: string;
+  captions?: SocialCaptions;
   artworkSource?: 'existing' | 'generated';
   artworkUrl?: string | null;
   files: SocialKitFile[];
@@ -465,6 +478,18 @@ export class BridgeClient {
       return null;
     }
   }
+
+  /** Save an edited caption back into the kit (file + manifest). */
+  async saveSocialCaption(
+    improvisationId: string,
+    platform: SocialCaptionPlatform,
+    text: string,
+  ): Promise<BridgeResponse<{ path: string; platform: string; message: string }>> {
+    return this.request<{ path: string; platform: string; message: string }>('/social/caption', {
+      method: 'POST',
+      body: JSON.stringify({ improvisationId, platform, text }),
+    }, 30000);
+  }
 }
 
 export interface LogicProject {
@@ -673,6 +698,27 @@ export async function openFolderInFinder(folderPath: string): Promise<boolean> {
       return true;
     }
     showError(res.error || 'Could not open the folder in Finder');
+    return false;
+  } catch {
+    showError('Local Bridge unreachable — it runs on your Mac. Start it with: pm2 start composer-hub-bridge');
+    return false;
+  }
+}
+
+/**
+ * Reveal a single staged file in Finder (selected inside its folder), so it
+ * can be dragged straight into a platform's upload page. Same toast semantics
+ * as openFolderInFinder.
+ */
+export async function revealInFinder(filePath: string): Promise<boolean> {
+  if (!filePath) return false;
+  try {
+    const res = await bridgeClient.openFinder({ path: filePath, reveal: true });
+    if (res.success) {
+      showSuccess(res.data?.message || `Revealed in Finder: ${filePath}`);
+      return true;
+    }
+    showError(res.error || 'Could not reveal that file in Finder');
     return false;
   } catch {
     showError('Local Bridge unreachable — it runs on your Mac. Start it with: pm2 start composer-hub-bridge');

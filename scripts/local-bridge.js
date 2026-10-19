@@ -709,9 +709,13 @@ async function handleFinderOpen(req, res, body) {
       throw new Error('Path must be an absolute POSIX path');
     }
 
-    let folderPath = rawPath.endsWith('.logicx') ? path.dirname(rawPath) : rawPath;
-    folderPath = folderPath.replace(/\/+$/, '');
-    if (!folderPath) throw new Error('Could not resolve folder from path');
+    // A .logicx bundle always opens as its containing folder. Anything else is
+    // opened as a folder, or — with reveal: true — selected in its folder, so
+    // a single staged file can be dragged straight into an upload page.
+    const wantsReveal = body.reveal === true;
+    let targetPath = rawPath.endsWith('.logicx') ? path.dirname(rawPath) : rawPath;
+    targetPath = targetPath.replace(/\/+$/, '');
+    if (!targetPath) throw new Error('Could not resolve folder from path');
 
     // SMB mounts can be stale for a moment right after connecting (Finder
     // already shows the volume, but stat() on deep paths fails) — wait
@@ -722,27 +726,32 @@ async function handleFinderOpen(req, res, body) {
       return fs.existsSync(p);
     };
 
-    if (!(await existsWithRetry(folderPath))) {
-      const volume = folderPath.startsWith('/Volumes/') ? folderPath.split('/')[2] : null;
+    if (!(await existsWithRetry(targetPath))) {
+      const volume = targetPath.startsWith('/Volumes/') ? targetPath.split('/')[2] : null;
       if (volume) {
         if (fs.existsSync(`/Volumes/${volume}`)) {
-          throw new Error(`Volume is mounted, but the folder isn't there anymore: ${folderPath} — was it moved or renamed?`);
+          throw new Error(`Volume is mounted, but the folder isn't there anymore: ${targetPath} — was it moved or renamed?`);
         }
         throw new Error(`Folder not reachable — volume "${volume}" is not mounted. Use "Mount NAS" and try again.`);
       }
-      throw new Error(`Folder not found on this Mac: ${folderPath}`);
+      throw new Error(`Folder not found on this Mac: ${targetPath}`);
     }
 
-    const stat = await fs.promises.stat(folderPath);
-    if (!stat.isDirectory()) throw new Error(`Not a folder: ${folderPath}`);
+    const stat = await fs.promises.stat(targetPath);
+    const isFolder = stat.isDirectory();
+    if (!isFolder && !wantsReveal) throw new Error(`Not a folder: ${targetPath}`);
 
     await new Promise((resolve, reject) => {
-      execFile('open', [folderPath], { timeout: 10000 }, (err) => (err ? reject(err) : resolve()));
+      execFile('open', isFolder ? [targetPath] : ['-R', targetPath], { timeout: 10000 },
+        (err) => (err ? reject(err) : resolve()));
     });
 
+    const message = isFolder
+      ? `Opened in Finder: ${targetPath}`
+      : `Revealed in Finder: ${path.basename(targetPath)}`;
     sendJson(res, 200, {
       success: true,
-      data: { success: true, path: folderPath, message: `Opened in Finder: ${folderPath}` },
+      data: { success: true, path: targetPath, message },
       timestamp: new Date().toISOString(),
     }, req);
   } catch (e) {
@@ -1012,26 +1021,102 @@ function formatTime(sec) {
 }
 
 /**
- * Which slice of a long piece to use for a short-form clip. Improvisations
- * usually settle after the opening minutes, so the default skips the first
- * 15%. A caller can override both the length and the start (the app exposes
- * this for long recordings). Returns { startSec, clipSec }.
+ * Per-second loudness profile (RMS dB) for excerpt picking. Decoding audio
+ * only is fast even for a 24-minute file — a few seconds — and it lets the
+ * kit cut the passage that actually goes somewhere instead of an arbitrary
+ * percentage. Returns null when analysis fails (caller falls back).
  */
-function pickExcerpt(durationSec, ratio, requestedSec, requestedStartSec) {
-  if (!ratio.maxSec) return { startSec: 0, clipSec: durationSec };
+async function audioLoudnessProfile(audioFile) {
+  try {
+    const { stdout } = await runProcess('ffmpeg', [
+      '-hide_banner', '-nostdin', '-loglevel', 'error',
+      '-i', audioFile,
+      '-af', 'aresample=8000,asetnsamples=8000,astats=metadata=1:reset=1,' +
+        'ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-',
+      '-f', 'null', '-',
+    ], { timeoutMs: 180000 });
+
+    const levels = [];
+    for (const line of stdout.split('\n')) {
+      const m = line.match(/RMS_level=\s*(-?[\d.]+|-?inf)/i);
+      if (!m) continue;
+      const v = /inf/i.test(m[1]) ? -100 : Number(m[1]);
+      if (Number.isFinite(v)) levels.push(v);
+    }
+    return levels.length >= 10 ? levels : null;
+  } catch (e) {
+    console.warn(`[social] loudness profile unavailable: ${e.message.split('\n')[0]}`);
+    return null;
+  }
+}
+
+/**
+ * The 60–90 seconds with the most going on: highest mean energy, penalised
+ * for dead air. Returns null when there isn't enough signal to judge.
+ */
+function pickBestExcerptStart(profile, clipSec, durationSec) {
+  if (!profile || clipSec <= 0 || profile.length < clipSec + 5) return null;
+
+  // Don't open on the very first seconds (room tone / page turns) or run into
+  // the tail; a tiny margin keeps the cut feeling deliberate.
+  const margin = Math.min(5, Math.floor(durationSec * 0.01));
+  const maxStart = Math.min(
+    Math.max(0, durationSec - clipSec),
+    profile.length - clipSec,
+  );
+  if (maxStart <= margin) return null;
+
+  let bestStart = margin;
+  let bestScore = -Infinity;
+  for (let start = margin; start <= maxStart; start++) {
+    let power = 0;
+    let quiet = 0;
+    for (let i = start; i < start + clipSec; i++) {
+      // dB → linear power, so one loud spike can't mask a mostly-quiet window.
+      power += Math.pow(10, profile[i] / 10);
+      if (profile[i] < -50) quiet++;
+    }
+    const score = (power / clipSec) * (1 - 0.5 * (quiet / clipSec));
+    if (score > bestScore) {
+      bestScore = score;
+      bestStart = start;
+    }
+  }
+  return bestStart;
+}
+
+/**
+ * Which slice of a long piece to use for a short-form clip. With a loudness
+ * profile the pick lands on the most active passage; without one it skips the
+ * first 15% (improvisations usually settle after the opening minutes). A
+ * caller can override both the length and the start (the app exposes this for
+ * long recordings). Returns { startSec, clipSec, auto }.
+ */
+function pickExcerpt(durationSec, ratio, requestedSec, requestedStartSec, profile) {
+  if (!ratio.maxSec) return { startSec: 0, clipSec: durationSec, auto: false };
 
   const clipSec = Math.min(
     requestedSec || Math.min(ratio.defaultSec, ratio.maxSec),
     ratio.maxSec,
     durationSec,
   );
-  if (durationSec <= clipSec) return { startSec: 0, clipSec: durationSec };
+  if (durationSec <= clipSec) return { startSec: 0, clipSec: durationSec, auto: false };
 
   const latestStart = Math.max(0, durationSec - clipSec);
-  const startSec = requestedStartSec != null
-    ? Math.min(Math.max(0, Math.round(requestedStartSec)), latestStart)
-    : Math.min(Math.round(durationSec * 0.15), latestStart);
-  return { startSec, clipSec };
+  if (requestedStartSec != null) {
+    return {
+      startSec: Math.min(Math.max(0, Math.round(requestedStartSec)), latestStart),
+      clipSec,
+      auto: false,
+    };
+  }
+
+  const best = pickBestExcerptStart(profile, Math.round(clipSec), durationSec);
+  return {
+    startSec: best != null ? best : Math.min(Math.round(durationSec * 0.15), latestStart),
+    clipSec,
+    auto: true,
+  };
 }
 
 /** Promisified execFile with a generous timeout — ffmpeg on a full song. */
@@ -1314,12 +1399,76 @@ async function renderSocialVideo(audioFile, frameFile, outFile, opts = {}) {
 }
 
 /** Caption template — title + a short line + hashtags, editable in the app. */
-function buildSocialCaption(title) {
-  const words = title.toLowerCase().split(/\s+/).filter((w) => w.length > 3 && !['with', 'that', 'this'].includes(w));
-  const derived = [...new Set(words.map((w) => `#${w.replace(/[^a-z0-9]/g, '')}`))].slice(0, 3);
-  const tags = ['#piano', '#improvisation', '#originalmusic', '#calmmusic', '#instrumental', ...derived].join(' ');
-  return `${title}\n\nA quiet piano improvisation.\n\n${tags}`;
+/** Words too generic to turn into a useful hashtag. */
+const CAPTION_STOPWORDS = new Set([
+  'with', 'that', 'this', 'from', 'into', 'your', 'about', 'after', 'before',
+  'the', 'and', 'for', 'over', 'under', 'part', 'take', 'song', 'piece',
+]);
+
+/**
+ * Captions per platform. Each destination has different conventions: Reels
+ * rewards a short hook + line breaks, TikTok wants one line and fewer tags,
+ * YouTube needs a real title and a description. Nothing here is precious —
+ * the app lets you edit and save each one.
+ */
+function buildSocialCaptions(title, opts = {}) {
+  const words = title.toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3 && !CAPTION_STOPWORDS.has(w));
+  const derived = [...new Set(words.map((w) => `#${w.replace(/[^a-z0-9]/g, '')}`))]
+    .filter((t) => t.length > 2)
+    .slice(0, 2);
+
+  const core = ['#piano', '#improvisation', '#originalmusic', '#instrumental', '#calmpiano'];
+  const mood = [
+    '#pianomusic', '#livemusic', '#improvised', '#contemporaryclassical',
+    '#relaxingmusic', '#deepmusic', '#neoclassical', '#pianoforte',
+  ];
+
+  const excerpt = opts.excerptLabel
+    ? `This is an excerpt (${opts.excerptLabel}) of a ${opts.durationLabel} performance.`
+    : null;
+
+  const instagram = [
+    title,
+    '',
+    'An original piano improvisation. Played in one take — no edits, no overdubs.',
+    ...(excerpt ? ['', excerpt] : []),
+    '',
+    [...core, ...derived, ...mood].slice(0, 14).join(' '),
+  ].join('\n');
+
+  const tiktok = [
+    `${title} 🎹`,
+    '',
+    'One take. No edits.',
+    '',
+    ['#pianotok', '#piano', '#improvisation', '#originalmusic', '#fyp', ...derived].join(' '),
+  ].join('\n');
+
+  const durationNote = excerpt
+    ? `Excerpt (${opts.excerptLabel}) from a ${opts.durationLabel} performance.`
+    : `Recorded in one take, ${opts.durationLabel} long.`;
+
+  const youtube = [
+    `${title} — Piano Improvisation`,
+    '',
+    'An original piano improvisation, played live in one take — no edits, no overdubs.',
+    '',
+    durationNote,
+    '',
+    [...core, ...mood, ...derived].join(' '),
+  ].join('\n');
+
+  return { instagram, tiktok, youtube };
 }
+
+/** The file each caption platform is saved to inside the kit folder. */
+const CAPTION_FILES = {
+  instagram: 'caption.txt',
+  tiktok: 'tiktok.txt',
+  youtube: 'youtube.txt',
+};
 
 async function handleSocialBuildKit(req, res, body) {
   // Temp audio staged locally for the build — always removed afterwards.
@@ -1377,10 +1526,26 @@ async function handleSocialBuildKit(req, res, body) {
     const files = [];
     framesDir = path.join(os.tmpdir(), `social-frames-${Date.now()}`);
     fs.mkdirSync(framesDir, { recursive: true });
+
+    // Only analyse when an automatic cut is actually needed — an explicit start
+    // (or a short song) doesn't benefit from it.
+    const needsAutoCut = requestedStartSec == null && SOCIAL_RATIOS.some((r) => {
+      const cap = Math.min(requestedSec || r.defaultSec, r.maxSec || Infinity);
+      return r.maxSec && durationSec > cap;
+    });
+    let profile = null;
+    if (needsAutoCut) {
+      step('listening for the strongest passage…');
+      profile = await audioLoudnessProfile(audio.file);
+      if (!profile) step('loudness analysis unavailable — using the default excerpt');
+    }
+
     for (const ratio of SOCIAL_RATIOS) {
-      const { startSec, clipSec } = pickExcerpt(durationSec, ratio, requestedSec, requestedStartSec);
+      const { startSec, clipSec, auto } = pickExcerpt(
+        durationSec, ratio, requestedSec, requestedStartSec, profile,
+      );
       const where = startSec > 0
-        ? ` (excerpt ${formatTime(startSec)}–${formatTime(startSec + clipSec)})`
+        ? ` (excerpt ${formatTime(startSec)}–${formatTime(startSec + clipSec)}${auto && profile ? ', strongest passage' : ''})`
         : '';
       step(`rendering ${ratio.label}${where}…`);
       const frameFile = path.join(framesDir, `${ratio.key}.png`);
@@ -1395,20 +1560,52 @@ async function handleSocialBuildKit(req, res, body) {
         ratioLabel: ratio.label,
         clipStartSec: startSec,
         clipSec: Math.round(clipSec),
+        autoExcerpt: (auto && !!profile) || undefined,
         fullSec: durationSec,
         sizeMB: Math.round((fs.statSync(outFile).size / (1024 * 1024)) * 10) / 10,
       });
     }
 
-    const caption = buildSocialCaption(displayTitle);
-    const captionPath = path.join(folder, `${displayTitle} - caption.txt`);
-    fs.writeFileSync(captionPath, `${caption}\n`);
-    files.push({ name: path.basename(captionPath), path: captionPath, kind: 'text' });
+    // YouTube thumbnail (1280×720) from the 16:9 frame — the artwork is square,
+    // so this is the one asset every destination still wants in landscape.
+    const wideFrame = path.join(framesDir, 'youtube.png');
+    let thumbFile = null;
+    if (fs.existsSync(wideFrame)) {
+      step('making the YouTube thumbnail…');
+      thumbFile = path.join(folder, `${displayTitle} - thumbnail.jpg`);
+      await runProcess('ffmpeg', [
+        '-y', '-hide_banner', '-loglevel', 'error', '-nostdin',
+        '-i', wideFrame, '-vf', 'scale=1280:720', '-frames:v', '1', '-q:v', '2',
+        thumbFile,
+      ], { timeoutMs: 60000 });
+      files.push({
+        name: path.basename(thumbFile),
+        path: thumbFile,
+        kind: 'image',
+        sizeMB: Math.round((fs.statSync(thumbFile).size / (1024 * 1024)) * 100) / 100,
+      });
+    }
+
+    // Captions: one per destination, written as plain text so they can be
+    // dragged or opened without the app.
+    const shortCut = files.find((f) => f.kind === 'video' && f.clipStartSec > 0);
+    const captions = buildSocialCaptions(displayTitle, {
+      durationLabel: formatTime(durationSec),
+      excerptLabel: shortCut
+        ? `${formatTime(shortCut.clipStartSec)}–${formatTime(shortCut.clipStartSec + shortCut.clipSec)}`
+        : null,
+    });
+    for (const [platform, suffix] of Object.entries(CAPTION_FILES)) {
+      const captionPath = path.join(folder, `${displayTitle} - ${suffix}`);
+      fs.writeFileSync(captionPath, `${captions[platform]}\n`);
+      files.push({ name: path.basename(captionPath), path: captionPath, kind: 'text', platform });
+    }
     files.push({ name: path.basename(artCopy), path: artCopy, kind: 'image' });
 
     // Kit manifest so the app can restore state without rebuilding.
     fs.writeFileSync(path.join(folder, 'kit.json'), JSON.stringify({
-      improvisationId, title: displayTitle, durationSec, caption,
+      improvisationId, title: displayTitle, durationSec,
+      caption: captions.instagram, captions,
       artworkSource: art.source, builtAt: new Date().toISOString(),
       files: files.map((f) => ({
         name: f.name,
@@ -1416,7 +1613,9 @@ async function handleSocialBuildKit(req, res, body) {
         ratioLabel: f.ratioLabel || null,
         clipStartSec: f.clipStartSec ?? null,
         clipSec: f.clipSec ?? null,
+        autoExcerpt: f.autoExcerpt ?? null,
         sizeMB: f.sizeMB ?? null,
+        platform: f.platform || null,
       })),
     }, null, 2));
 
@@ -1429,7 +1628,8 @@ async function handleSocialBuildKit(req, res, body) {
         title: displayTitle,
         folder,
         durationSec,
-        caption,
+        caption: captions.instagram,
+        captions,
         artworkSource: art.source,
         artworkUrl: art.artworkUrl || record.artwork_url || null,
         files,
@@ -1448,24 +1648,33 @@ async function handleSocialBuildKit(req, res, body) {
   }
 }
 
+/** Resolve a song's display title + kit folder (shared by kit status/save). */
+async function resolveSocialSong(improvisationId) {
+  if (!/^[0-9a-f-]{36}$/i.test(improvisationId || '')) throw new Error('Missing or invalid id');
+
+  const hub = await import('./composer-hub.js');
+  const session = await hub.getSession();
+  if (!session) throw new Error('Not signed in on this Mac (run composer-hub-login)');
+
+  const recRes = await fetch(
+    `${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}&select=id,generated_name,original_name`,
+    { headers: { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` }, signal: AbortSignal.timeout(15000) },
+  );
+  const [record] = recRes.ok ? await recRes.json() : [];
+  if (!record) throw new Error('Song not found');
+
+  const displayTitle = stripDatePrefix(record.original_name || record.generated_name || 'Untitled');
+  return {
+    record,
+    session,
+    displayTitle,
+    folder: path.join(SOCIAL_OUTPUT_DIR, safeFolderName(displayTitle)),
+  };
+}
+
 async function handleSocialKitStatus(req, res, query) {
   try {
-    const improvisationId = query.get('id') || '';
-    if (!/^[0-9a-f-]{36}$/i.test(improvisationId)) throw new Error('Missing or invalid id');
-
-    const hub = await import('./composer-hub.js');
-    const session = await hub.getSession();
-    if (!session) throw new Error('Not signed in on this Mac (run composer-hub-login)');
-
-    const recRes = await fetch(
-      `${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}&select=id,generated_name,original_name`,
-      { headers: { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` }, signal: AbortSignal.timeout(15000) },
-    );
-    const [record] = recRes.ok ? await recRes.json() : [];
-    if (!record) throw new Error('Song not found');
-
-    const displayTitle = stripDatePrefix(record.original_name || record.generated_name || 'Untitled');
-    const folder = path.join(SOCIAL_OUTPUT_DIR, safeFolderName(displayTitle));
+    const { displayTitle, folder } = await resolveSocialSong(query.get('id') || '');
     const kitJson = path.join(folder, 'kit.json');
 
     if (!fs.existsSync(kitJson)) {
@@ -1478,14 +1687,17 @@ async function handleSocialKitStatus(req, res, query) {
       .map((f) => {
         const full = path.join(folder, f.name);
         if (!fs.existsSync(full)) return null;
+        const ext = path.extname(f.name).toLowerCase();
         return {
           name: f.name,
           path: full,
-          kind: f.name.endsWith('.mp4') ? 'video' : f.name.endsWith('.png') ? 'image' : 'text',
+          kind: ext === '.mp4' ? 'video' : ['.png', '.jpg', '.jpeg'].includes(ext) ? 'image' : 'text',
           ratio: f.ratio || undefined,
           ratioLabel: f.ratioLabel || undefined,
           clipStartSec: f.clipStartSec ?? undefined,
           clipSec: f.clipSec ?? undefined,
+          autoExcerpt: f.autoExcerpt ?? undefined,
+          platform: f.platform || undefined,
           sizeMB: f.sizeMB ?? Math.round((fs.statSync(full).size / (1024 * 1024)) * 10) / 10,
         };
       })
@@ -1493,7 +1705,55 @@ async function handleSocialKitStatus(req, res, query) {
 
     sendJson(res, 200, {
       success: true,
-      data: { built: files.length > 0, folder, title: displayTitle, durationSec: kit.durationSec, caption: kit.caption, files },
+      data: {
+        built: files.length > 0,
+        folder,
+        title: displayTitle,
+        durationSec: kit.durationSec,
+        caption: kit.caption,
+        // Older kits only have `caption`; treat it as the Instagram one.
+        captions: kit.captions || { instagram: kit.caption || '' },
+        files,
+      },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
+/**
+ * Persist an edited caption back to the kit folder. Captions are the one piece
+ * worth tweaking after a build (voice, hashtags), so edits shouldn't evaporate
+ * on reload.
+ */
+async function handleSocialSaveCaption(req, res, body) {
+  try {
+    const platform = typeof body.platform === 'string' ? body.platform : '';
+    const text = typeof body.text === 'string' ? body.text.replace(/\r\n/g, '\n') : '';
+    if (!Object.prototype.hasOwnProperty.call(CAPTION_FILES, platform)) {
+      throw new Error('Unknown caption platform');
+    }
+    if (!text.trim()) throw new Error('Caption is empty');
+
+    const { displayTitle, folder } = await resolveSocialSong(
+      typeof body.improvisationId === 'string' ? body.improvisationId : '',
+    );
+    const kitJson = path.join(folder, 'kit.json');
+    if (!fs.existsSync(kitJson)) throw new Error('Build the social kit first');
+
+    const kit = JSON.parse(fs.readFileSync(kitJson, 'utf-8'));
+    const captionPath = path.join(folder, `${displayTitle} - ${CAPTION_FILES[platform]}`);
+    fs.writeFileSync(captionPath, text.endsWith('\n') ? text : `${text}\n`);
+
+    kit.captions = { ...(kit.captions || {}), [platform]: text };
+    if (platform === 'instagram') kit.caption = text;
+    kit.captionSavedAt = new Date().toISOString();
+    fs.writeFileSync(kitJson, JSON.stringify(kit, null, 2));
+
+    sendJson(res, 200, {
+      success: true,
+      data: { path: captionPath, platform, message: 'Caption saved' },
       timestamp: new Date().toISOString(),
     }, req);
   } catch (e) {
@@ -1607,6 +1867,8 @@ async function startServer() {
           await handleSocialBuildKit(req, res, parsedBody);
         } else if (pathname === '/social/kit' && req.method === 'GET') {
           await handleSocialKitStatus(req, res, url.searchParams);
+        } else if (pathname === '/social/caption' && req.method === 'POST') {
+          await handleSocialSaveCaption(req, res, parsedBody);
         } else if (pathname === '/social/preview' && req.method === 'GET') {
           await handleSocialPreview(req, res, url.searchParams);
         } else if (pathname === '/captures' && req.method === 'GET') {
@@ -1645,6 +1907,7 @@ async function startServer() {
     console.log('  POST /logic/trash-local       - Trash local copy after re-verifying the NAS copy');
     console.log('  POST /social/build-kit        - Song → artwork + ratio-ready videos (staged on Desktop)');
     console.log('  GET  /social/kit              - Existing kit status for a song');
+    console.log('  POST /social/caption          - Save an edited caption into the kit');
     console.log('  GET  /social/preview          - Stream a staged kit file for in-app preview');
     console.log('');
     console.log('Press Ctrl+C to stop');
