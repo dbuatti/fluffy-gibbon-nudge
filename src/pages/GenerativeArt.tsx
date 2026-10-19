@@ -34,12 +34,33 @@ const GenerativeArt: React.FC = () => {
     { label: 'Forest → Dawn', prompt: 'Abstract atmospheric painting of a minimalist horizon, soft misty fog, smooth gradient transition from deep forest green on the left to warm peach sunrise and lavender on the right, calm reflective lake surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, high resolution, 8k' },
     { label: 'Storm → Calm', prompt: 'Abstract atmospheric painting of a minimalist horizon, soft hazy fog, smooth gradient transition from dark charcoal storm clouds on the left to pale silver moonlight and soft rose on the right, calm reflective water surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, high resolution, 8k' },
     { label: 'Generic', prompt: 'Abstract atmospheric painting of a minimalist horizon, soft hazy fog, smooth gradient transition between contrasting warm and cool tones, calm reflective surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, unique composition, high resolution, 8k' },
+    { label: 'Album Cover', prompt: 'Abstract album cover art, soft flowing shapes, calming colours, minimal, no text' },
+    { label: 'Minimal Horizon', prompt: 'Minimal abstract artwork, soft washes of muted indigo and dusty rose fading into warm gold light, gentle blurred texture like mist or watercolour, a single faint line of light suggesting a horizon, calm, melancholic, spacious, lots of negative space, square format, no text, no people, no instruments' },
   ];
 
   const [prompt, setPrompt] = useState(PROMPT_PRESETS[3].prompt);
   const [paletteName, setPaletteName] = useState('Calming Earth');
-  const [generating, setGenerating] = useState(false);
-  const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
+  const [promptLoading, setPromptLoading] = useState(false);
+
+  const generatePromptWithGemini = useCallback(async () => {
+    setPromptLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-art-prompt', {
+        body: { theme: 'calming abstract album cover art' },
+      });
+      if (error) throw error;
+      if (data?.prompt) {
+        setPrompt(data.prompt);
+        showSuccess('New prompt generated');
+      } else if (data?.error) {
+        showError(data.error);
+      }
+    } catch (e: any) {
+      showError(e.message || 'Failed to generate prompt');
+    } finally {
+      setPromptLoading(false);
+    }
+  }, []);
   const [aiImage, setAiImage] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [history, setHistory] = useState<{ type: 'procedural' | 'cloudflare' | 'gemini'; image: string; prompt: string; seed?: number }[]>([]);
@@ -514,6 +535,15 @@ const GenerativeArt: React.FC = () => {
                       {preset.label}
                     </Button>
                   ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[10px] h-6 px-2"
+                    onClick={generatePromptWithGemini}
+                    disabled={promptLoading}
+                  >
+                    {promptLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} AI Prompt
+                  </Button>
                 </div>
                 <Textarea
                   value={prompt}
