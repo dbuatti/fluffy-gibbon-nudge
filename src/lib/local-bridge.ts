@@ -302,10 +302,14 @@ export function useLocalBridge() {
   const [loading, setLoading] = useState(false);
   const [loadingMode, setLoadingMode] = useState<string | null>(null);
   const [host, setHostState] = useState(() => bridgeClient.getHost());
+  const [latency, setLatency] = useState<number | null>(null);
 
   const checkConnection = useCallback(async () => {
     try {
+      const start = Date.now();
       const res = await client.ping();
+      const elapsed = Date.now() - start;
+      setLatency(elapsed);
       setConnected(res.success);
       if (res.success) {
         const statusRes = await client.getStatus();
@@ -317,6 +321,7 @@ export function useLocalBridge() {
       console.error('[LocalBridge] Connection check failed:', e);
       setConnected(false);
       setStatus(null);
+      setLatency(null);
     }
   }, [client]);
 
@@ -404,6 +409,7 @@ export function useLocalBridge() {
     mountNas,
     setBridgeHost,
     host,
+    latency,
     hasToken: client.hasToken(),
   };
 }

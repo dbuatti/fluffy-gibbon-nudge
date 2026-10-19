@@ -193,6 +193,7 @@ export const LocalBridgePanel: React.FC = () => {
     mountNas,
     setBridgeHost,
     host,
+    latency,
   } = useLocalBridge();
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [lastResult, setLastResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -300,7 +301,7 @@ export const LocalBridgePanel: React.FC = () => {
             <Badge variant={connected ? 'default' : 'destructive'} className="ml-2">
               {connected ? 'Connected' : 'Disconnected'}
             </Badge>
-            <span className="ml-2 text-[10px] text-muted-foreground">{host}</span>
+            <span className="ml-2 text-[10px] text-muted-foreground">{host}{latency !== null && connected ? ` · ${latency}ms` : ''}</span>
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={checkConnection} disabled={loading} title="Refresh connection">
             <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
