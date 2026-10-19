@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useLocalBridge, useRealtimeSyncStatus } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -186,6 +187,8 @@ export const LocalBridgePanel: React.FC = () => {
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [lastResult, setLastResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const dismissResult = () => setLastResult(null);
+
   useEffect(() => {
     if (status) setLastChecked(new Date());
   }, [status]);
@@ -196,6 +199,7 @@ export const LocalBridgePanel: React.FC = () => {
     return () => clearTimeout(t);
   }, [lastResult]);
   const [tokenInput, setTokenInput] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : ''));
+  const [copiedToken, setCopiedToken] = useState(false);
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
   const handleLaunch = async (mode: string, extras: Record<string, unknown> = {}) => {
@@ -365,12 +369,12 @@ export const LocalBridgePanel: React.FC = () => {
             <div className="mt-2 space-y-2 text-xs">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Label htmlFor="bridge-host">Host:</Label>
-                <input
+                <Input
                   id="bridge-host"
                   type="text"
                   defaultValue={host}
                   onBlur={(e) => setBridgeHost(e.target.value.trim() || '127.0.0.1')}
-                  className="px-2 py-1 bg-muted rounded text-xs flex-1 min-w-0"
+                  className="h-7 text-xs"
                   placeholder="127.0.0.1 or Tailscale IP"
                 />
               </div>
@@ -385,8 +389,8 @@ export const LocalBridgePanel: React.FC = () => {
                 <code id="bridge-token" className="px-2 py-1 bg-muted rounded text-xs flex-1 truncate">
                   {tokenInput || '••••••••••••••••••••••••••••••••'}
                 </code>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(tokenInput || '')}>
-                  <LinkIcon className="h-3 w-3" />
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { navigator.clipboard.writeText(tokenInput || ''); setCopiedToken(true); setTimeout(() => setCopiedToken(false), 1500); }}>
+                  {copiedToken ? <CheckCircle className="h-3 w-3 text-green-600" /> : <LinkIcon className="h-3 w-3" />}
                 </Button>
               </div>
               <Button variant="ghost" size="sm" onClick={() => { configureToken(''); setShowTokenSetup(true); }}>

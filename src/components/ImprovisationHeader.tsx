@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Sparkles, Loader2 } from 'lucide-react';
+import { RefreshCw, Sparkles, Loader2, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import EditableField from './EditableField';
@@ -10,6 +10,7 @@ import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
 import TitleBar from './TitleBar';
 import type { Improvisation, AnalysisData } from '@/types/improvisation';
+import { useNavigate } from 'react-router-dom';
 
 interface ImprovisationHeaderProps {
   imp: Improvisation;
@@ -35,6 +36,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
   handleUpdateIsImprovisation,
 }) => {
   const updateMutation = useUpdateImprovisation(imp.id);
+  const navigate = useNavigate();
   const handleUpdateName = (newName: string) => updateMutation.mutateAsync({ generated_name: newName });
   const { isGenerating, handleRandomGenerate, handleAIGenerate } = useTitleGenerator(imp.id, handleUpdateName);
 
@@ -85,6 +87,16 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         className="h-8 w-8"
       >
         <Sparkles className="h-4 w-4 text-violet-500" />
+      </Button>
+      <Button
+        onClick={() => navigate('/generative-art?improvisationId=' + imp.id)}
+        size="icon"
+        variant="outline"
+        title="Create Artwork for this improvisation"
+        aria-label="Create Artwork"
+        className="h-8 w-8"
+      >
+        <Palette className="h-4 w-4 text-pink-500" />
       </Button>
       <ImprovisationMetadataDialog
         imp={imp}
