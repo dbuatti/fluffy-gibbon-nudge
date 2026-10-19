@@ -190,12 +190,18 @@ export const LocalBridgePanel: React.FC = () => {
     else showError(description || title);
   };
 
-  // Collapsible sections
-  const [showSystem, setShowSystem] = useState(true);
-  const [showWorkflows, setShowWorkflows] = useState(true);
-  const [showAudio, setShowAudio] = useState(true);
-  const [showSync, setShowSync] = useState(true);
-  const [showConfig, setShowConfig] = useState(false);
+  // Collapsible sections (persisted)
+  const [showSystem, setShowSystem] = useState(() => localStorage.getItem('lb_showSystem') !== 'false');
+  const [showWorkflows, setShowWorkflows] = useState(() => localStorage.getItem('lb_showWorkflows') !== 'false');
+  const [showAudio, setShowAudio] = useState(() => localStorage.getItem('lb_showAudio') !== 'false');
+  const [showSync, setShowSync] = useState(() => localStorage.getItem('lb_showSync') !== 'false');
+  const [showConfig, setShowConfig] = useState(() => localStorage.getItem('lb_showConfig') === 'true');
+
+  useEffect(() => { localStorage.setItem('lb_showSystem', String(showSystem)); }, [showSystem]);
+  useEffect(() => { localStorage.setItem('lb_showWorkflows', String(showWorkflows)); }, [showWorkflows]);
+  useEffect(() => { localStorage.setItem('lb_showAudio', String(showAudio)); }, [showAudio]);
+  useEffect(() => { localStorage.setItem('lb_showSync', String(showSync)); }, [showSync]);
+  useEffect(() => { localStorage.setItem('lb_showConfig', String(showConfig)); }, [showConfig]);
 
   const handleUploadAudio = async () => {
     try {
@@ -267,139 +273,85 @@ export const LocalBridgePanel: React.FC = () => {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* System Status Indicators */}
-        {status && (
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <StatusIndicator label="Meld Studio" connected={status.meldConnected} />
-            <StatusIndicator label="Logic Pro" connected={status.logicRunning} />
-            <StatusIndicator label="NAS (Moon Prism)" connected={status.nasMounted} />
-            <StatusIndicator label="Bridge Uptime" value={`${Math.floor(status.uptimeSeconds / 60)}m`} />
-          </div>
-        )}
-
-        {/* Disconnected help */}
-        {!connected && (
-          <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 space-y-1">
-            <p>Bridge not reachable. Restart it with:</p>
-            <code className="block bg-muted px-2 py-1 rounded text-[10px] font-mono">pm2 restart composer-hub-bridge</code>
-          </div>
-        )}
-
-        <Separator />
-
-        {/* Workflow Launcher Buttons */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Launch Workflow</h4>
-
-          <WorkflowButton
-            icon={Video}
-            label="TikTok / Shorts"
-            desc="Streaming template + Meld TikTok scene + upload page"
-            mode="tiktok"
-            onClick={() => handleLaunch('tiktok')}
-            color="text-pink-600"
-            disabled={!connected || loading}
-            loading={loading}
-          />
-
-          <WorkflowButton
-            icon={Video}
-            label="IG Story (Quick Capture)"
-            desc="Streaming template + Meld IG scene, no upload step"
-            mode="ig_story"
-            onClick={() => handleLaunch('ig_story')}
-            color="text-purple-600"
-            disabled={!connected || loading}
-            loading={loading}
-          />
-
-          <WorkflowButton
-            icon={Music}
-            label="Piano Improvisation"
-            desc="Felt/Piano template + daily prompt + Composer Hub entry"
-            mode="piano_improvisation"
-            onClick={() => handleLaunch('piano_improvisation', { sound: 'felt_piano', film: true })}
-            color="text-blue-600"
-            disabled={!connected || loading}
-            loading={loading}
-          />
-
-          <WorkflowButton
-            icon={FolderOpen}
-            label="Deep Composition"
-            desc="Mount NAS + Logic/Sibelius templates + dated project folder"
-            mode="deep_composition"
-            onClick={() => handleLaunch('deep_composition')}
-            color="text-green-600"
-            disabled={!connected || loading}
-            loading={loading}
-          />
-
-          <WorkflowButton
-            icon={Zap}
-            label="Finish Take"
-            desc="Pair newest Logic capture with Meld video → Movies folder"
-            mode="finish_take"
-            onClick={() => handleLaunch('finish_take')}
-            color="text-amber-600"
-            disabled={!connected || loading}
-            loading={loading}
-          />
-        </div>
-
-        <Separator />
-
-        {/* Audio & Video Actions */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Audio & Video</h4>
-
-          <WorkflowButton
-            icon={Upload}
-            label="Upload Latest Audio"
-            desc="Find bounced audio in latest Logic project & upload to Composer Hub"
-            mode="upload_audio"
-            onClick={handleUploadAudio}
-            color="text-emerald-600"
-            disabled={!connected || loading}
-            loading={loading}
-          />
-
-          <WorkflowButton
-            icon={HardDrive}
-            label="Sync to NAS"
-            desc={status?.nasMounted ? "Copy local captures to Moon Prism backup" : "NAS (Moon Prism) not mounted — connect to home network"}
-            mode="sync_nas"
-            onClick={handleSyncNAS}
-            color="text-cyan-600"
-            disabled={!connected || loading || !status?.nasMounted}
-            loading={loading}
-          />
-
-          {!status?.nasMounted && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start gap-1.5 text-xs"
-              onClick={async () => {
-                const res = await mountNas();
-                if (res?.success) showSuccess(res.data?.message || 'Mount dialog opened');
-                else showError(res?.error || 'Mount failed');
-              }}
-              disabled={!connected || loading}
-            >
-              <HardDrive className="h-3 w-3 text-cyan-600" />
-              Mount NAS (Moon Prism)
-            </Button>
+      <CardContent className="space-y-3">
+        {/* System Status */}
+        <CollapsibleSection title="System" icon={TerminalSquare} isOpen={showSystem} onToggle={() => setShowSystem(!showSystem)}>
+          {status && (
+            <div className="grid grid-cols-2 gap-2 text-xs pt-2">
+              <StatusIndicator label="Meld Studio" connected={status.meldConnected} />
+              <StatusIndicator label="Logic Pro" connected={status.logicRunning} />
+              <StatusIndicator label="NAS (Moon Prism)" connected={status.nasMounted} />
+              <StatusIndicator label="Bridge Uptime" value={`${Math.floor(status.uptimeSeconds / 60)}m`} />
+            </div>
           )}
-        </div>
+          {!connected && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 space-y-1 mt-2">
+              <p>Bridge not reachable. Restart it with:</p>
+              <code className="block bg-muted px-2 py-1 rounded text-[10px] font-mono">pm2 restart composer-hub-bridge</code>
+            </div>
+          )}
+        </CollapsibleSection>
 
-        <Separator />
+        {/* Workflows */}
+        <CollapsibleSection title="Workflows" icon={Zap} isOpen={showWorkflows} onToggle={() => setShowWorkflows(!showWorkflows)}>
+          <div className="space-y-1.5 pt-2">
+            <WorkflowButton icon={Video} label="TikTok / Shorts" desc="Streaming template + Meld TikTok scene + upload page" mode="tiktok" onClick={() => handleLaunch('tiktok')} color="text-pink-600" disabled={!connected || loading} loading={loading} />
+            <WorkflowButton icon={Video} label="IG Story (Quick Capture)" desc="Streaming template + Meld IG scene, no upload step" mode="ig_story" onClick={() => handleLaunch('ig_story')} color="text-purple-600" disabled={!connected || loading} loading={loading} />
+            <WorkflowButton icon={Music} label="Piano Improvisation" desc="Felt/Piano template + daily prompt + Composer Hub entry" mode="piano_improvisation" onClick={() => handleLaunch('piano_improvisation', { sound: 'felt_piano', film: true })} color="text-blue-600" disabled={!connected || loading} loading={loading} />
+            <WorkflowButton icon={FolderOpen} label="Deep Composition" desc="Mount NAS + Logic/Sibelius templates + dated project folder" mode="deep_composition" onClick={() => handleLaunch('deep_composition')} color="text-green-600" disabled={!connected || loading} loading={loading} />
+            <WorkflowButton icon={Zap} label="Finish Take" desc="Pair newest Logic capture with Meld video → Movies folder" mode="finish_take" onClick={() => handleLaunch('finish_take')} color="text-amber-600" disabled={!connected || loading} loading={loading} />
+          </div>
+        </CollapsibleSection>
+
+        {/* Audio & Video */}
+        <CollapsibleSection title="Audio & Video" icon={Upload} isOpen={showAudio} onToggle={() => setShowAudio(!showAudio)}>
+          <div className="space-y-1.5 pt-2">
+            <WorkflowButton icon={Upload} label="Upload Latest Audio" desc="Find bounced audio in latest Logic project & upload to Composer Hub" mode="upload_audio" onClick={handleUploadAudio} color="text-emerald-600" disabled={!connected || loading} loading={loading} />
+            <WorkflowButton icon={HardDrive} label="Sync to NAS" desc={status?.nasMounted ? "Copy local captures to Moon Prism backup" : "NAS (Moon Prism) not mounted — connect to home network"} mode="sync_nas" onClick={handleSyncNAS} color="text-cyan-600" disabled={!connected || loading || !status?.nasMounted} loading={loading} />
+            {!status?.nasMounted && (
+              <Button variant="outline" size="sm" className="w-full justify-start gap-1.5 text-xs" onClick={async () => { const res = await mountNas(); if (res?.success) showSuccess(res.data?.message || 'Mount dialog opened'); else showError(res?.error || 'Mount failed'); }} disabled={!connected || loading}>
+                <HardDrive className="h-3 w-3 text-cyan-600" />
+                Mount NAS (Moon Prism)
+              </Button>
+            )}
+          </div>
+        </CollapsibleSection>
 
         {/* Sync Status */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync Status</h4>
-          <SyncStatusDisplay />
+        <CollapsibleSection title="Sync Status" icon={RefreshCw} isOpen={showSync} onToggle={() => setShowSync(!showSync)}>
+          <div className="pt-2">
+            <SyncStatusDisplay />
+          </div>
+        </CollapsibleSection>
+
+        {/* Token Management */}
+        <div>
+          <details className="group">
+            <summary className="flex items-center justify-between text-xs text-muted-foreground cursor-pointer">
+              <span>Bridge Configuration</span>
+              <TerminalSquare className="h-3 w-3 opacity-50 group-hover:opacity-100" />
+            </summary>
+            <div className="mt-2 space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Label htmlFor="bridge-port">Port:</Label>
+                <code id="bridge-port" className="px-2 py-1 bg-muted rounded text-xs">
+                  {status?.config?.port || '34567'}
+                </code>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Label htmlFor="bridge-token">Token:</Label>
+                <code id="bridge-token" className="px-2 py-1 bg-muted rounded text-xs flex-1 truncate">
+                  {tokenInput || '••••••••••••••••••••••••••••••••'}
+                </code>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(tokenInput || '')}>
+                  <LinkIcon className="h-3 w-3" />
+                </Button>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => { configureToken(''); setShowTokenSetup(true); }}>
+                Regenerate Token
+              </Button>
+            </div>
+          </details>
         </div>
 
         {/* Token Management */}
