@@ -55,6 +55,7 @@ function loadConfig() {
     config = {
       token,
       port: 34567,
+      bindHost: '127.0.0.1',
       allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'],
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
@@ -68,6 +69,7 @@ function loadConfig() {
     console.log('Or use the "Set Up Bridge Connection" button in the sidebar.');
   } else {
     config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    if (!config.bindHost) config.bindHost = '127.0.0.1';
   }
   return config;
 }
@@ -215,7 +217,7 @@ async function handleStatus(req, res) {
       logicRunning,
       nasMounted,
       nasPath: nasMounted ? '/Volumes/Moon Prism' : undefined,
-      config: { port: config.port, allowedOrigins: config.allowedOrigins },
+      config: { port: config.port, bindHost: config.bindHost || '127.0.0.1', allowedOrigins: config.allowedOrigins },
     },
     timestamp: new Date().toISOString(),
   }, req);
@@ -443,8 +445,8 @@ async function startServer() {
     });
   });
 
-  server.listen(config.port, '127.0.0.1', () => {
-    console.log(`🌉 Local Bridge running at http://127.0.0.1:${config.port}`);
+  server.listen(config.port, config.bindHost || '127.0.0.1', () => {
+    console.log(`🌉 Local Bridge running at http://${config.bindHost || '127.0.0.1'}:${config.port}`);
     console.log(`📋 Config: ${CONFIG_FILE}`);
     console.log(`🔑 Token: ${config.token}`);
     console.log(`🌐 Allowed origins: ${config.allowedOrigins.join(', ')}`);

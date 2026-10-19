@@ -93,7 +93,7 @@ export interface BridgeStatusResponse {
   logicRunning: boolean;
   nasMounted: boolean;
   nasPath?: string;
-  config: Pick<BridgeConfig, 'port' | 'allowedOrigins'>;
+  config: Pick<BridgeConfig, 'port' | 'allowedOrigins'> & { bindHost?: string };
 }
 
 // --- Sync / Query (local script → Supabase) ---
@@ -133,6 +133,8 @@ export interface SyncStatusResponse {
 
 export interface BridgeClientOptions {
   baseUrl?: string; // e.g. 'http://127.0.0.1:34567'
+  host?: string;
+  port?: number;
   token?: string;   // If not provided, reads from localStorage
   fetchImpl?: typeof fetch;
 }
@@ -141,12 +143,23 @@ export class BridgeClient {
   private baseUrl: string;
   private token: string;
   private fetchImpl: typeof fetch;
+  private host: string;
+  private port: number;
 
   constructor(options: BridgeClientOptions = {}) {
-    this.baseUrl = options.baseUrl || `http://127.0.0.1:${BRIDGE_DEFAULT_PORT}`;
+    this.host = options.host || this.getStoredHost();
+    this.port = options.port || BRIDGE_DEFAULT_PORT;
+    this.baseUrl = options.baseUrl || `http://${this.host}:${this.port}`;
     this.token = options.token || this.getStoredToken();
     // Bind fetch to window to avoid "Illegal invocation" error
     this.fetchImpl = options.fetchImpl || (typeof window !== 'undefined' ? window.fetch.bind(window) : fetch);
+  }
+
+  private getStoredHost(): string {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('composer-hub-bridge-host') || '127.0.0.1';
+    }
+    return '127.0.0.1';
   }
 
   private getStoredToken(): string {
@@ -183,6 +196,18 @@ export class BridgeClient {
     if (typeof window !== 'undefined') {
       localStorage.setItem('composer-hub-bridge-token', token);
     }
+  }
+
+  setHost(host: string) {
+    this.host = host;
+    this.baseUrl = `http://${host}:${this.port}`;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('composer-hub-bridge-host', host);
+    }
+  }
+
+  getHost(): string {
+    return this.host;
   }
 
   clearToken() {
@@ -263,6 +288,7 @@ export function useLocalBridge() {
   const [status, setStatus] = useState<BridgeStatusResponse | null>(null);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [host, setHostState] = useState(() => bridgeClient.getHost());
 
   const checkConnection = useCallback(async () => {
     try {
@@ -330,6 +356,12 @@ export function useLocalBridge() {
     checkConnection();
   };
 
+  const setBridgeHost = (newHost: string) => {
+    client.setHost(newHost);
+    setHostState(newHost);
+    checkConnection();
+  };
+
   const mountNas = async () => {
     const res = await client.mountNas();
     if (res.success) {
@@ -354,6 +386,8 @@ export function useLocalBridge() {
     getSyncStatus,
     configureToken,
     mountNas,
+    setBridgeHost,
+    host,
     hasToken: client.hasToken(),
   };
 }

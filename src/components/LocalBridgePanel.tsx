@@ -177,6 +177,8 @@ export const LocalBridgePanel: React.FC = () => {
     hasToken,
     configureToken,
     mountNas,
+    setBridgeHost,
+    host,
   } = useLocalBridge();
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
@@ -296,7 +298,7 @@ export const LocalBridgePanel: React.FC = () => {
           )}
           {!connected && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 space-y-1 mt-2">
-              <p>Bridge not reachable. Restart it with:</p>
+              <p>Bridge not reachable at {host}. Restart it with:</p>
               <code className="block bg-muted px-2 py-1 rounded text-[10px] font-mono">pm2 restart composer-hub-bridge</code>
             </div>
           )}
@@ -343,35 +345,16 @@ export const LocalBridgePanel: React.FC = () => {
             </summary>
             <div className="mt-2 space-y-2 text-xs">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Label htmlFor="bridge-port">Port:</Label>
-                <code id="bridge-port" className="px-2 py-1 bg-muted rounded text-xs">
-                  {status?.config?.port || '34567'}
-                </code>
+                <Label htmlFor="bridge-host">Host:</Label>
+                <input
+                  id="bridge-host"
+                  type="text"
+                  defaultValue={host}
+                  onBlur={(e) => setBridgeHost(e.target.value.trim() || '127.0.0.1')}
+                  className="px-2 py-1 bg-muted rounded text-xs flex-1 min-w-0"
+                  placeholder="127.0.0.1 or Tailscale IP"
+                />
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Label htmlFor="bridge-token">Token:</Label>
-                <code id="bridge-token" className="px-2 py-1 bg-muted rounded text-xs flex-1 truncate">
-                  {tokenInput || '••••••••••••••••••••••••••••••••'}
-                </code>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(tokenInput || '')}>
-                  <LinkIcon className="h-3 w-3" />
-                </Button>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => { configureToken(''); setShowTokenSetup(true); }}>
-                Regenerate Token
-              </Button>
-            </div>
-          </details>
-        </div>
-
-        {/* Token Management */}
-        <div>
-          <details className="group">
-            <summary className="flex items-center justify-between text-xs text-muted-foreground cursor-pointer">
-              <span>Bridge Configuration</span>
-              <TerminalSquare className="h-3 w-3 opacity-50 group-hover:opacity-100" />
-            </summary>
-            <div className="mt-2 space-y-2 text-xs">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Label htmlFor="bridge-port">Port:</Label>
                 <code id="bridge-port" className="px-2 py-1 bg-muted rounded text-xs">
