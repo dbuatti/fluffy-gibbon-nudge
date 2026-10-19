@@ -97,7 +97,14 @@ export interface BridgeStatusResponse {
   config: Pick<BridgeConfig, 'port' | 'allowedOrigins'> & { bindHost?: string };
 }
 
-// --- Sync / Query (local script → Supabase) ---
+// --- Local Captures ---
+export interface LocalCapture {
+  name: string;
+  stem: string;
+  fullPath: string;
+  mtime: number;
+  createdAt: string;
+}
 
 export interface NasStatusResponse {
   mounted: boolean;
@@ -297,6 +304,10 @@ export class BridgeClient {
   async getNasStatus(): Promise<BridgeResponse<NasStatusResponse>> {
     return this.request<NasStatusResponse>('/nas/status');
   }
+
+  async getCaptures(): Promise<BridgeResponse<{ captures: LocalCapture[]; count: number }>> {
+    return this.request<{ captures: LocalCapture[]; count: number }>('/captures');
+  }
 }
 
 // Singleton instance for React hooks
@@ -400,12 +411,15 @@ export function useLocalBridge() {
     const res = await client.mountNas();
     if (res.success) {
       showSuccess(res.data?.message || 'Mount dialog opened');
-      // Re-check connection after a delay to pick up new mount
       setTimeout(checkConnection, 3000);
     } else {
       showError(res.error || 'Mount failed');
     }
     return res;
+  };
+
+  const getCaptures = async () => {
+    return client.getCaptures();
   };
 
   return {
@@ -421,6 +435,7 @@ export function useLocalBridge() {
     getSyncStatus,
     configureToken,
     mountNas,
+    getCaptures,
     setBridgeHost,
     host,
     latency,

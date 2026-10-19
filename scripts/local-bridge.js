@@ -291,7 +291,37 @@ async function handleMountNas(req, res) {
   }
 }
 
-async function handleNasStatus(req, res) {
+async function handleListCaptures(req, res) {
+  const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
+  try {
+    if (!fs.existsSync(CAPTURES_DIR)) {
+      sendJson(res, 200, { success: true, data: { captures: [], count: 0 }, timestamp: new Date().toISOString() }, req);
+      return;
+    }
+    const entries = fs.readdirSync(CAPTURES_DIR, { withFileTypes: true })
+      .filter(d => d.isDirectory() && d.name.endsWith('.logicx'))
+      .map(d => {
+        const fullPath = path.join(CAPTURES_DIR, d.name);
+        const stat = fs.statSync(fullPath);
+        return {
+          name: d.name,
+          stem: d.name.replace(/\.logicx$/, ''),
+          fullPath,
+          mtime: stat.mtimeMs,
+          createdAt: stat.birthtime.toISOString(),
+        };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+
+    sendJson(res, 200, {
+      success: true,
+      data: { captures: entries, count: entries.length },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
   try {
     const [mounted, tailscale, reachability] = await Promise.all([
       checkNasMounted(),
@@ -569,6 +599,8 @@ async function startServer() {
           await handleMountNas(req, res);
         } else if (pathname === '/nas/status' && req.method === 'GET') {
           await handleNasStatus(req, res);
+        } else if (pathname === '/captures' && req.method === 'GET') {
+          await handleListCaptures(req, res);
         } else {
           sendJson(res, 404, { success: false, error: 'Not found', timestamp: new Date().toISOString() }, req);
         }

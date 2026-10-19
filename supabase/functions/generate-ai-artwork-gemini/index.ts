@@ -158,7 +158,7 @@ serve(async (req) => {
     if (!base64Image) {
       console.error('Gemini no image. Errors:', errors);
       return new Response(JSON.stringify({
-        error: 'No image returned from Gemini. The API key may not have access to image generation models. Try Cloudflare mode instead, or create a new API key at https://aistudio.google.com/apikey',
+        error: 'Gemini image generation not available. Your API key only has access to text models (' + availableModels.split(',').slice(0, 3).join(',') + '). Create a new API key at https://aistudio.google.com/apikey with image generation enabled, or use Cloudflare mode.',
         configured: true,
         debug: errors.join('; '),
         availableModels: availableModels,

@@ -191,6 +191,7 @@ export const LocalBridgePanel: React.FC = () => {
     hasToken,
     configureToken,
     mountNas,
+    getCaptures,
     setBridgeHost,
     host,
     latency,
@@ -230,12 +231,16 @@ export const LocalBridgePanel: React.FC = () => {
   const [showAudio, setShowAudio] = useState(() => localStorage.getItem('lb_showAudio') !== 'false');
   const [showSync, setShowSync] = useState(() => localStorage.getItem('lb_showSync') !== 'false');
   const [showConfig, setShowConfig] = useState(() => localStorage.getItem('lb_showConfig') === 'true');
+  const [showCaptures, setShowCaptures] = useState(() => localStorage.getItem('lb_showCaptures') !== 'false');
+  const [captures, setCaptures] = useState<any[]>([]);
+  const [capturesLoading, setCapturesLoading] = useState(false);
 
   useEffect(() => { localStorage.setItem('lb_showSystem', String(showSystem)); }, [showSystem]);
   useEffect(() => { localStorage.setItem('lb_showWorkflows', String(showWorkflows)); }, [showWorkflows]);
   useEffect(() => { localStorage.setItem('lb_showAudio', String(showAudio)); }, [showAudio]);
   useEffect(() => { localStorage.setItem('lb_showSync', String(showSync)); }, [showSync]);
   useEffect(() => { localStorage.setItem('lb_showConfig', String(showConfig)); }, [showConfig]);
+  useEffect(() => { localStorage.setItem('lb_showCaptures', String(showCaptures)); }, [showCaptures]);
 
   const handleUploadAudio = async () => {
     try {
@@ -261,6 +266,23 @@ export const LocalBridgePanel: React.FC = () => {
     } catch (e) {
       showToast(false, 'Error', String(e));
       setLastResult({ success: false, message: String(e) });
+    }
+  };
+
+  const handleScanCaptures = async () => {
+    setCapturesLoading(true);
+    try {
+      const res = await getCaptures();
+      if (res?.success && res.data) {
+        setCaptures(res.data.captures);
+        setLastResult({ success: true, message: `Found ${res.data.count} local captures` });
+      } else {
+        setLastResult({ success: false, message: res?.error || 'Scan failed' });
+      }
+    } catch (e: any) {
+      setLastResult({ success: false, message: e.message || 'Scan failed' });
+    } finally {
+      setCapturesLoading(false);
     }
   };
 
@@ -371,6 +393,45 @@ export const LocalBridgePanel: React.FC = () => {
         <CollapsibleSection title="Sync Status" icon={RefreshCw} isOpen={showSync} onToggle={() => setShowSync(!showSync)}>
           <div className="pt-2">
             <SyncStatusDisplay />
+          </div>
+        </CollapsibleSection>
+
+        {/* Local Captures (NAS mirror) */}
+        <CollapsibleSection title={`Local Captures (${captures.length})`} icon={FolderOpen} isOpen={showCaptures} onToggle={() => setShowCaptures(!showCaptures)}>
+          <div className="pt-2 space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleScanCaptures}
+              disabled={!connected || capturesLoading}
+              className="w-full text-xs gap-1.5"
+            >
+              {capturesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              Scan _Captures folder
+            </Button>
+            {captures.length > 0 && (
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {captures.slice(0, 10).map((c: any) => (
+                  <div key={c.name} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]">
+                    <Music className="h-3 w-3 text-primary flex-shrink-0" />
+                    <span className="flex-1 truncate">{c.stem}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">
+                      {new Date(c.mtime).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+                {captures.length > 10 && (
+                  <div className="text-[10px] text-muted-foreground text-center">
+                    +{captures.length - 10} more…
+                  </div>
+                )}
+              </div>
+            )}
+            {captures.length === 0 && !capturesLoading && (
+              <p className="text-[10px] text-muted-foreground text-center py-2">
+                Click "Scan" to list local captures from _Captures
+              </p>
+            )}
           </div>
         </CollapsibleSection>
 
