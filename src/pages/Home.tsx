@@ -71,7 +71,7 @@ const Home: React.FC = () => {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
           <ModeCard
             to="/composer"
             icon={Music}
@@ -99,6 +99,21 @@ const Home: React.FC = () => {
               'Instrumentation, key, tempo & genre',
               'Notes and progress status per arrangement',
               'Keep score & audio file links organized',
+            ]}
+          />
+
+          <ModeCard
+            to="/generative-art"
+            icon={Sparkles}
+            title="Generative Art"
+            tagline="Create abstract artwork for your music"
+            description="Procedural + AI-powered abstract art studio. Generate, refine, and save artwork for your improvisations."
+            accent="hover:border-primary"
+            features={[
+              'Procedural art (no API needed)',
+              'AI generation via Cloudflare FLUX',
+              'Link artwork to improvisations',
+              'Download high-res PNG',
             ]}
           />
         </div>
