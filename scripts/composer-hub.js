@@ -101,10 +101,19 @@ function localDatePrefix() {
 
 /**
  * Creates a new improvisation entry in Composer Hub.
+ *
+ * The title is free-form and always editable later in the app. When a local
+ * project folder / .logicx file exists, pass its path in `meta.logicProjectPath`
+ * — it becomes the immutable link back to disk (original_name + logic_project_path),
+ * so renames in the app never lose the association.
+ *
  * @param {string} title - The generated name for the improvisation
- * @returns {Promise<{success: boolean, id?: string, error?: string}>}
+ * @param {object} [meta] - Optional local metadata
+ * @param {string} [meta.logicProjectPath] - Full path to the .logicx / project folder
+ * @param {string} [meta.workflowMode] - tiktok | ig_story | piano_improvisation | deep_composition
+ * @returns {Promise<{success: boolean, id?: string, originalName?: string, error?: string}>}
  */
-async function captureIdea(title) {
+async function captureIdea(title, meta = {}) {
   const session = await getSession();
   if (!session) {
     return { success: false, error: 'Not logged in. Run: node composer-hub-login.js' };
@@ -112,6 +121,14 @@ async function captureIdea(title) {
 
   const datePrefix = localDatePrefix();
   const finalTitle = `${datePrefix} - ${title}`;
+
+  // original_name is derived from the folder/file basename — the sacred,
+  // never-changing link to the local project.
+  let originalName = null;
+  if (meta.logicProjectPath) {
+    const base = meta.logicProjectPath.split('/').filter(Boolean).pop() || '';
+    originalName = base.replace(/\.logicx$/, '');
+  }
 
   const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/improvisations`, {
     method: 'POST',
@@ -124,6 +141,9 @@ async function captureIdea(title) {
     body: JSON.stringify({
       user_id: session.user_id,
       generated_name: finalTitle,
+      original_name: originalName,
+      logic_project_path: meta.logicProjectPath || null,
+      workflow_mode: meta.workflowMode || null,
       status: 'uploaded',
       file_name: null,
       storage_path: null,
@@ -138,7 +158,7 @@ async function captureIdea(title) {
   }
 
   const [record] = await res.json();
-  return { success: true, id: record.id };
+  return { success: true, id: record.id, originalName: record.original_name || undefined };
 }
 
 /**
@@ -392,16 +412,27 @@ async function getSyncSummary(options = {}) {
   return { success: true, data: { items, counts } };
 }
 
-export { captureIdea, getDailyPrompt, uploadAudio, getPendingReleases, getStaleIdeas, getEntryStatus, getSyncSummary };
+export { captureIdea, getDailyPrompt, uploadAudio, getPendingReleases, getStaleIdeas, getEntryStatus, getSyncSummary, getSession, SUPABASE_URL, ANON_KEY };
 
 // Allow direct CLI usage:
-//   node composer-hub.js "My Title"     -> creates an idea
-//   node composer-hub.js --prompt       -> prints a fresh daily prompt (plain text, for scripting)
+//   node composer-hub.js "My Title"                              -> creates an idea
+//   node composer-hub.js "My Title" --path "/path/Project.logicx" -> idea + folder link
+//   node composer-hub.js "My Title" --path "..." --mode piano_improvisation
+//   node composer-hub.js --prompt                                -> prints a fresh daily prompt (plain text, for scripting)
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  const arg = process.argv[2];
+  const args = process.argv.slice(2);
+  const arg = args.find(a => !a.startsWith('--'));
+  const getPathFlag = () => {
+    const i = args.indexOf('--path');
+    return i !== -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : null;
+  };
+  const getModeFlag = () => {
+    const i = args.indexOf('--mode');
+    return i !== -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : null;
+  };
 
-  if (arg === '--prompt') {
+  if (args.includes('--prompt')) {
     getDailyPrompt().then((result) => {
       if (result.success) {
         console.log(result.prompt);
@@ -411,10 +442,10 @@ if (isMain) {
       }
     });
   } else if (!arg) {
-    console.error('Usage: node composer-hub.js "Title for the idea"  |  node composer-hub.js --prompt');
+    console.error('Usage: node composer-hub.js "Title for the idea" [--path "/path/Project.logicx"] [--mode piano_improvisation]  |  node composer-hub.js --prompt');
     process.exit(1);
   } else {
-    captureIdea(arg).then((result) => {
+    captureIdea(arg, { logicProjectPath: getPathFlag(), workflowMode: getModeFlag() }).then((result) => {
       console.log(JSON.stringify(result, null, 2));
       // Always the last line on success — lets callers grab just the URL via
       // `| tail -1` without needing to parse JSON (the picker's AppleScript

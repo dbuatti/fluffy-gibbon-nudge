@@ -53,4 +53,6 @@ export interface Improvisation {
   video_path: string | null;
   workflow_mode: 'tiktok' | 'ig_story' | 'piano_improvisation' | 'deep_composition' | string | null;
   logic_project_path: string | null;
+  /** Immutable link to the local folder/file basename at creation time (e.g. "20260722-124215 Felt Piano"). Never changes on rename. */
+  original_name: string | null;
 }

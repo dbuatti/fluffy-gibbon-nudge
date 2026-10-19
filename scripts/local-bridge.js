@@ -316,23 +316,32 @@ async function handleNasStatus(req, res) {
 }
 
 async function handleCreateCaptureEntry(req, res, body) {
-  const { name } = body;
+  const { name, logicProjectPath, title } = body;
   if (!name) {
     sendJson(res, 400, { success: false, error: 'Missing capture name', timestamp: new Date().toISOString() }, req);
     return;
   }
   try {
-    const { captureIdea } = await import('./composer-hub.js');
-    const title = name.replace(/^\d{8}[-\s]*/, '').replace(/\.logicx$/, '').trim() || name;
-    const result = await captureIdea(title);
+    // Same creation path as the Workflow Picker CLI (composer-hub.js) —
+    // one source of truth for title formatting, original_name, and metadata.
+    const hub = await import('./composer-hub.js');
+    const fullPath = logicProjectPath || path.join('/Users/danielebuatti/Music/Logic/_Captures', name);
+    // Custom title wins; otherwise derive from the folder name (strip date prefix + .logicx)
+    const derivedTitle = name.replace(/\.logicx$/, '').replace(/^\d{6,8}[-\s]*/, '').trim() || name;
+    const result = await hub.captureIdea(title || derivedTitle, {
+      logicProjectPath: fullPath,
+      workflowMode: 'piano_improvisation',
+    });
     if (result.success) {
-      // Also set the logic_project_path
-      const { getSession } = await import('./composer-hub.js');
-      // We can't easily update logic_project_path here since captureIdea doesn't return the full record
-      // But the entry is created, which is the main thing
       sendJson(res, 200, {
         success: true,
-        data: { id: result.id, title: `${new Date().toISOString().slice(0, 10).replace(/-/g, '')} - ${title}`, message: 'Entry created' },
+        data: {
+          id: result.id,
+          title: `${new Date().toISOString().slice(0, 10).replace(/-/g, '')} - ${title || derivedTitle}`,
+          originalName: result.originalName,
+          logicProjectPath: fullPath,
+          message: 'Entry created with folder link',
+        },
         timestamp: new Date().toISOString(),
       }, req);
     } else {
@@ -342,6 +351,8 @@ async function handleCreateCaptureEntry(req, res, body) {
     sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
+
+async function handleListCaptures(req, res) {
   const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
   try {
     if (!fs.existsSync(CAPTURES_DIR)) {
@@ -359,9 +370,37 @@ async function handleCreateCaptureEntry(req, res, body) {
           fullPath,
           mtime: stat.mtimeMs,
           createdAt: stat.birthtime.toISOString(),
+          inApp: false, // filled in below when we can match against Supabase
+          improvisationId: null,
         };
       })
       .sort((a, b) => b.mtime - a.mtime);
+
+    // Best-effort: mark which captures already have an app entry, by matching
+    // original_name (new records) or logic_project_path (older ones). Fails
+    // silently to offline mode if not logged in — the capture list still works.
+    try {
+      const hub = await import('./composer-hub.js');
+      const session = await hub.getSession();
+      if (session) {
+        const r = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${encodeURIComponent(session.user_id)}&select=id,original_name,logic_project_path`, {
+          headers: { 'apikey': hub.ANON_KEY, 'Authorization': `Bearer ${session.access_token}` },
+        });
+        if (r.ok) {
+          const rows = await r.json();
+          for (const e of entries) {
+            const match = rows.find(row =>
+              (row.original_name && row.original_name === e.stem) ||
+              (row.logic_project_path && row.logic_project_path.includes(e.name))
+            );
+            if (match) {
+              e.inApp = true;
+              e.improvisationId = match.id;
+            }
+          }
+        }
+      }
+    } catch { /* offline / not logged in — list still returns */ }
 
     sendJson(res, 200, {
       success: true,

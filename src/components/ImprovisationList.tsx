@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FilePen } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FilePen, Folder } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,6 +17,7 @@ import { showSuccess, showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import type { Improvisation, NoteTab } from '@/types/improvisation';
+import FolderPathLine from '@/components/FolderPathLine';
 
 const STALLED_THRESHOLD_HOURS = 24;
 const PAGE_SIZE = 20;
@@ -318,7 +319,9 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   const filteredImprovisations = allItems.filter(imp => {
     const matchesSearch = searchTerm === '' || 
                           imp.generated_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                          imp.file_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          imp.original_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          imp.logic_project_path?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilterStatus = filterStatus === 'all' || 
                                 (filterStatus === 'uploaded' && imp.status === 'uploaded' && !imp.storage_path) ||
@@ -494,6 +497,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-destructive flex-shrink-0" />}
                             {imp.generated_name || imp.file_name || 'Untitled Idea'}
                         </h3>
+                        <FolderPathLine imp={imp} />
                         <p className="text-sm text-muted-foreground">
                             {format(new Date(imp.created_at), 'MMM dd, yyyy')}
                         </p>

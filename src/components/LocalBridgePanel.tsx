@@ -15,6 +15,7 @@ import {
   HardDrive,
   ChevronRight,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -413,26 +414,33 @@ export const LocalBridgePanel: React.FC = () => {
             {captures.length > 0 && (
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {captures.slice(0, 10).map((c: any) => (
-                  <div key={c.name} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]">
+                  <div key={c.name} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]" title={c.fullPath}>
                     <Music className="h-3 w-3 text-primary flex-shrink-0" />
                     <span className="flex-1 truncate">{c.stem}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 flex-shrink-0"
-                      onClick={async () => {
-                        const res = await createCaptureEntry(c.name);
-                        if (res?.success) {
-                          showSuccess(`Created entry: ${res.data?.title}`);
-                          setLastResult({ success: true, message: `Created entry for ${c.stem}` });
-                        } else {
-                          showError(res?.error || 'Failed to create entry');
-                        }
-                      }}
-                      title="Create app entry"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                    </Button>
+                    {c.inApp ? (
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 whitespace-nowrap flex-shrink-0" title="Linked to an app entry">
+                        <CheckCircle className="h-3 w-3" /> In app
+                      </span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 flex-shrink-0"
+                        onClick={async () => {
+                          const res = await createCaptureEntry(c.name, { logicProjectPath: c.fullPath });
+                          if (res?.success) {
+                            showSuccess(`Created entry: ${res.data?.title}`);
+                            setLastResult({ success: true, message: `Created entry for ${c.stem}` });
+                            handleScanCaptures(); // refresh inApp markers
+                          } else {
+                            showError(res?.error || 'Failed to create entry');
+                          }
+                        }}
+                        title="Create app entry linked to this folder"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                      </Button>
+                    )}
                     <span className="text-muted-foreground whitespace-nowrap">
                       {new Date(c.mtime).toLocaleDateString()}
                     </span>

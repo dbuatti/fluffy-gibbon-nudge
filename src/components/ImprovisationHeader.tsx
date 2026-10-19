@@ -9,6 +9,7 @@ import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
 import TitleBar from './TitleBar';
+import FolderPathLine from './FolderPathLine';
 import type { Improvisation, AnalysisData } from '@/types/improvisation';
 import { useNavigate } from 'react-router-dom';
 
@@ -56,6 +57,8 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
       <p className="text-sm text-muted-foreground mt-1">
         Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
       </p>
+      {/* Immutable link back to the local folder — always visible, even after renames */}
+      <FolderPathLine imp={imp} full className="mt-0.5" />
     </div>
   );
 

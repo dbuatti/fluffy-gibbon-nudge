@@ -104,6 +104,9 @@ export interface LocalCapture {
   fullPath: string;
   mtime: number;
   createdAt: string;
+  /** True when this capture already has an app entry (matched by original_name / logic_project_path). */
+  inApp?: boolean;
+  improvisationId?: string | null;
 }
 
 export interface NasStatusResponse {
@@ -309,10 +312,10 @@ export class BridgeClient {
     return this.request<{ captures: LocalCapture[]; count: number }>('/captures');
   }
 
-  async createCaptureEntry(name: string): Promise<BridgeResponse<{ id: string; title: string; message: string }>> {
-    return this.request<{ id: string; title: string; message: string }>('/captures/create-entry', {
+  async createCaptureEntry(name: string, opts?: { logicProjectPath?: string; title?: string }): Promise<BridgeResponse<{ id: string; title: string; originalName?: string; logicProjectPath?: string; message: string }>> {
+    return this.request<{ id: string; title: string; originalName?: string; logicProjectPath?: string; message: string }>('/captures/create-entry', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...opts }),
     });
   }
 }
@@ -324,7 +327,7 @@ export const bridgeClient = new BridgeClient();
 // React Hook
 // ============================================================================
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { showSuccess, showError } from '@/utils/toast';
 
 export function useLocalBridge() {
@@ -335,6 +338,7 @@ export function useLocalBridge() {
   const [loadingMode, setLoadingMode] = useState<string | null>(null);
   const [host, setHostState] = useState(() => bridgeClient.getHost());
   const [latency, setLatency] = useState<number | null>(null);
+  const warnedOfflineRef = useRef(false); // one-shot console.info per offline transition
 
   const checkConnection = useCallback(async () => {
     try {
@@ -343,17 +347,24 @@ export function useLocalBridge() {
       const elapsed = Date.now() - start;
       setLatency(elapsed);
       setConnected(res.success);
+      warnedOfflineRef.current = false; // any success resets the one-shot warning
       if (res.success) {
         const statusRes = await client.getStatus();
         if (statusRes.success && statusRes.data) {
           setStatus(statusRes.data);
         }
       }
-    } catch (e) {
-      console.error('[LocalBridge] Connection check failed:', e);
+    } catch {
+      // Bridge offline is a normal state (e.g. opened on another machine or
+      // via composerhub.vercel.app) — degrade silently instead of spamming
+      // the console every 30s. Only warn once per offline transition.
       setConnected(false);
       setStatus(null);
       setLatency(null);
+      if (!warnedOfflineRef.current) {
+        warnedOfflineRef.current = true;
+        console.info('[LocalBridge] Bridge offline — running in web-only mode. Start it with: pm2 start composer-hub-bridge');
+      }
     }
   }, [client]);
 
@@ -429,8 +440,8 @@ export function useLocalBridge() {
     return client.getCaptures();
   };
 
-  const createCaptureEntry = async (name: string) => {
-    return client.createCaptureEntry(name);
+  const createCaptureEntry = async (name: string, opts?: { logicProjectPath?: string; title?: string }) => {
+    return client.createCaptureEntry(name, opts);
   };
 
   return {

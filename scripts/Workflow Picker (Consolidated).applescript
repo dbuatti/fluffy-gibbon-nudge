@@ -43,6 +43,7 @@
 property meldScenePath : "/Users/danielebuatti/Music/Logic/_Scripts/meld-scene.js"
 property finishTakePath : "/Users/danielebuatti/Music/Logic/_Scripts/finish-take.js"
 property composerHubPath : "/Users/danielebuatti/Music/Logic/_Scripts/composer-hub.js"
+property lastCapturePath : "" -- set by duplicateAndOpenTemplate; passed to composer-hub.js --path so the Hub entry keeps its immutable link to the local folder
 
 set workflowOptions to {"TikTok/Shorts", "IG Story (Quick Capture)", "Piano Improvisation", "Deep Composition", "Finish Take (Match Video to Logic File)"}
 set workflowChoiceList to (choose from list workflowOptions with prompt "What are we creating today?" default items {"TikTok/Shorts"})
@@ -85,6 +86,7 @@ on duplicateAndOpenTemplate(templatePOSIXPath, labelPrefix)
 	set newPath to captureFolder & stamp & " " & labelPrefix & ".logicx"
 	do shell script "cp -R " & quoted form of templatePOSIXPath & " " & quoted form of newPath
 	do shell script "open " & quoted form of newPath
+	set lastCapturePath to newPath -- remembered for the Composer Hub log (--path flag)
 	-- Reveal the new file in Finder too, selected — so it's obvious where this
 	-- capture actually lives (useful later when bouncing audio and needing to
 	-- know where to save it). Deliberately NOT activating Finder here — that
@@ -319,8 +321,16 @@ else if workflowChoice is "Piano Improvisation" then
 	-- opens the new entry's page directly (composer-hub.js always prints the
 	-- URL as its last line on success) — so you land straight on this idea,
 	-- not the generic dashboard, and can see immediately that it worked.
+	--
+	-- Runs AFTER duplicateAndOpenTemplate on purpose: the .logicx file must
+	-- exist first so its path can be passed via --path, giving the Hub entry
+	-- its immutable original_name / logic_project_path link to the folder.
+	if not (my duplicateAndOpenTemplate(POSIX path of templatePath, soundChoice)) then return
+
 	try
-		set hubResultURL to do shell script "zsh -lic " & quoted form of ("node " & quoted form of composerHubPath & " " & quoted form of finalTitle & " | tail -1")
+		set hubCmd to "node " & quoted form of composerHubPath & " " & quoted form of finalTitle & " --mode piano_improvisation"
+		if lastCapturePath is not "" then set hubCmd to hubCmd & " --path " & quoted form of lastCapturePath
+		set hubResultURL to do shell script "zsh -lic " & quoted form of (hubCmd & " | tail -1")
 		display notification "Logged to Composer Hub as \"" & finalTitle & "\"." with title "Composer Hub"
 		open location hubResultURL
 	on error errMsg
@@ -330,8 +340,6 @@ else if workflowChoice is "Piano Improvisation" then
 	if willFilm then
 		my ensureAndOpenMoviesSubfolder(soundChoice)
 	end if
-
-	if not (my duplicateAndOpenTemplate(POSIX path of templatePath, soundChoice)) then return
 	
 	if willFilm then
 		tell application "Meld Studio" to activate
@@ -417,15 +425,25 @@ else if workflowChoice is "Deep Composition" then
 	end try
 	set currentDate to do shell script "date +%Y%m%d"
 	
+	set finalFolderName to currentDate & " " & userInput
+	set finalFolderPath to basePath & "/" & finalFolderName
+	set finalLogicxPath to finalFolderPath & "/" & finalFolderName & ".logicx"
+	set finalSibPath to finalFolderPath & "/" & finalFolderName & ".sib"
+	
 	-- Same immediate-logging pattern as Piano Improvisation — a "Needs Audio"
 	-- entry exists in Composer Hub from the moment you name the project, ready to
 	-- receive a bounce whenever the piece is far enough along. Non-blocking:
 	-- a failure here shouldn't stop you from getting into the actual work.
 	-- Skipped entirely (not attempted) if the name was left blank, rather than
 	-- trying and showing a confusing "failed" notification for a non-failure.
+	-- Runs AFTER the folder paths are computed (and the folder is created
+	-- below) so --path can carry the immutable link to the NAS folder.
+	do shell script "mkdir -p " & quoted form of finalFolderPath
+	
 	if userInput is not "" then
 		try
-			set hubResultURL to do shell script "zsh -lic " & quoted form of ("node " & quoted form of composerHubPath & " " & quoted form of userInput & " | tail -1")
+			set hubCmd to "node " & quoted form of composerHubPath & " " & quoted form of userInput & " --mode deep_composition --path " & quoted form of finalFolderPath
+			set hubResultURL to do shell script "zsh -lic " & quoted form of (hubCmd & " | tail -1")
 			display notification "Logged to Composer Hub — upload audio there whenever it's ready." with title "Composer Hub"
 			open location hubResultURL
 		on error errMsg
@@ -433,12 +451,6 @@ else if workflowChoice is "Deep Composition" then
 		end try
 	end if
 	
-	set finalFolderName to currentDate & " " & userInput
-	set finalFolderPath to basePath & "/" & finalFolderName
-	set finalLogicxPath to finalFolderPath & "/" & finalFolderName & ".logicx"
-	set finalSibPath to finalFolderPath & "/" & finalFolderName & ".sib"
-	
-	do shell script "mkdir -p " & quoted form of finalFolderPath
 	do shell script "cp -R " & quoted form of logicTemplate & " " & quoted form of finalLogicxPath
 	do shell script "cp " & quoted form of sibTemplate & " " & quoted form of finalSibPath
 	
