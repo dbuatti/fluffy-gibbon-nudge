@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 import {
   renderArt,
   createParams,
@@ -101,6 +102,34 @@ const GenerativeArt: React.FC = () => {
     }
   };
 
+  const handleSaveToImprovisation = async () => {
+    if (!canvasRef.current || !improvisationId) return;
+    setGenerating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvasRef.current!.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image'))), 'image/png');
+      });
+      const path = `${user.id}/artwork/${improvisationId}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('piano_improvisations')
+        .upload(path, blob, { upsert: true, contentType: 'image/png' });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('piano_improvisations').getPublicUrl(path);
+      const { error: updateError } = await supabase
+        .from('improvisations')
+        .update({ artwork_url: urlData.publicUrl, artwork_prompt: prompt || null })
+        .eq('id', improvisationId);
+      if (updateError) throw updateError;
+      showSuccess('Artwork saved to improvisation');
+    } catch (e: any) {
+      showError(e.message || 'Failed to save artwork');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <header className="mb-6 max-w-7xl mx-auto">
@@ -160,6 +189,11 @@ const GenerativeArt: React.FC = () => {
               <Button variant="outline" onClick={handleDownload} className="gap-2">
                 <Download className="h-4 w-4" /> Download PNG
               </Button>
+              {improvisationId && (
+                <Button variant="default" onClick={handleSaveToImprovisation} disabled={generating} className="gap-2">
+                  <Palette className="h-4 w-4" /> Save to Improvisation
+                </Button>
+              )}
               <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
                 <span>Seed:</span>
                 <code className="bg-muted px-2 py-0.5 rounded">{params.seed}</code>

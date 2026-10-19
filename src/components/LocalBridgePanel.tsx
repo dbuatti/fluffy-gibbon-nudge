@@ -14,6 +14,7 @@ import {
   Upload,
   HardDrive,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ const WorkflowButton = ({
     onClick={onClick}
     disabled={disabled || loading}
     style={{ borderColor: color }}
+    title={desc}
   >
     <div className={cn('h-6 w-6 rounded-md flex items-center justify-center flex-shrink-0', `${color}/10`)}>
       <Icon className="h-3 w-3" style={{ color }} />
@@ -122,6 +124,14 @@ const SyncStatusDisplay: React.FC = () => {
 
   if (!items && !error) return <div className="text-xs text-muted-foreground">Loading sync status…</div>;
   if (error) return <div className="text-xs text-red-500">{error}</div>;
+
+  if (items.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-md">
+        No improvisations yet. Capture an idea to get started.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -307,6 +317,9 @@ export const LocalBridgePanel: React.FC = () => {
         {lastResult && (
           <div className={cn('text-xs rounded-md px-2 py-1.5 flex items-center gap-2', lastResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400')}>
             {lastResult.success ? '✅' : '❌'} {lastResult.message}
+            <button onClick={dismissResult} className="ml-auto opacity-60 hover:opacity-100">
+              <X className="h-3 w-3" />
+            </button>
           </div>
         )}
         {/* System Status */}
@@ -377,6 +390,7 @@ export const LocalBridgePanel: React.FC = () => {
                   className="h-7 text-xs"
                   placeholder="127.0.0.1 or Tailscale IP"
                 />
+                <p className="text-[9px] text-muted-foreground">Use 127.0.0.1 locally, or your Mac's Tailscale IP (100.x.x.x) when remote.</p>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Label htmlFor="bridge-port">Port:</Label>
