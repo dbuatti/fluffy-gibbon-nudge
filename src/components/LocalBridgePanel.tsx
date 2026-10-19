@@ -84,19 +84,29 @@ const SyncStatusDisplay: React.FC = () => {
   const { getSyncStatus } = useLocalBridge();
   const [data, setData] = useState<{ items: any[]; counts: any } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     setLoading(true);
-    const res = await getSyncStatus({ limit: 10 });
-    if (res) setData(res);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await getSyncStatus({ limit: 10 });
+      if (res) setData(res);
+      else setError('Failed to load sync status');
+    } catch (e) {
+      console.error('[SyncStatusDisplay] Error:', e);
+      setError('Connection error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     refresh();
   }, []);
 
-  if (!data) return <div className="text-xs text-muted-foreground">Click to load sync status…</div>;
+  if (!data && !error) return <div className="text-xs text-muted-foreground">Click to load sync status…</div>;
+  if (error) return <div className="text-xs text-red-500">{error}</div>;
 
   return (
     <div className="space-y-2">

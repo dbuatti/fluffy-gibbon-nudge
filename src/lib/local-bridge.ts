@@ -143,7 +143,8 @@ export class BridgeClient {
   constructor(options: BridgeClientOptions = {}) {
     this.baseUrl = options.baseUrl || `http://127.0.0.1:${BRIDGE_DEFAULT_PORT}`;
     this.token = options.token || this.getStoredToken();
-    this.fetchImpl = options.fetchImpl || fetch;
+    // Bind fetch to window to avoid "Illegal invocation" error
+    this.fetchImpl = options.fetchImpl || (typeof window !== 'undefined' ? window.fetch.bind(window) : fetch);
   }
 
   private getStoredToken(): string {
@@ -258,15 +259,19 @@ export function useLocalBridge() {
 
   const checkConnection = useCallback(async () => {
     try {
+      console.log('[LocalBridge] Checking connection...');
       const res = await client.ping();
+      console.log('[LocalBridge] Ping result:', res);
       setConnected(res.success);
       if (res.success) {
         const statusRes = await client.getStatus();
+        console.log('[LocalBridge] Status result:', statusRes);
         if (statusRes.success && statusRes.data) {
           setStatus(statusRes.data);
         }
       }
-    } catch {
+    } catch (e) {
+      console.error('[LocalBridge] Connection check failed:', e);
       setConnected(false);
       setStatus(null);
     }
