@@ -425,6 +425,10 @@ export function useLocalBridge() {
     return res;
   };
 
+  const getCaptures = async () => {
+    return client.getCaptures();
+  };
+
   const createCaptureEntry = async (name: string) => {
     return client.createCaptureEntry(name);
   };
