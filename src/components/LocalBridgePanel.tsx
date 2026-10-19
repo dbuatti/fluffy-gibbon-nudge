@@ -164,9 +164,9 @@ const SyncStatusDisplay: React.FC = () => {
                   {item.workflow_mode}
                 </Badge>
               )}
-              {item.storage_path && <Music className="h-3 w-3 text-green-600" title="Has audio" />}
-              {item.video_path && <Video className="h-3 w-3 text-blue-600" title="Has video" />}
-              {item.nas_folder_path && <HardDrive className="h-3 w-3 text-cyan-600" title="Backed up to NAS" />}
+              {item.storage_path && <span title="Has audio"><Music className="h-3 w-3 text-green-600" /></span>}
+              {item.video_path && <span title="Has video"><Video className="h-3 w-3 text-blue-600" /></span>}
+              {item.nas_folder_path && <span title="Backed up to NAS"><HardDrive className="h-3 w-3 text-cyan-600" /></span>}
             </div>
           ))}
           {items.length > 8 && (

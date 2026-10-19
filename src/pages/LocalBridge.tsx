@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { TerminalSquare, Wifi, Monitor } from 'lucide-react';
+import { TerminalSquare, Wifi, Monitor, HardDrive } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { LocalBridgePanel } from '@/components/LocalBridgePanel';
 
 const LocalBridge: React.FC = () => {

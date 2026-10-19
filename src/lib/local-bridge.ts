@@ -528,7 +528,7 @@ export function useRealtimeSyncStatus() {
           if (payload.eventType === 'INSERT' && payload.new) {
             setItems(prev => [payload.new as RealtimeSyncItem, ...prev.slice(0, 49)]);
           } else if (payload.eventType === 'UPDATE' && payload.new) {
-            setItems(prev => prev.map(item => item.id === payload.new.id ? payload.new : item));
+            setItems(prev => prev.map(item => item.id === payload.new.id ? (payload.new as RealtimeSyncItem) : item));
           } else if (payload.eventType === 'DELETE' && payload.old) {
             setItems(prev => prev.filter(item => item.id !== payload.old.id));
           }

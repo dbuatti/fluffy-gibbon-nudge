@@ -52,7 +52,9 @@ const GenerativeArt: React.FC = () => {
         const today = new Date().toISOString().slice(0, 10);
         if (parsed.date === today) return parsed;
       }
-    } catch {}
+    } catch {
+      // Ignore parse errors, return default
+    }
     return { count: 0, date: new Date().toISOString().slice(0, 10) };
   });
 
