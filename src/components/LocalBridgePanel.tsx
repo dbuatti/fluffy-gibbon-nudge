@@ -184,15 +184,24 @@ export const LocalBridgePanel: React.FC = () => {
     host,
   } = useLocalBridge();
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [lastResult, setLastResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (status) setLastChecked(new Date());
   }, [status]);
+
+  useEffect(() => {
+    if (!lastResult) return;
+    const t = setTimeout(() => setLastResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [lastResult]);
   const [tokenInput, setTokenInput] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : ''));
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
   const handleLaunch = async (mode: string, extras: Record<string, unknown> = {}) => {
-    await launchPicker({ mode: mode as any, ...extras });
+    const res = await launchPicker({ mode: mode as any, ...extras });
+    if (res) setLastResult({ success: true, message: res.message || 'Launched' });
+    else setLastResult({ success: false, message: 'Launch failed' });
   };
 
   const showToast = (success: boolean, title: string, description?: string) => {
@@ -216,10 +225,12 @@ export const LocalBridgePanel: React.FC = () => {
   const handleUploadAudio = async () => {
     try {
       const res = await launchPicker({ mode: 'upload_audio' });
-      if (res?.success) {
-        showToast(true, 'Audio upload started', res.data?.message);
+      if (res) {
+        showToast(true, 'Audio upload started', res.message);
+        setLastResult({ success: true, message: res.message || 'Audio upload started' });
       } else {
-        showToast(false, 'Upload failed', res?.error);
+        showToast(false, 'Upload failed', 'Check bridge logs');
+        setLastResult({ success: false, message: 'Upload failed' });
       }
     } catch (e) {
       showToast(false, 'Error', String(e));
@@ -229,13 +240,16 @@ export const LocalBridgePanel: React.FC = () => {
   const handleSyncNAS = async () => {
     try {
       const res = await launchPicker({ mode: 'sync_nas' });
-      if (res?.success) {
-        showToast(true, 'NAS sync started', res.data?.message);
+      if (res) {
+        showToast(true, 'NAS sync started', res.message);
+        setLastResult({ success: true, message: res.message || 'NAS sync started' });
       } else {
-        showToast(false, 'Sync failed', res?.error);
+        showToast(false, 'Sync failed', 'Check bridge logs');
+        setLastResult({ success: false, message: 'Sync failed' });
       }
     } catch (e) {
       showToast(false, 'Error', String(e));
+      setLastResult({ success: false, message: String(e) });
     }
   };
 
@@ -290,6 +304,11 @@ export const LocalBridgePanel: React.FC = () => {
       </CardHeader>
 
       <CardContent className="space-y-3">
+        {lastResult && (
+          <div className={cn('text-xs rounded-md px-2 py-1.5 flex items-center gap-2', lastResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400')}>
+            {lastResult.success ? '✅' : '❌'} {lastResult.message}
+          </div>
+        )}
         {/* System Status */}
         <CollapsibleSection title="System" icon={TerminalSquare} isOpen={showSystem} onToggle={() => setShowSystem(!showSystem)}>
           {status && (
