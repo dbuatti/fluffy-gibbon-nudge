@@ -190,6 +190,8 @@ export interface SocialKitFile {
   clipCount?: number;
   /** True when the excerpt was chosen automatically (strongest passage). */
   autoExcerpt?: boolean;
+  /** True when this file is one of several alternate cuts for its ratio. */
+  idea?: boolean;
   sizeMB?: number;
 }
 
@@ -204,6 +206,8 @@ export interface SocialKit {
   captions?: SocialCaptions;
   /** Number of excerpt cuts requested for the short-form videos. */
   clipCount?: number;
+  /** Which ratios got several cuts (e.g. ['reels','youtube']). */
+  clipRatios?: string[];
   /** ISO timestamps of the last post per platform (local record). */
   posted?: Partial<Record<SocialCaptionPlatform, string>>;
   artworkSource?: 'existing' | 'generated';
@@ -221,6 +225,22 @@ export interface SocialKitOptions {
   clipStartSec?: number;
   /** How many non-overlapping excerpts to render (1–3). */
   clipCount?: number;
+  /** Ratios to give that many cuts: any of 'reels' | 'feed' | 'youtube'. */
+  clipRatios?: string[];
+}
+
+/** Live progress for a kit build (in-memory on the bridge). */
+export interface SocialBuildStatus {
+  status: 'idle' | 'building' | 'done' | 'error';
+  building: boolean;
+  step?: string | null;
+  startedAt?: number | null;
+  finishedAt?: number | null;
+  elapsedSec?: number;
+  seconds?: number | null;
+  folder?: string | null;
+  videoCount?: number | null;
+  error?: string | null;
 }
 
 // ============================================================================
@@ -467,6 +487,19 @@ export class BridgeClient {
       method: 'POST',
       body: JSON.stringify({ improvisationId, ...opts }),
     }, 25 * 60 * 1000);
+  }
+
+  /**
+   * Poll a build's real progress. Cheap and safe to call while the build POST
+   * is still open; older bridges return 404 and the UI falls back to the
+   * narrated phases.
+   */
+  async getSocialBuildStatus(improvisationId: string): Promise<BridgeResponse<SocialBuildStatus>> {
+    return this.request<SocialBuildStatus>(
+      `/social/build-status?id=${encodeURIComponent(improvisationId)}`,
+      {},
+      10000,
+    );
   }
 
   /**

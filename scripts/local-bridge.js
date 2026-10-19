@@ -1009,14 +1009,44 @@ const SOCIAL_OUTPUT_DIR = '/Users/danielebuatti/Desktop/Social';
 // long. Improvisations can run 20+ minutes, so the vertical/square cuts are
 // trimmed to a shareable excerpt (see pickExcerpt).
 const SOCIAL_RATIOS = [
-  { key: 'reels',   label: 'Reels / TikTok / Shorts (9:16)', w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 180, defaultSec: 90 },
-  { key: 'feed',    label: 'Square feed (1:1)',              w: 1080, h: 1080, fileSuffix: '1x1',  maxSec: 180, defaultSec: 90 },
-  { key: 'youtube', label: 'YouTube (16:9)',                 w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0,   defaultSec: 0 },
+  { key: 'reels',   label: 'Reels / TikTok / Shorts (9:16)', w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 180, defaultSec: 90, multipleClips: true },
+  { key: 'feed',    label: 'Square feed (1:1)',              w: 1080, h: 1080, fileSuffix: '1x1',  maxSec: 180, defaultSec: 90, multipleClips: false },
+  { key: 'youtube', label: 'YouTube (16:9)',                 w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0,   defaultSec: 0,  multipleClips: true },
 ];
+
+/** Ratios that the app should offer multiple cuts for. */
+const SOCIAL_CLIP_RATIOS = SOCIAL_RATIOS.filter((r) => r.multipleClips).map((r) => r.key);
 
 // Bump when the composed frame or encode changes — old renders then re-render
 // instead of being reused by the fingerprint check.
-const SOCIAL_RENDER_VERSION = 2;
+const SOCIAL_RENDER_VERSION = 3;
+
+// Live build state, keyed by improvisation id. The build request can run for
+// several minutes, so the app polls this to show the actual step (and to
+// recover the progress after a page reload). Entries expire so a long-lived
+// bridge doesn't accumulate one per song.
+const socialBuildJobs = new Map();
+const SOCIAL_JOB_TTL_MS = 30 * 60 * 1000;
+
+function pruneSocialBuildJobs() {
+  const cutoff = Date.now() - SOCIAL_JOB_TTL_MS;
+  for (const [id, job] of socialBuildJobs) {
+    if ((job.updatedAt || 0) < cutoff) socialBuildJobs.delete(id);
+  }
+}
+
+function updateSocialBuildJob(id, patch) {
+  const previous = socialBuildJobs.get(id) || {};
+  const job = {
+    ...previous,
+    ...patch,
+    id,
+    updatedAt: Date.now(),
+  };
+  socialBuildJobs.set(id, job);
+  if (socialBuildJobs.size > 50) pruneSocialBuildJobs();
+  return job;
+}
 
 /** 95 → "1:35" */
 function formatTime(sec) {
@@ -1077,16 +1107,36 @@ function pickBestExcerptStarts(profile, clipSec, durationSec, count) {
   const margin = Math.min(5, Math.floor(durationSec * 0.01));
   // Window barely longer than the requested clip: no room to dodge the edges.
   if (maxStart <= margin) return [maxStart];
+
+  // Keep the cut clear of the recording's final fade-out. A 90s clip that
+  // ends in near-silence feels unfinished, even if the middle is strong.
+  const tailMargin = Math.min(10, Math.max(2, Math.round(durationSec * 0.01)));
+  const lastSafeStart = durationSec - clipSec - tailMargin;
+  const maxScored = lastSafeStart > margin ? Math.min(maxStart, lastSafeStart) : maxStart;
+  // First/last few seconds decide whether a cut "enters" cleanly. Penalise
+  // silence at the edges, but only gently: plenty of piano passages begin
+  // quietly without being a bad excerpt.
+  const edge = Math.max(1, Math.min(5, Math.floor(clipSec * 0.08)));
+
   const scores = new Float64Array(maxStart + 1);
-  for (let start = margin; start <= maxStart; start++) {
+  for (let start = margin; start <= maxScored; start++) {
     let power = 0;
     let quiet = 0;
+    let headQuiet = 0;
+    let tailQuiet = 0;
+    const headEnd = start + edge;
+    const tailStart = start + clipSec - edge;
     for (let i = start; i < start + clipSec; i++) {
       // dB → linear power, so one loud spike can't mask a mostly-quiet window.
       power += Math.pow(10, profile[i] / 10);
-      if (profile[i] < -50) quiet++;
+      if (profile[i] < -50) {
+        quiet++;
+        if (i < headEnd) headQuiet++;
+        if (i >= tailStart) tailQuiet++;
+      }
     }
-    scores[start] = (power / clipSec) * (1 - 0.5 * (quiet / clipSec));
+    const edgeQuality = Math.max(0.05, 1 - 0.45 * (headQuiet / edge) - 0.2 * (tailQuiet / edge));
+    scores[start] = (power / clipSec) * (1 - 0.5 * (quiet / clipSec)) * edgeQuality;
   }
 
   const blocked = new Uint8Array(maxStart + 1);
@@ -1095,7 +1145,7 @@ function pickBestExcerptStarts(profile, clipSec, durationSec, count) {
   for (let n = 0; n < count; n++) {
     let best = -1;
     let bestScore = -Infinity;
-    for (let start = margin; start <= maxStart; start++) {
+    for (let start = margin; start <= maxScored; start++) {
       if (!blocked[start] && scores[start] > bestScore) {
         bestScore = scores[start];
         best = start;
@@ -1111,20 +1161,20 @@ function pickBestExcerptStarts(profile, clipSec, durationSec, count) {
 }
 
 /**
- * The cuts for one ratio: [{ startSec, clipSec, auto }]. Long songs get
- * `count` non-overlapping excerpts (strongest first); a manual start pins
- * the first cut and the rest are picked around it. Short songs and 16:9
- * always return a single full-length cut.
+ * The cuts for one ratio: [{ startSec, clipSec, auto, idea }]. Long songs get
+ * `count` non-overlapping excerpts (strongest first); a manual start pins the
+ * first cut and the rest are picked around it. Short songs and the 16:9
+ * YouTube cut always return a single full-length take.
  */
 function pickExcerptCuts(durationSec, ratio, requestedSec, requestedStartSec, profile, count = 1) {
-  if (!ratio.maxSec) return [{ startSec: 0, clipSec: durationSec, auto: false }];
+  if (!ratio.maxSec) return [{ startSec: 0, clipSec: durationSec, auto: false, idea: false }];
 
   const clipSec = Math.min(
     requestedSec || Math.min(ratio.defaultSec, ratio.maxSec),
     ratio.maxSec,
     durationSec,
   );
-  if (durationSec <= clipSec) return [{ startSec: 0, clipSec: durationSec, auto: false }];
+  if (durationSec <= clipSec) return [{ startSec: 0, clipSec: durationSec, auto: false, idea: false }];
 
   const latestStart = Math.max(0, durationSec - clipSec);
   const auto = requestedStartSec == null;
@@ -1140,7 +1190,8 @@ function pickExcerptCuts(durationSec, ratio, requestedSec, requestedStartSec, pr
 
   // The spacing fallback can clamp several picks to the same last start.
   starts = [...new Set(starts)].slice(0, count);
-  return starts.map((startSec) => ({ startSec, clipSec, auto }));
+  const ideaRatio = ratio.key === 'reels';
+  return starts.map((startSec) => ({ startSec, clipSec, auto, idea: ideaRatio }));
 }
 
 /** Promisified execFile with a generous timeout — ffmpeg on a full song. */
@@ -1167,6 +1218,40 @@ async function mediaDurationSec(file) {
     return Math.round(parseFloat(stdout.trim())) || 0;
   } catch {
     return 0;
+  }
+}
+
+/** SHA-1 of a file's bytes — used to notice artwork replaced at the same URL. */
+function fileHash(file) {
+  try {
+    return crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex');
+  } catch {
+    return null;
+  }
+}
+
+/** A reusable render must exist, be non-trivial, and have the right length. */
+async function isVideoUsable(file, expectedSec) {
+  try {
+    if (!fs.existsSync(file)) return false;
+    if (fs.statSync(file).size < 100 * 1024) return false;
+    const actual = await mediaDurationSec(file);
+    if (!actual) return false;
+    // ffprobe is rounded to whole seconds and the encoder can land a frame
+    // early, so allow a small tolerance rather than re-rendering over ±1s.
+    return Math.abs(actual - Math.round(expectedSec)) <= 3;
+  } catch {
+    return false;
+  }
+}
+
+/** Free bytes on the volume holding `dir` (null when unavailable). */
+function availableBytes(dir) {
+  try {
+    const stats = fs.statfsSync(dir);
+    return stats.bavail * stats.bsize;
+  } catch {
+    return null;
   }
 }
 
@@ -1381,45 +1466,72 @@ async function composeSocialFrame(artFile, outFile, w, h) {
 }
 
 /**
- * Mux a composed still frame with the song. opts.startSec / opts.clipSec trim
- * the audio (long improvisations → a shareable excerpt); trimmed clips get
- * short fades so they don't start or stop mid-note.
+ * Append the ffmpeg flags for one finished video to an existing command. The
+ * frame + audio inputs are already on the command line (see the caller), so a
+ * ratio with several cuts can be encoded in ONE pass instead of one ffmpeg run
+ * per clip — decoding the same still and the same 24-minute MP3 once instead
+ * of N times.
+ *
+ * Every cut gets a short audio + picture fade so it never starts or stops
+ * mid-note or snaps on mid-frame. The picture fade needs real frames, so the
+ * still always enters at output frame rate — a 1 fps input can't fade, it just
+ * cuts (ffmpeg's fade interpolates between frames).
  */
-async function renderSocialVideo(audioFile, frameFile, outFile, opts = {}) {
-  const startSec = Math.max(0, opts.startSec || 0);
-  const clipSec = opts.clipSec || 0;
-  const trimmed = startSec > 0;
+function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts = {}) {
+  const start = Math.max(0, startSec || 0);
+  const length = clipSec || 0;
+  const fadeOutSec = length > 4 ? 1.2 : 0;
+  const fadeInSec = Math.min(0.8, length > 0 ? length / 4 : 0.8);
 
-  const fades = [];
-  if (trimmed) fades.push('afade=t=in:st=0:d=1.2');
-  if (clipSec > 4) fades.push(`afade=t=out:st=${(clipSec - 1.2).toFixed(2)}:d=1.2`);
+  const audioFades = [];
+  if (fadeInSec > 0) audioFades.push(`afade=t=in:st=0:d=${fadeInSec.toFixed(2)}`);
+  if (fadeOutSec > 0) {
+    audioFades.push(`afade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}`);
+  }
 
-  const args = ['-y', '-hide_banner', '-loglevel', 'error', '-nostdin'];
-  // 1 fps input + -r 30 output: ffmpeg duplicates the still instead of
-  // re-decoding the PNG 30×/s, which is the difference between ~5 min and
-  // ~30 s on a 24-minute recording. Output is still proper 30 fps.
-  args.push('-loop', '1', '-framerate', '1', '-i', frameFile);
-  // Input-seek the audio only (fast, sample-accurate enough for music).
-  if (trimmed) args.push('-ss', String(startSec));
+  const videoFades = [];
+  if (fadeInSec > 0) videoFades.push(`fade=t=in:st=0:d=${fadeInSec.toFixed(2)}`);
+  if (fadeOutSec > 0) {
+    videoFades.push(`fade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}`);
+  }
+
+  // Seek on the audio input only (fast, sample-accurate enough for music) and
+  // trim there; the video stops when its output finishes.
+  if (start > 0) args.push('-ss', String(start), '-t', length.toFixed(2));
+  else args.push('-t', length.toFixed(2));
   args.push('-i', audioFile);
-  args.push('-map', '0:v', '-map', '1:a');
+  args.push('-map', '0:v', '-map', `1:a`);
   args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-tune', 'stillimage', '-r', '30');
-  if (fades.length) args.push('-af', fades.join(','));
+  if (videoFades.length) args.push('-vf', `${videoFades.join(',')},format=yuv420p`);
+  if (audioFades.length) args.push('-af', audioFades.join(','));
   args.push('-c:a', 'aac', '-b:a', '192k');
-  if (clipSec > 0) args.push('-t', clipSec.toFixed(2));
+  if (opts.title) {
+    args.push('-metadata', `title=${opts.title}`);
+    args.push('-metadata', 'artist=Composer Hub');
+    args.push('-metadata', `comment=Original piano improvisation${opts.subtitle ? ` — ${opts.subtitle}` : ''}`);
+  }
+  // Write to a temp name and rename only on success, so an interrupted render
+  // never leaves a playable-looking-but-truncated MP4 in the kit folder.
+  args.push(outFile.replace(/\.mp4$/i, '.part.mp4'));
+}
 
-  // Encode to a temp name and rename on success, so an interrupted render never
-  // leaves a playable-looking-but-truncated MP4 in the kit folder.
-  const partFile = outFile.replace(/\.mp4$/i, '.part.mp4');
-  args.push('-shortest', '-movflags', '+faststart', partFile);
-
+/** Run a full encode, then promote every *.part.mp4 it wrote to its real name. */
+async function runSocialVideo(args) {
+  const parts = args.filter((a) => typeof a === 'string' && a.endsWith('.part.mp4'));
   try {
-    await runProcess('ffmpeg', args, { timeoutMs: 20 * 60 * 1000 });
-    fs.renameSync(partFile, outFile);
+    await runProcess('ffmpeg', [...args, '-shortest', '-movflags', '+faststart'], { timeoutMs: 20 * 60 * 1000 });
   } catch (e) {
-    try { fs.unlinkSync(partFile); } catch { /* nothing to clean */ }
+    for (const part of parts) { try { fs.unlinkSync(part); } catch { /* nothing to clean */ } }
     throw e;
   }
+  for (const part of parts) fs.renameSync(part, part.replace(/\.part\.mp4$/i, '.mp4'));
+}
+
+/** Single-clip convenience wrapper (thumbnail-style one-offs, tests). */
+async function renderSocialVideo(audioFile, frameFile, outFile, opts = {}) {
+  const args = ['-y', '-hide_banner', '-loglevel', 'error', '-nostdin', '-loop', '1', '-framerate', '30', '-i', frameFile];
+  appendSocialVideoArgs(args, audioFile, opts.startSec, opts.clipSec, outFile, opts);
+  await runSocialVideo(args);
 }
 
 /** Caption template — title + a short line + hashtags, editable in the app. */
@@ -1498,9 +1610,19 @@ async function handleSocialBuildKit(req, res, body) {
   // Temp audio staged locally for the build — always removed afterwards.
   let stagedAudio = null;
   let framesDir = null;
+  let jobId = null;
   try {
     const improvisationId = typeof body.improvisationId === 'string' ? body.improvisationId.trim() : '';
     if (!/^[0-9a-f-]{36}$/i.test(improvisationId)) throw new Error('Missing or invalid improvisationId');
+    jobId = improvisationId;
+    updateSocialBuildJob(jobId, {
+      status: 'building',
+      step: 'Starting…',
+      startedAt: Date.now(),
+      finishedAt: null,
+      error: null,
+      seconds: null,
+    });
 
     const hub = await import('./composer-hub.js');
     const session = await hub.getSession();
@@ -1525,8 +1647,18 @@ async function handleSocialBuildKit(req, res, body) {
     const clipCount = Number.isFinite(body.clipCount)
       ? Math.min(3, Math.max(1, Math.round(body.clipCount)))
       : 1;
+    // Which ratios get several cuts — the app sends the user's choice, and
+    // older bridges/clients default to the vertical cut only.
+    const clipRatios = new Set(
+      Array.isArray(body.clipRatios) && body.clipRatios.length
+        ? body.clipRatios.filter((k) => SOCIAL_CLIP_RATIOS.includes(k))
+        : ['reels'],
+    );
     const startedAt = Date.now();
-    const step = (s) => console.log(`[social] ${displayTitle}: ${s}`);
+    const step = (s) => {
+      updateSocialBuildJob(jobId, { step: s });
+      console.log(`[social] ${displayTitle}: ${s}`);
+    };
 
     step('finding audio…');
     const audio = await findSocialAudio(session, record);
@@ -1539,6 +1671,17 @@ async function handleSocialBuildKit(req, res, body) {
 
     const folder = path.join(SOCIAL_OUTPUT_DIR, safeFolderName(displayTitle));
     fs.mkdirSync(folder, { recursive: true });
+
+    // Fail before a long render rather than halfway through it. The kit folder
+    // also holds a copy of the artwork and manifest; 512 MB is a safe floor.
+    const freeBytes = availableBytes(folder);
+    if (freeBytes != null && freeBytes < 512 * 1024 * 1024) {
+      throw new Error(
+        `Only ${Math.round(freeBytes / (1024 * 1024))} MB free on the Social drive — ` +
+        'free some space before building videos',
+      );
+    }
+
     // A bridge killed mid-render can leave *.part.mp4 behind (renders write to
     // a temp name and rename on success). Clear them so the folder stays clean.
     for (const name of fs.readdirSync(folder)) {
@@ -1558,6 +1701,9 @@ async function handleSocialBuildKit(req, res, body) {
       : {};
 
     const artUrl = art.artworkUrl || record.artwork_url || null;
+    // Hash the bytes, not the URL: artwork regenerated at the same storage
+    // path would otherwise keep silently reusing videos with the old cover.
+    const artworkHash = fileHash(art.file);
     const audioBytes = fs.statSync(audio.file).size;
     // The renders depend only on audio + artwork + this code version — not on
     // excerpt settings — so unchanged assets reuse the existing files and
@@ -1566,7 +1712,8 @@ async function handleSocialBuildKit(req, res, body) {
       previous.renderVersion === SOCIAL_RENDER_VERSION
       && previous.audioBytes === audioBytes
       && previous.durationSec === durationSec
-      && previous.artworkUrl === artUrl
+      && ((previous.artworkHash && artworkHash && previous.artworkHash === artworkHash)
+        || (!previous.artworkHash && previous.artworkUrl === artUrl))
     );
 
     const files = [];
@@ -1591,33 +1738,40 @@ async function handleSocialBuildKit(req, res, body) {
     let shortCutCount = 0;
     for (const ratio of SOCIAL_RATIOS) {
       const cuts = pickExcerptCuts(
-        durationSec, ratio, requestedSec, requestedStartSec, profile, clipCount,
+        durationSec, ratio, requestedSec, requestedStartSec, profile,
+        clipRatios.has(ratio.key) ? clipCount : 1,
       );
       if (ratio.maxSec) shortCutCount = cuts.length;
 
       const frameFile = path.join(framesDir, `${ratio.key}.png`);
       await composeSocialFrame(art.file, frameFile, ratio.w, ratio.h);
 
+      // Several cuts share one composed frame, so build the entire ffmpeg
+      // command and encode them in a single pass. Separate runs would decode
+      // the same still (and the same audio) once per clip.
+      const args = ['-y', '-hide_banner', '-loglevel', 'error', '-nostdin', '-loop', '1', '-framerate', '30', '-i', frameFile];
+      const planned = [];
+
       for (let i = 0; i < cuts.length; i++) {
-        const { startSec, clipSec, auto } = cuts[i];
+        const { startSec, clipSec, auto, idea: isIdea } = cuts[i];
         const suffix = cuts.length > 1
-          ? `${ratio.fileSuffix} (clip ${i + 1})`
+          ? `${isIdea ? 'idea' : 'clip'} ${i + 1} ${ratio.fileSuffix}`
           : ratio.fileSuffix;
         const where = startSec > 0
           ? ` (excerpt ${formatTime(startSec)}–${formatTime(startSec + clipSec)}${auto && profile ? ', strongest passage' : ''})`
           : '';
-        step(`rendering ${ratio.label}${cuts.length > 1 ? `, clip ${i + 1}/${cuts.length}` : ''}${where}…`);
-
         const outFile = path.join(folder, `${displayTitle} - ${suffix}.mp4`);
         const outName = path.basename(outFile);
         const prev = assetsUnchanged
           ? (previous.files || []).find((f) => f.name === outName)
           : null;
+
         const canReuse = !!(
           prev
           && prev.clipStartSec === startSec
           && prev.clipSec === Math.round(clipSec)
           && fs.existsSync(outFile)
+          && await isVideoUsable(outFile, clipSec)
         );
         if (canReuse) {
           step(`reusing ${outName} (unchanged)…`);
@@ -1632,26 +1786,45 @@ async function handleSocialBuildKit(req, res, body) {
             clipStartSec: startSec,
             clipSec: Math.round(clipSec),
             autoExcerpt: prev.autoExcerpt ?? undefined,
+            idea: isIdea || undefined,
             fullSec: durationSec,
             sizeMB: prev.sizeMB ?? Math.round((fs.statSync(outFile).size / (1024 * 1024)) * 10) / 10,
           });
           continue;
         }
-        await renderSocialVideo(audio.file, frameFile, outFile, { startSec, clipSec });
-        files.push({
-          name: path.basename(outFile),
-          path: outFile,
-          kind: 'video',
-          ratio: ratio.key,
-          ratioLabel: ratio.label,
-          clipIndex: cuts.length > 1 ? i + 1 : undefined,
-          clipCount: cuts.length > 1 ? cuts.length : undefined,
-          clipStartSec: startSec,
-          clipSec: Math.round(clipSec),
-          autoExcerpt: (auto && !!profile) || undefined,
-          fullSec: durationSec,
-          sizeMB: Math.round((fs.statSync(outFile).size / (1024 * 1024)) * 10) / 10,
+
+        step(`rendering ${ratio.label}${cuts.length > 1 ? `, ${isIdea ? 'idea' : 'clip'} ${i + 1}/${cuts.length}` : ''}${where}…`);
+        planned.push({ startSec, clipSec, auto, isIdea, outFile, outName, i });
+        appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, {
+          title: `${displayTitle}${cuts.length > 1 ? ` — ${isIdea ? 'Idea' : 'Clip'} ${i + 1}` : ''}`,
+          subtitle: `${ratio.label} · ${formatTime(startSec)}–${formatTime(startSec + clipSec)}`,
         });
+      }
+
+      if (planned.length) {
+        // Stop at the end of the last cut; ffmpeg writes each output in one
+        // pass instead of one run per clip.
+        const lastCut = planned[planned.length - 1];
+        args.push('-t', (lastCut.startSec + lastCut.clipSec).toFixed(2));
+        await runSocialVideo(args);
+
+        for (const p of planned) {
+          files.push({
+            name: p.outName,
+            path: p.outFile,
+            kind: 'video',
+            ratio: ratio.key,
+            ratioLabel: ratio.label,
+            clipIndex: cuts.length > 1 ? p.i + 1 : undefined,
+            clipCount: cuts.length > 1 ? cuts.length : undefined,
+            clipStartSec: p.startSec,
+            clipSec: Math.round(p.clipSec),
+            autoExcerpt: (p.auto && !!profile) || undefined,
+            idea: p.isIdea || undefined,
+            fullSec: durationSec,
+            sizeMB: Math.round((fs.statSync(p.outFile).size / (1024 * 1024)) * 10) / 10,
+          });
+        }
       }
     }
 
@@ -1705,8 +1878,9 @@ async function handleSocialBuildKit(req, res, body) {
     // Kit manifest so the app can restore state without rebuilding. `posted`
     // survives rebuilds — it's a record of what went out, not of the files.
     fs.writeFileSync(kitJsonPath, JSON.stringify({
-      improvisationId, title: displayTitle, durationSec, clipCount, audioBytes,
+      improvisationId, title: displayTitle, durationSec, clipCount, clipRatios: [...clipRatios], audioBytes,
       renderVersion: SOCIAL_RENDER_VERSION,
+      artworkHash,
       caption: captions.instagram, captions,
       posted: previous.posted || {},
       artworkSource: art.source, artworkUrl: artUrl, builtAt: new Date().toISOString(),
@@ -1719,6 +1893,7 @@ async function handleSocialBuildKit(req, res, body) {
         clipStartSec: f.clipStartSec ?? null,
         clipSec: f.clipSec ?? null,
         autoExcerpt: f.autoExcerpt ?? null,
+        idea: f.idea ?? null,
         sizeMB: f.sizeMB ?? null,
         platform: f.platform || null,
       })),
@@ -1726,6 +1901,13 @@ async function handleSocialBuildKit(req, res, body) {
 
     const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
     step(`done in ${seconds}s`);
+    updateSocialBuildJob(jobId, {
+      status: 'done',
+      seconds,
+      finishedAt: Date.now(),
+      folder,
+      videoCount: files.filter((f) => f.kind === 'video').length,
+    });
 
     sendJson(res, 200, {
       success: true,
@@ -1734,6 +1916,7 @@ async function handleSocialBuildKit(req, res, body) {
         folder,
         durationSec,
         clipCount,
+        clipRatios: [...clipRatios],
         caption: captions.instagram,
         captions,
         posted: previous.posted || {},
@@ -1747,11 +1930,54 @@ async function handleSocialBuildKit(req, res, body) {
     }, req);
   } catch (e) {
     console.error(`[social/build-kit] ${e.message}`);
+    if (jobId) {
+      updateSocialBuildJob(jobId, {
+        status: 'error',
+        step: 'Failed',
+        error: e.message,
+        finishedAt: Date.now(),
+      });
+    }
     sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   } finally {
     // Temp files are per-build; never leave audio/frames behind.
     if (stagedAudio) { try { fs.unlinkSync(stagedAudio); } catch { /* already gone */ } }
     if (framesDir) { try { fs.rmSync(framesDir, { recursive: true, force: true }); } catch { /* temp dir */ } }
+  }
+}
+
+/**
+ * Live progress for a build in flight. Deliberately lightweight: the app polls
+ * this every couple of seconds while the long build POST is still open, so a
+ * page reload can pick the progress back up instead of showing a dead button.
+ */
+async function handleSocialBuildStatus(req, res, query) {
+  try {
+    const id = query.get('id') || '';
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error('Missing or invalid id');
+    pruneSocialBuildJobs();
+    const job = socialBuildJobs.get(id) || null;
+    const now = Date.now();
+    sendJson(res, 200, {
+      success: true,
+      data: job
+        ? {
+            status: job.status,
+            building: job.status === 'building',
+            step: job.step || null,
+            startedAt: job.startedAt || null,
+            finishedAt: job.finishedAt || null,
+            elapsedSec: Math.round(((job.finishedAt || now) - (job.startedAt || now)) / 1000),
+            seconds: job.seconds ?? null,
+            folder: job.folder || null,
+            videoCount: job.videoCount ?? null,
+            error: job.error || null,
+          }
+        : { status: 'idle', building: false, step: null },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
 
@@ -1806,6 +2032,7 @@ async function handleSocialKitStatus(req, res, query) {
           clipStartSec: f.clipStartSec ?? undefined,
           clipSec: f.clipSec ?? undefined,
           autoExcerpt: f.autoExcerpt ?? undefined,
+          idea: f.idea ?? undefined,
           platform: f.platform || undefined,
           sizeMB: f.sizeMB ?? Math.round((fs.statSync(full).size / (1024 * 1024)) * 10) / 10,
         };
@@ -1820,6 +2047,7 @@ async function handleSocialKitStatus(req, res, query) {
         title: displayTitle,
         durationSec: kit.durationSec,
         clipCount: kit.clipCount || 1,
+        clipRatios: kit.clipRatios || undefined,
         caption: kit.caption,
         // Older kits only have `caption`; treat it as the Instagram one.
         captions: kit.captions || { instagram: kit.caption || '' },
@@ -2019,6 +2247,8 @@ async function startServer() {
           await handleTrashLocal(req, res, parsedBody);
         } else if (pathname === '/social/build-kit' && req.method === 'POST') {
           await handleSocialBuildKit(req, res, parsedBody);
+        } else if (pathname === '/social/build-status' && req.method === 'GET') {
+          await handleSocialBuildStatus(req, res, url.searchParams);
         } else if (pathname === '/social/kit' && req.method === 'GET') {
           await handleSocialKitStatus(req, res, url.searchParams);
         } else if (pathname === '/social/caption' && req.method === 'POST') {
@@ -2062,6 +2292,7 @@ async function startServer() {
     console.log('  POST /logic/archive           - Archive a project to the NAS (copy + verify)');
     console.log('  POST /logic/trash-local       - Trash local copy after re-verifying the NAS copy');
     console.log('  POST /social/build-kit        - Song → artwork + ratio-ready videos (staged on Desktop)');
+    console.log('  GET  /social/build-status     - Live progress for a kit build');
     console.log('  GET  /social/kit              - Existing kit status for a song');
     console.log('  POST /social/caption          - Save an edited caption into the kit');
     console.log('  POST /social/posted           - Mark a platform as posted (or undo)');

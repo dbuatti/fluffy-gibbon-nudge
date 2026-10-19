@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import {
   useLocalBridge, openFolderInFinder, revealInFinder, type SocialKit, type SocialKitFile,
-  type SocialCaptionPlatform, type SocialCaptions,
+  type SocialCaptionPlatform, type SocialCaptions, type SocialBuildStatus,
 } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import type { Improvisation } from '@/types/improvisation';
@@ -25,6 +25,13 @@ type ImprovisationData = Pick<Improvisation, 'id' | 'generated_name' | 'original
 interface SocialKitTabProps {
   imp: ImprovisationData;
 }
+
+/** Ratios that can be given several cuts, with the label shown in the UI. */
+const CLIP_TARGETS = [
+  { key: 'reels', label: 'Vertical (9:16)', short: '9:16' },
+  { key: 'feed', label: 'Square (1:1)', short: '1:1' },
+  { key: 'youtube', label: 'YouTube (16:9)', short: '16:9' },
+] as const;
 
 /** 95 → "1:35" */
 function fmt(sec?: number): string {
@@ -123,6 +130,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [kit, setKit] = useState<SocialKit | null>(null);
   const [loadingKit, setLoadingKit] = useState(false);
   const [building, setBuilding] = useState(false);
+  const [buildStep, setBuildStep] = useState<string | null>(null);
+  const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
+  const [buildElapsed, setBuildElapsed] = useState(0);
   const [phase, setPhase] = useState(0);
   const [captions, setCaptions] = useState<SocialCaptions>({});
   const [savedCaptions, setSavedCaptions] = useState<SocialCaptions>({});
@@ -134,6 +144,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [showExcerpt, setShowExcerpt] = useState(false);
   const [clipSec, setClipSec] = useState('90');
   const [clipCount, setClipCount] = useState('1');
+  const [clipTargets, setClipTargets] = useState<string[]>(['reels']);
   const [startAt, setStartAt] = useState('');
   const [posted, setPosted] = useState<Partial<Record<SocialCaptionPlatform, string>>>({});
   const [markingPosted, setMarkingPosted] = useState<SocialCaptionPlatform | null>(null);
@@ -182,15 +193,78 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
           setStartAt(trimmed.autoExcerpt ? '' : fmt(trimmed.clipStartSec));
         }
         setClipCount(String(res.data.clipCount || 1));
+        if (res.data.clipRatios?.length) setClipTargets(res.data.clipRatios);
       } else {
         setPosted({});
         setClipCount('1');
+        setClipTargets(['reels']);
         setStartAt('');
       }
       setLoadingKit(false);
     });
     return () => { cancelled = true; };
   }, [connected, imp.id, client, applyKit]);
+
+  // --- Resume a build that was already running (e.g. after a page reload) ---
+  useEffect(() => {
+    let cancelled = false;
+    if (!connected || !imp.id) return;
+    client.getSocialBuildStatus(imp.id).then((res) => {
+      if (cancelled) return;
+      const status = res.data;
+      if (res.success && status?.building) {
+        setBuilding(true);
+        setBuildStep(status.step || 'Rendering…');
+        setBuildStartedAt(status.startedAt || Date.now());
+      }
+    });
+    return () => { cancelled = true; };
+  }, [connected, imp.id, client]);
+
+  // --- Real build progress: poll the bridge while the POST is in flight ---
+  useEffect(() => {
+    if (!building || !connected) return;
+    let cancelled = false;
+    const check = async () => {
+      const res = await client.getSocialBuildStatus(imp.id);
+      if (cancelled || !res.success || !res.data) return;
+      const status: SocialBuildStatus = res.data;
+      if (status.status === 'idle') return;
+      if (status.step) setBuildStep(status.step);
+
+      if (status.status === 'done') {
+        const refreshed = await client.getSocialKit(imp.id);
+        if (!cancelled && refreshed.success && refreshed.data?.built) applyKit(refreshed.data);
+        if (!cancelled) {
+          setBuilding(false);
+          setBuildStep(null);
+          setBuildStartedAt(null);
+        }
+      } else if (status.status === 'error') {
+        if (!cancelled) {
+          showError(status.error || 'The social kit build failed');
+          setBuilding(false);
+          setBuildStep(null);
+          setBuildStartedAt(null);
+        }
+      }
+    };
+    void check();
+    const timer = setInterval(() => { void check(); }, 2000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [building, connected, client, imp.id, applyKit]);
+
+  // --- Elapsed time on the build card ---
+  useEffect(() => {
+    if (!building || !buildStartedAt) {
+      setBuildElapsed(0);
+      return;
+    }
+    const update = () => setBuildElapsed(Math.max(0, Math.round((Date.now() - buildStartedAt) / 1000)));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [building, buildStartedAt]);
 
   // Advance the narrated phase while a build runs.
   useEffect(() => {
@@ -205,12 +279,19 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   }, []);
 
   const handleBuild = useCallback(async () => {
+    const count = Number(clipCount) || 1;
+    // One clip means every ratio gets the single cut; several clips only go to
+    // the ratios the user ticked (never zero of them).
+    const targets = count > 1 && clipTargets.length ? clipTargets : ['reels'];
     setBuilding(true);
+    setBuildStep('Starting…');
+    setBuildStartedAt(Date.now());
     try {
       const res = await client.buildSocialKit(imp.id, {
         clipSec: Number(clipSec) || undefined,
         clipStartSec: parseTime(startAt) ?? undefined,
-        clipCount: Number(clipCount) || 1,
+        clipCount: count,
+        clipRatios: targets,
       });
       if (res.success && res.data) {
         applyKit(res.data);
@@ -220,8 +301,10 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       }
     } finally {
       setBuilding(false);
+      setBuildStep(null);
+      setBuildStartedAt(null);
     }
-  }, [client, imp.id, clipSec, clipCount, startAt, applyKit]);
+  }, [client, imp.id, clipSec, clipCount, clipTargets, startAt, applyKit]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
@@ -400,7 +483,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
             <div className="space-y-3 py-2">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                {BUILD_PHASES[phase]}
+                {buildStep || BUILD_PHASES[phase]}
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
@@ -408,10 +491,17 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                   style={{ width: `${((phase + 1) / BUILD_PHASES.length) * 100}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Rendering takes a minute or two depending on the length of the recording. You can
-                leave this page — the kit keeps building on your Mac.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  Rendering takes a minute or two depending on the length of the recording. You can
+                  leave this page — the kit keeps building on your Mac.
+                </span>
+                {buildElapsed > 0 && (
+                  <span className="flex items-center gap-1 tabular-nums">
+                    <Clock className="w-3.5 h-3.5" /> {fmt(buildElapsed)} elapsed
+                  </span>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -494,6 +584,39 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                     />
                   </div>
                 </div>
+                {Number(clipCount) > 1 && (
+                  <div className="mt-4 space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Which videos get {clipCount} cuts
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {CLIP_TARGETS.map((target) => {
+                        const on = clipTargets.includes(target.key);
+                        return (
+                          <Button
+                            key={target.key}
+                            type="button"
+                            size="sm"
+                            variant={on ? 'default' : 'outline'}
+                            onClick={() => setClipTargets((prev) => (
+                              prev.includes(target.key)
+                                ? prev.filter((k) => k !== target.key)
+                                : [...prev, target.key]
+                            ))}
+                          >
+                            {on && <Check className="w-3.5 h-3.5 mr-1.5" />}
+                            {target.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Every ticked video is rendered once per cut (numbered 1–{clipCount}). The rest
+                      get a single cut — the square 1:1 posts stay one-per-platform, so doubling them
+                      only costs time. The full-length 16:9 is always the whole piece.
+                    </p>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mt-2">
                   Applies to the Reels/TikTok and square cuts. Leave the start blank and the kit
                   picks the most active passages — extra clips never overlap. Songs shorter than
@@ -524,10 +647,12 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">{file.name}</span>
                       {file.ratio && <Badge variant="outline">{file.ratioLabel || file.ratio}</Badge>}
+                      {file.idea && <Badge variant="secondary">Idea {file.clipIndex}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {file.sizeMB} MB
                       {file.clipSec ? ` · ${fmt(file.clipSec)} clip from ${fmt(file.clipStartSec)}` : ''}
+                      {file.autoExcerpt && !file.idea ? ' · strongest passage' : ''}
                     </p>
                   </div>
                   <div className="flex gap-1">
