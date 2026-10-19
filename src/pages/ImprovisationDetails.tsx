@@ -57,7 +57,11 @@ const ImprovisationDetails: React.FC = () => {
     queryKey: ['improvisation', id],
     queryFn: () => fetchImprovisationDetails(id!),
     enabled: !!id && !isSessionLoading && !!session?.user?.id,
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      const data = query.state.data as Improvisation | undefined;
+      // Only poll while analyzing
+      return data?.status === 'analyzing' ? 5000 : false;
+    },
   });
 
   const updateMutation = useUpdateImprovisation(id!);

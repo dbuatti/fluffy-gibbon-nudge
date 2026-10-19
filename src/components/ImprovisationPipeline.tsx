@@ -39,7 +39,7 @@ const ImprovisationPipeline: React.FC = () => {
   const queryClient = useQueryClient();
 
   const { data: counts, isLoading, error } = useQuery<StatusCount[]>({
-    queryKey: ['improvisationStatusCounts'],
+    queryKey: ['improvisationStatusCounts', session?.user?.id],
     queryFn: () => fetchStatusCounts(supabase, session!.user.id),
     enabled: !isSessionLoading && !!session?.user,
     refetchInterval: 15000,

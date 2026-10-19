@@ -42,7 +42,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
     status: hasArtwork ? 'passed' : 'failed',
     label: hasArtwork ? 'Artwork Generated (3000x3000)' : 'Artwork Missing',
     icon: hasArtwork ? CheckCircle : XCircle,
-    color: hasArtwork ? 'text-success' : 'text-error',
+    color: hasArtwork ? 'text-success' : 'text-destructive',
     actionLink: hasArtwork ? undefined : '#artwork-actions',
     actionLabel: hasArtwork ? undefined : 'Generate Artwork',
   };
@@ -51,7 +51,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
     status: isMetadataConfirmed ? 'passed' : (hasInsightTimerCategorization ? 'pending' : 'failed'),
     label: isMetadataConfirmed ? 'AI Metadata Confirmed' : (hasInsightTimerCategorization ? 'Review & Confirm Metadata' : 'AI Metadata Incomplete'),
     icon: isMetadataConfirmed ? CheckCircle : (hasInsightTimerCategorization ? Info : XCircle),
-    color: isMetadataConfirmed ? 'text-success' : (hasInsightTimerCategorization ? 'text-warning' : 'text-error'),
+    color: isMetadataConfirmed ? 'text-success' : (hasInsightTimerCategorization ? 'text-warning' : 'text-destructive'),
     actionLink: isMetadataConfirmed ? undefined : '#insight-timer-confirmation',
     actionLabel: isMetadataConfirmed ? undefined : 'Go to Insight Timer Prep',
   };
@@ -64,14 +64,14 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ imp, isAnalyzin
   return (
     <Card className={cn(
         "shadow-card-light dark:shadow-card-dark transition-all",
-        isReady ? "border-4 border-success/50" : (isBlocked ? "border-4 border-error/50" : "border-4 border-warning/50")
+        isReady ? "border-4 border-success/50" : (isBlocked ? "border-4 border-destructive/50" : "border-4 border-warning/50")
     )}>
       <CardHeader className="pb-3">
         <CardTitle className="text-2xl font-bold flex items-center">
           {isReady ? (
             <CheckCircle className="h-6 w-6 mr-3 text-success" />
           ) : isBlocked ? (
-            <XCircle className="h-6 w-6 mr-3 text-error" />
+            <XCircle className="h-6 w-6 mr-3 text-destructive" />
           ) : (
             <Info className="h-6 w-6 mr-3 text-warning" />
           )}

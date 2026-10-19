@@ -26,7 +26,7 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
   const renderStatusItem = (label: string, value: string | boolean | null, isGood: boolean) => (
     <div className="flex items-center justify-between py-2 border-b last:border-b-0">
       <span className="text-sm font-medium text-muted-foreground">{label}</span>
-      <span className={`text-sm font-semibold flex items-center ${isGood ? 'text-success' : 'text-error'}`}>
+      <span className={`text-sm font-semibold flex items-center ${isGood ? 'text-success' : 'text-destructive'}`}>
         {typeof value === 'boolean' ? (
           value ? <Check className="w-4 h-4 mr-1" /> : <X className="w-4 h-4 mr-1" />
         ) : (
@@ -68,9 +68,9 @@ const DistroKidTab: React.FC<DistroKidTabProps> = ({ imp, isReady, handleUpdateI
               </p>
             </>
           ) : (
-            <div className="text-center p-6 border-4 border-dashed border-error rounded-lg bg-destructive/5 dark:bg-destructive/10">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-error" />
-              <p className="text-lg font-bold text-error mb-1">CRITICAL: Artwork Missing</p>
+            <div className="text-center p-6 border-4 border-dashed border-destructive rounded-lg bg-destructive/5 dark:bg-destructive/10">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-destructive" />
+              <p className="text-lg font-bold text-destructive mb-1">CRITICAL: Artwork Missing</p>
               <p className="text-sm text-muted-foreground mt-1">
                 You must generate or upload artwork before distribution.
               </p>

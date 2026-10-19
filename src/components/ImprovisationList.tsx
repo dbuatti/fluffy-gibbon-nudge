@@ -156,6 +156,12 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
     }
   }, [improvisations, page]);
 
+  // Reset accumulated list when search/filter changes
+  React.useEffect(() => {
+    setPage(0);
+    setAllImprovisations([]);
+  }, [searchTerm, filterStatus, sortOption]);
+
   const handleLoadMore = () => {
     setPage(prev => prev + 1);
   };
@@ -329,7 +335,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortOption === 'created_at_asc') {
-      return new Date(a.created_at).getTime() - new Date(a.created_at).getTime();
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     }
     if (sortOption === 'name_asc') {
       const nameA = (a.generated_name || a.file_name || '').toLowerCase();

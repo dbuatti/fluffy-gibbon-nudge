@@ -73,7 +73,7 @@ const DailyPromptCard: React.FC = () => {
             <Skeleton className="h-6 w-3/4" />
           </div>
         ) : error ? (
-          <p className="text-sm text-error">Error loading prompt: {error.message}</p>
+          <p className="text-sm text-destructive">Error loading prompt: {error.message}</p>
         ) : (
           <div className="flex items-start gap-2">
             <p className="text-lg font-semibold italic text-foreground flex-1 leading-relaxed">

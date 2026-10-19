@@ -438,39 +438,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             primaryGenre={imp.primary_genre}
         />
         
-        {/* Debugging: Public Audio URL */}
-        {audioPublicUrl && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl flex items-center text-warning">
-                <ExternalLink className="w-5 h-5 mr-2" /> Audio URL (Debug)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                If the player above fails, copy this URL and check if the file loads directly in your browser.
-              </p>
-              <div className="flex space-x-2">
-                <Input 
-                  type="text" 
-                  value={audioPublicUrl} 
-                  readOnly 
-                  className="flex-grow font-mono text-xs bg-muted h-10"
-                />
-                <Button 
-                    size="icon" 
-                    onClick={handleCopyUrl} 
-                    title="Copy Public URL"
-                    aria-label="Copy Public URL"
-                    className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10"
-                >
-                  <Copy className="h-5 w-5" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
       </TabsContent>
     );
   }
