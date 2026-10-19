@@ -226,11 +226,9 @@ export const LocalBridgePanel: React.FC = () => {
     try {
       const res = await launchPicker({ mode: 'upload_audio' });
       if (res) {
-        showToast(true, 'Audio upload started', res.message);
         setLastResult({ success: true, message: res.message || 'Audio upload started' });
       } else {
-        showToast(false, 'Upload failed', 'Check bridge logs');
-        setLastResult({ success: false, message: 'Upload failed' });
+        setLastResult({ success: false, message: 'Upload failed — check bridge logs' });
       }
     } catch (e) {
       showToast(false, 'Error', String(e));
@@ -241,11 +239,9 @@ export const LocalBridgePanel: React.FC = () => {
     try {
       const res = await launchPicker({ mode: 'sync_nas' });
       if (res) {
-        showToast(true, 'NAS sync started', res.message);
         setLastResult({ success: true, message: res.message || 'NAS sync started' });
       } else {
-        showToast(false, 'Sync failed', 'Check bridge logs');
-        setLastResult({ success: false, message: 'Sync failed' });
+        setLastResult({ success: false, message: 'Sync failed — check bridge logs' });
       }
     } catch (e) {
       showToast(false, 'Error', String(e));

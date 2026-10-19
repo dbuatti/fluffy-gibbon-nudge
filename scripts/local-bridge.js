@@ -27,6 +27,7 @@ import { spawn, execFile } from 'child_process';
 import os from 'os';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import net from 'net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,8 +69,17 @@ function loadConfig() {
     console.log('');
     console.log('Or use the "Set Up Bridge Connection" button in the sidebar.');
   } else {
-    config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-    if (!config.bindHost) config.bindHost = '127.0.0.1';
+    try {
+      config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+      if (!config.bindHost) config.bindHost = '127.0.0.1';
+    } catch (e) {
+      console.error('Failed to parse config, regenerating:', e.message);
+      // Regenerate
+      const token = Array.from(crypto.randomBytes(32)).map(b => b.toString(16).padStart(2, '0')).join('');
+      config = { token, port: 34567, bindHost: '127.0.0.1', allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'] };
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+      fs.chmodSync(CONFIG_FILE, 0o600);
+    }
   }
   return config;
 }
@@ -80,18 +90,20 @@ function loadConfig() {
 
 function getAllowedOrigin(req) {
   const origin = req.headers.origin;
-  return origin && config.allowedOrigins.includes(origin) ? origin : config.allowedOrigins[0];
+  if (origin && config.allowedOrigins.includes(origin)) return origin;
+  return null;
 }
 
 function sendJson(res, statusCode, data, req) {
   const allowOrigin = getAllowedOrigin(req);
-  res.writeHead(statusCode, {
+  const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Vary': 'Origin',
-  });
+  };
+  if (allowOrigin) headers['Access-Control-Allow-Origin'] = allowOrigin;
+  res.writeHead(statusCode, headers);
   res.end(JSON.stringify(data));
 }
 
@@ -115,13 +127,15 @@ function runScript(scriptName, args = []) {
     const child = spawn('node', [scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('Script timed out after 120s')); }, 120000);
     child.stdout.on('data', d => stdout += d);
     child.stderr.on('data', d => stderr += d);
     child.on('close', code => {
+      clearTimeout(timer);
       if (code === 0) resolve(stdout.trim());
       else reject(new Error(stderr || `Exit code ${code}`));
     });
-    child.on('error', reject);
+    child.on('error', err => { clearTimeout(timer); reject(err); });
   });
 }
 
@@ -129,26 +143,26 @@ function runAppleScript(script) {
   return new Promise((resolve, reject) => {
     const child = spawn('osascript', ['-e', script], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('AppleScript timed out after 30s')); }, 30000);
     child.stdout.on('data', d => stdout += d);
     child.stderr.on('data', d => stderr += d);
-    child.on('close', code => code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr)));
-    child.on('error', reject);
+    child.on('close', code => {
+      clearTimeout(timer);
+      code === 0 ? resolve(stdout.trim()) : reject(new Error(stderr));
+    });
+    child.on('error', err => { clearTimeout(timer); reject(err); });
   });
 }
 
 async function checkMeldConnected() {
-  try {
-    const { default: WebSocket } = await import('ws');
-    const ws = new WebSocket('ws://127.0.0.1:13376');
-    await new Promise((resolve, reject) => {
-      ws.on('open', () => { ws.close(); resolve(true); });
-      ws.on('error', reject);
-      setTimeout(() => reject(new Error('timeout')), 1500);
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(1500);
+    socket.on('connect', () => { socket.destroy(); resolve(true); });
+    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+    socket.on('error', () => { socket.destroy(); resolve(false); });
+    socket.connect(13376, '127.0.0.1');
+  });
 }
 
 async function checkLogicRunning() {
@@ -173,19 +187,23 @@ async function checkNasMounted() {
 }
 
 async function handleMountNas(req, res) {
-  // Try Bonjour name first (preferred), then fall back to IP.
   const candidates = ['smb://Crystal-Tokyo.local', 'smb://192.168.1.102'];
   try {
-    // Use `open` to trigger macOS mount dialog (handles credentials via Keychain).
     execFile('open', [candidates[0]], (err) => {
-      if (err) {
-        // Fallback to IP
-        execFile('open', [candidates[1]], () => {});
-      }
+      if (err) execFile('open', [candidates[1]], () => {});
     });
+    // Wait briefly to see if mount succeeded
+    await new Promise(r => setTimeout(r, 2000));
+    const mounted = await checkNasMounted();
     sendJson(res, 200, {
       success: true,
-      data: { message: 'Mount dialog opened in Finder. Complete authentication if prompted.', candidates },
+      data: {
+        message: mounted
+          ? 'NAS mounted successfully.'
+          : 'Mount dialog opened in Finder. Complete authentication if prompted, then retry.',
+        mounted,
+        candidates,
+      },
       timestamp: new Date().toISOString(),
     }, req);
   } catch (e) {
@@ -211,7 +229,7 @@ async function handleStatus(req, res) {
     success: true,
     data: {
       bridge: 'ok',
-      version: '1.0.0',
+      version: '1.1.0',
       uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
       meldConnected,
       logicRunning,
@@ -348,7 +366,8 @@ async function handleOpenLogic(req, res, body) {
   try {
     const { projectPath } = body;
     if (!projectPath) throw new Error('Missing projectPath');
-    await runAppleScript(`tell application "Finder" to open POSIX file "${projectPath}"`);
+    const safePath = String(projectPath).replace(/"/g, '\\"');
+    await runAppleScript(`tell application "Finder" to open POSIX file "${safePath}"`);
     sendJson(res, 200, {
       success: true,
       data: { success: true, projectPath, message: `Opened Logic project: ${projectPath}` },
@@ -391,17 +410,17 @@ async function startServer() {
   loadConfig();
 
   const server = http.createServer(async (req, res) => {
-    const allowedOrigin = getAllowedOrigin(req);
-
     // CORS preflight
     if (req.method === 'OPTIONS') {
-      res.writeHead(204, {
-        'Access-Control-Allow-Origin': allowedOrigin || config.allowedOrigins[0],
+      const allowOrigin = getAllowedOrigin(req);
+      const headers = {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Max-Age': '86400',
         'Vary': 'Origin',
-      });
+      };
+      if (allowOrigin) headers['Access-Control-Allow-Origin'] = allowOrigin;
+      res.writeHead(204, headers);
       res.end();
       return;
     }
@@ -418,8 +437,18 @@ async function startServer() {
     if (!requireAuth(req, res)) return;
 
     let body = '';
-    req.on('data', chunk => body += chunk);
+    let bodySize = 0;
+    const MAX_BODY = 1024 * 1024; // 1MB
+    req.on('data', chunk => {
+      bodySize += chunk.length;
+      if (bodySize > MAX_BODY) { req.destroy(); return; }
+      body += chunk;
+    });
     req.on('end', async () => {
+      if (bodySize > MAX_BODY) {
+        sendJson(res, 413, { success: false, error: 'Request body too large', timestamp: new Date().toISOString() }, req);
+        return;
+      }
       const parsedBody = body ? JSON.parse(body) : {};
       const query = Object.fromEntries(url.searchParams);
 
@@ -471,5 +500,12 @@ async function startServer() {
     process.exit(1);
   });
 }
+
+function gracefulShutdown(signal) {
+  console.log(`\nReceived ${signal}, shutting down bridge...`);
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 startServer();
