@@ -833,6 +833,50 @@ async function handleSyncStatus(req, res, query) {
 // Archive to NAS (top-level Logic projects)
 // ============================================================================
 
+/**
+ * Best-effort creation date for a Logic project, as YYYYMMDD.
+ *
+ * Logic's own bundle metadata does *not* carry a usable date (the date fields
+ * in ProjectData/MetaData.plist are zeroed), so the filesystem's birth time —
+ * the moment the .logicx was first created — is the most truthful source.
+ * Falls back to mtime, then to today. Never throws: a date prefix is a nicety.
+ */
+function resolveProjectDate(sourcePath) {
+  try {
+    const stat = fs.statSync(sourcePath);
+    const ms = stat.birthtimeMs && stat.birthtimeMs > 0 ? stat.birthtimeMs : stat.mtimeMs;
+    if (ms && ms > 0) return new Date(ms).toISOString().slice(0, 10).replace(/-/g, '');
+  } catch { /* unreadable — fall through to today */ }
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+/**
+ * Find the NAS folder holding a project's archived copy. A folder counts when
+ * it is named exactly `<name>` (un-dated archives) or ends with ` <name>` after
+ * a leading date (the dated form, e.g. "20261007 COSMIC DRONE" — matching the
+ * existing convention in DBP/Creation). Returns the absolute path, or null.
+ */
+function findNasArchiveFolder(name) {
+  if (!fs.existsSync(NAS_CREATION_DIR)) return null;
+  const datedSuffix = ` ${name}`;
+  let match = null;
+  try {
+    for (const d of fs.readdirSync(NAS_CREATION_DIR, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      if (d.name === name) {
+        // Exact, un-dated folder wins immediately — it is unambiguous.
+        return path.join(NAS_CREATION_DIR, d.name);
+      }
+      if (d.name.endsWith(datedSuffix)) {
+        // Keep the newest if several dates somehow exist for one project.
+        const full = path.join(NAS_CREATION_DIR, d.name);
+        if (!match || fs.statSync(full).mtimeMs > fs.statSync(match).mtimeMs) match = full;
+      }
+    }
+  } catch { return match; }
+  return match;
+}
+
 /** Recursive { files, bytes } for a folder tree — the basis of archive verification. */
 function measureTree(rootPath) {
   let files = 0;
@@ -897,16 +941,26 @@ async function handleLogicProjects(req, res) {
       })
       .sort((a, b) => b.mtime - a.mtime);
 
-    // "Archived" = a same-named folder exists in the NAS Creation dir.
+    // "Archived" = a matching folder exists in the NAS Creation dir. Folders
+    // may be date-prefixed ("2026-10-07 - COSMIC DRONE"), so a plain name
+    // comparison is not enough — discover the real folder and report it, so
+    // the UI can open it and the trash action can find it later.
     let nasListed = false;
-    const archivedNames = new Set();
     try {
-      for (const d of fs.readdirSync(NAS_CREATION_DIR, { withFileTypes: true })) {
-        if (d.isDirectory()) archivedNames.add(d.name);
-      }
-      nasListed = true;
+      nasListed = fs.existsSync(NAS_CREATION_DIR);
     } catch { /* NAS not mounted — archive status stays unknown */ }
-    for (const p of projects) p.archived = nasListed && archivedNames.has(p.name);
+    for (const p of projects) {
+      const nasFolder = nasListed ? findNasArchiveFolder(p.name) : null;
+      p.archived = !!nasFolder;
+      p.nasFolder = nasFolder;
+      // The date the folder carries, when it is date-prefixed, so the row can
+      // show it without re-parsing names in the UI.
+      if (nasFolder) {
+        const base = path.basename(nasFolder);
+        const m = /^(\d{4})(\d{2})(\d{2}) /.exec(base);
+        p.archivedDate = m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+      }
+    }
 
     sendJson(res, 200, {
       success: true,
@@ -918,83 +972,118 @@ async function handleLogicProjects(req, res) {
   }
 }
 
+/**
+ * Copy a Logic project into DBP/Creation, preserving it as a real .logicx
+ * bundle (date-prefixed by default) and verifying it file-by-file.
+ *
+ * The bundle is copied *as a bundle* — `rsync -a <source> <target>/` with no
+ * trailing slash — so the NAS folder contains `<name>.logicx`, which Logic can
+ * open directly. The older trailing-slash form exploded the bundle's innards
+ * (Alternatives/Media/Resources) into the folder, which could not be opened.
+ *
+ * Returns { name, folderName, targetFolder, files, bytes, date, seconds }.
+ */
+function copyProjectToNas(source, { datePrefix = true } = {}) {
+  const name = path.basename(source, '.logicx');
+  if (!fs.existsSync(NAS_CREATION_DIR)) {
+    throw new Error('NAS not mounted (Moon Prism). Use "Mount NAS" first, then retry.');
+  }
+
+  // Date-prefixed by default so the Creation folder reads chronologically.
+  // Format matches the existing convention there: "20261007 COSMIC DRONE".
+  const date = datePrefix ? resolveProjectDate(source) : null;
+  const folderName = datePrefix ? `${date} ${name}` : name;
+
+  const existing = findNasArchiveFolder(name);
+  if (existing) {
+    throw new Error(`"${name}" already has a folder on the NAS: ${existing}`);
+  }
+
+  const targetFolder = path.join(NAS_CREATION_DIR, folderName);
+  console.log(`[logic/archive] ${name}: copying bundle to ${targetFolder} …`);
+  fs.mkdirSync(targetFolder, { recursive: true });
+  const startedAt = Date.now();
+
+  // No trailing slash on the source: copy the .logicx bundle itself into the
+  // new folder, so the result is <folder>/<name>.logicx/… and reopens in Logic.
+  const copy = spawnSync('rsync', ['-a', source, `${targetFolder}/`], {
+    encoding: 'utf-8',
+    timeout: 30 * 60 * 1000,
+  });
+  if (copy.error || copy.status !== 0) {
+    fs.rmSync(targetFolder, { recursive: true, force: true });
+    throw new Error(`Copy failed: ${(copy.stderr || (copy.error && copy.error.message) || 'unknown rsync error').trim()}`);
+  }
+
+  const local = measureTree(source);
+  const remote = measureTree(targetFolder);
+  if (local.files !== remote.files || local.bytes !== remote.bytes) {
+    fs.rmSync(targetFolder, { recursive: true, force: true });
+    throw new Error(`Verification failed (expected ${local.files} files / ${local.bytes} bytes, NAS has ${remote.files} / ${remote.bytes}) — partial copy removed, local project untouched`);
+  }
+
+  return {
+    name,
+    folderName,
+    targetFolder,
+    files: local.files,
+    bytes: local.bytes,
+    date,
+    seconds: Math.round((Date.now() - startedAt) / 100) / 10,
+  };
+}
+
+/** Link an app record to its new NAS folder. Best-effort; never fails a copy. */
+async function linkRecordToNas(source, targetFolder) {
+  try {
+    const hub = await import('./composer-hub.js');
+    const session = await hub.getSession();
+    if (!session) return null;
+    const headers = { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` };
+    const findRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?logic_project_path=eq.${encodeURIComponent(source)}&select=id`, {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!findRes.ok) return null;
+    const [match] = await findRes.json();
+    if (!match) return null;
+    const patchRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${match.id}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ nas_folder_path: targetFolder }),
+      signal: AbortSignal.timeout(15000),
+    });
+    return patchRes.ok ? match.id : null;
+  } catch {
+    return null; // linking is a nicety, not the archive
+  }
+}
+
 async function handleLogicArchive(req, res, body) {
   try {
     const source = resolveArchivePath(typeof body.path === 'string' ? body.path.trim() : '');
-    const name = path.basename(source, '.logicx');
+    // Date prefix is on by default; the UI can switch it off per archive.
+    const datePrefix = body.datePrefix !== false;
+    const result = copyProjectToNas(source, { datePrefix });
 
-    if (!fs.existsSync(NAS_CREATION_DIR)) {
-      throw new Error('NAS not mounted (Moon Prism). Use "Mount NAS" first, then retry.');
-    }
-    const targetFolder = path.join(NAS_CREATION_DIR, name);
-    if (fs.existsSync(targetFolder)) {
-      throw new Error(`"${name}" already has a folder on the NAS: ${targetFolder}`);
-    }
+    const sizeMB = Math.round((result.bytes / (1024 * 1024)) * 10) / 10;
+    console.log(`[logic/archive] ${result.name}: verified — ${result.files} files, ${sizeMB} MB in ${result.seconds}s → ${result.folderName}`);
 
-    console.log(`[logic/archive] ${name}: copying to ${targetFolder} …`);
-    fs.mkdirSync(targetFolder, { recursive: true });
-    const startedAt = Date.now();
-
-    // Trailing slash copies the bundle's *contents* into the folder we just
-    // created. The local project is never touched; a failed or partial copy
-    // removes only the incomplete NAS folder.
-    const copy = spawnSync('rsync', ['-a', `${source}/`, `${targetFolder}/`], {
-      encoding: 'utf-8',
-      timeout: 30 * 60 * 1000,
-    });
-    if (copy.error || copy.status !== 0) {
-      fs.rmSync(targetFolder, { recursive: true, force: true });
-      throw new Error(`Copy failed: ${(copy.stderr || (copy.error && copy.error.message) || 'unknown rsync error').trim()}`);
-    }
-
-    const local = measureTree(source);
-    const remote = measureTree(targetFolder);
-    if (local.files !== remote.files || local.bytes !== remote.bytes) {
-      fs.rmSync(targetFolder, { recursive: true, force: true });
-      throw new Error(`Verification failed (expected ${local.files} files / ${local.bytes} bytes, NAS has ${remote.files} / ${remote.bytes}) — partial copy removed, local project untouched`);
-    }
-
-    const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
-    const sizeMB = Math.round((local.bytes / (1024 * 1024)) * 10) / 10;
-    console.log(`[logic/archive] ${name}: verified — ${local.files} files, ${sizeMB} MB in ${seconds}s`);
-
-    // Best-effort: if an app record points at this project, link it to the
-    // new NAS folder. A failure here never fails the archive itself.
-    let linkedRecord = null;
-    try {
-      const hub = await import('./composer-hub.js');
-      const session = await hub.getSession();
-      if (session) {
-        const headers = { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` };
-        const findRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?logic_project_path=eq.${encodeURIComponent(source)}&select=id`, {
-          headers,
-          signal: AbortSignal.timeout(15000),
-        });
-        if (findRes.ok) {
-          const [match] = await findRes.json();
-          if (match) {
-            const patchRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${match.id}`, {
-              method: 'PATCH',
-              headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-              body: JSON.stringify({ nas_folder_path: targetFolder }),
-              signal: AbortSignal.timeout(15000),
-            });
-            if (patchRes.ok) linkedRecord = match.id;
-          }
-        }
-      }
-    } catch { /* linking is a nicety, not the archive */ }
+    const linkedRecord = await linkRecordToNas(source, result.targetFolder);
+    const dateNote = result.date ? ` dated ${result.date}` : '';
 
     sendJson(res, 200, {
       success: true,
       data: {
-        name,
-        archivedTo: targetFolder,
-        files: local.files,
+        name: result.name,
+        folderName: result.folderName,
+        archivedTo: result.targetFolder,
+        date: result.date,
+        files: result.files,
         sizeMB,
-        seconds,
+        seconds: result.seconds,
         linkedRecord,
-        message: `Archived + verified: ${name} → Moon Prism (${sizeMB} MB in ${seconds}s)`,
+        message: `Archived + verified${dateNote}: ${result.folderName} → Moon Prism (${sizeMB} MB in ${result.seconds}s)`,
       },
       timestamp: new Date().toISOString(),
     }, req);
@@ -1008,9 +1097,17 @@ async function handleTrashLocal(req, res, body) {
   try {
     const source = resolveArchivePath(typeof body.path === 'string' ? body.path.trim() : '');
     const name = path.basename(source, '.logicx');
-    const nasFolder = path.join(NAS_CREATION_DIR, name);
+    // Folders may be date-prefixed, so discover the real one rather than
+    // assuming a name. An explicit nasFolder from the client wins if given.
+    const requested = typeof body.nasFolder === 'string' ? body.nasFolder.trim() : '';
+    const nasFolder = requested && requested.startsWith(NAS_CREATION_DIR)
+      ? requested
+      : findNasArchiveFolder(name);
+    if (!nasFolder) {
+      throw new Error(`No archived copy found for "${name}" in ${NAS_CREATION_DIR} — archive it first`);
+    }
     if (!fs.existsSync(nasFolder)) {
-      throw new Error(`No archived copy found at ${nasFolder} — archive it first`);
+      throw new Error(`The archived folder is missing: ${nasFolder} — archive it again before removing the local copy`);
     }
 
     // Re-verify right before deleting anything: same file count + bytes.

@@ -463,20 +463,20 @@ export class BridgeClient {
   }
 
   /** Archive a Logic project to the NAS Creation folder (copy + verify; local untouched) */
-  async archiveLogicProject(projectPath: string): Promise<BridgeResponse<{ name: string; archivedTo: string; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>> {
+  async archiveLogicProject(projectPath: string, opts: { datePrefix?: boolean } = {}): Promise<BridgeResponse<{ name: string; folderName: string; archivedTo: string; date: string | null; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>> {
     // rsync of a possibly multi-hundred-MB bundle over SMB — long leash.
-    return this.request<{ name: string; archivedTo: string; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>('/logic/archive', {
+    return this.request<{ name: string; folderName: string; archivedTo: string; date: string | null; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>('/logic/archive', {
       method: 'POST',
-      body: JSON.stringify({ path: projectPath }),
+      body: JSON.stringify({ path: projectPath, datePrefix: opts.datePrefix !== false }),
     }, 31 * 60 * 1000);
   }
 
   /** Move a local Logic project to the Trash after re-verifying the NAS copy */
-  async trashLocalLogicProject(projectPath: string): Promise<BridgeResponse<{ name: string; freedMB: number; message: string }>> {
+  async trashLocalLogicProject(projectPath: string, nasFolder?: string): Promise<BridgeResponse<{ name: string; freedMB: number; message: string }>> {
     // Verification stats the NAS copy over SMB before anything is deleted.
     return this.request<{ name: string; freedMB: number; message: string }>('/logic/trash-local', {
       method: 'POST',
-      body: JSON.stringify({ path: projectPath }),
+      body: JSON.stringify({ path: projectPath, nasFolder }),
     }, 120000);
   }
 
@@ -562,6 +562,10 @@ export interface LogicProject {
   files: number;
   sizeMB: number;
   archived: boolean;
+  /** Absolute path of the archived folder on the NAS, when one exists. */
+  nasFolder?: string | null;
+  /** The date the archived folder carries (YYYY-MM-DD), when date-prefixed. */
+  archivedDate?: string | null;
 }
 
 // Singleton instance for React hooks
@@ -700,12 +704,12 @@ export function useLocalBridge() {
     return client.getLogicProjects();
   };
 
-  const archiveLogicProject = async (projectPath: string) => {
-    return client.archiveLogicProject(projectPath);
+  const archiveLogicProject = async (projectPath: string, opts?: { datePrefix?: boolean }) => {
+    return client.archiveLogicProject(projectPath, opts);
   };
 
-  const trashLocalLogicProject = async (projectPath: string) => {
-    return client.trashLocalLogicProject(projectPath);
+  const trashLocalLogicProject = async (projectPath: string, nasFolder?: string) => {
+    return client.trashLocalLogicProject(projectPath, nasFolder);
   };
 
   const getSocialKit = async (improvisationId: string) => {

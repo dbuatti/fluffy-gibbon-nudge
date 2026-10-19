@@ -248,6 +248,9 @@ export const LocalBridgePanel: React.FC = () => {
   const [showEmptyUntitled, setShowEmptyUntitled] = useState(false);
   const [archivingPath, setArchivingPath] = useState<string | null>(null);
   const [trashingPath, setTrashingPath] = useState<string | null>(null);
+  // Prefix archived folder names with a date (on by default). Persisted so the
+  // preference survives reloads; the bridge applies it at archive time.
+  const [datePrefix, setDatePrefix] = useState(() => localStorage.getItem('lb_archiveDatePrefix') !== 'false');
 
   useEffect(() => { localStorage.setItem('lb_showSystem', String(showSystem)); }, [showSystem]);
   useEffect(() => { localStorage.setItem('lb_showWorkflows', String(showWorkflows)); }, [showWorkflows]);
@@ -256,6 +259,7 @@ export const LocalBridgePanel: React.FC = () => {
   useEffect(() => { localStorage.setItem('lb_showConfig', String(showConfig)); }, [showConfig]);
   useEffect(() => { localStorage.setItem('lb_showCaptures', String(showCaptures)); }, [showCaptures]);
   useEffect(() => { localStorage.setItem('lb_showArchive', String(showArchive)); }, [showArchive]);
+  useEffect(() => { localStorage.setItem('lb_archiveDatePrefix', String(datePrefix)); }, [datePrefix]);
 
   const handleUploadAudio = async () => {
     try {
@@ -321,7 +325,7 @@ export const LocalBridgePanel: React.FC = () => {
   const handleArchiveProject = async (p: any) => {
     setArchivingPath(p.path);
     try {
-      const res = await archiveLogicProject(p.path);
+      const res = await archiveLogicProject(p.path, { datePrefix });
       if (res?.success && res.data) {
         showSuccess(res.data.message);
         handleScanProjects();
@@ -336,13 +340,14 @@ export const LocalBridgePanel: React.FC = () => {
   };
 
   const handleTrashLocal = async (p: any) => {
+    const where = p.nasFolder ? `\n\nIts verified copy stays on the NAS at:\n${p.nasFolder}` : '\n\nIts verified copy stays on the NAS.';
     const ok = window.confirm(
-      `Move "${p.name}" to the Trash?\n\nIts verified copy stays on the NAS, and the Trash copy stays recoverable from Finder until you empty the Trash.`,
+      `Move "${p.name}" to the Trash?${where}\n\nThe Trash copy stays recoverable from Finder until you empty the Trash.`,
     );
     if (!ok) return;
     setTrashingPath(p.path);
     try {
-      const res = await trashLocalLogicProject(p.path);
+      const res = await trashLocalLogicProject(p.path, p.nasFolder || undefined);
       if (res?.success && res.data) {
         showSuccess(res.data.message);
         handleScanProjects();
@@ -569,6 +574,22 @@ export const LocalBridgePanel: React.FC = () => {
               <code className="bg-muted px-1 rounded">DBP/Creation</code>) — copied, verified
               file-by-file, then optionally trashed locally so they can leave this Mac.
             </p>
+            <label className="flex items-start gap-2 text-[10px] text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={datePrefix}
+                onChange={(e) => setDatePrefix(e.target.checked)}
+                className="mt-0.5 accent-primary"
+              />
+              <span>
+                Date-prefix folder names (e.g.{' '}
+                <code className="bg-muted px-1 rounded">
+                  {new Date().toISOString().slice(0, 10).replace(/-/g, '')} COSMIC DRONE
+                </code>
+                ) — uses the project's creation date when the filesystem knows it,
+                otherwise today.
+              </span>
+            </label>
             <div className="flex gap-1.5">
               <Button
                 variant="outline"
@@ -623,71 +644,87 @@ export const LocalBridgePanel: React.FC = () => {
               </p>
             )}
             {visibleProjects.length > 0 && (
-              <div className="max-h-64 overflow-y-auto space-y-1">
+              <div className="max-h-72 overflow-y-auto space-y-1.5">
                 {visibleProjects.map((p) => (
                   <div
                     key={p.path}
-                    className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]"
-                    title={p.path}
+                    className="rounded-md bg-muted/50 p-2 space-y-1.5"
                   >
-                    <Music className="h-3 w-3 text-primary flex-shrink-0" />
-                    <span className="flex-1 truncate font-medium">{p.name}</span>
-                    <span className="text-muted-foreground whitespace-nowrap">
-                      {p.sizeMB >= 1 ? `${p.sizeMB} MB` : '<1 MB'}
-                    </span>
-                    {p.archived ? (
-                      <span
-                        className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
-                        title="A verified copy exists in DBP/Creation"
-                      >
-                        <CheckCircle className="h-3 w-3" /> On NAS
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <Music className="h-3 w-3 text-primary flex-shrink-0" />
+                      <span className="flex-1 truncate font-medium" title={p.path}>{p.name}</span>
+                      <span className="text-muted-foreground whitespace-nowrap">
+                        {p.sizeMB >= 1 ? `${p.sizeMB} MB` : '<1 MB'}
                       </span>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 flex-shrink-0"
-                        onClick={() => handleArchiveProject(p)}
-                        disabled={archivingPath === p.path || !nasListed || archivingPath !== null}
-                        title={
-                          nasListed
-                            ? `Copy + verify on Moon Prism (${p.sizeMB} MB) — the local project is not touched`
-                            : 'Mount the NAS first'
-                        }
+                    </div>
+
+                    {/* Two destinations, always both visible and labelled:
+                        the local Logic project and its NAS twin. */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => openFolderInFinder(p.path)}
+                        className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-background hover:bg-accent border border-border/60 transition-colors"
+                        title={`Open the local Logic project in Finder:\n${p.path}`}
                       >
-                        {archivingPath === p.path ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Archive className="h-3 w-3" />
-                        )}
-                      </Button>
-                    )}
-                    {p.archived && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400"
-                        onClick={() => handleTrashLocal(p)}
-                        disabled={trashingPath === p.path}
-                        title="Re-verify the NAS copy, then move the local project to the Trash (recoverable)"
-                      >
-                        {trashingPath === p.path ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 flex-shrink-0"
-                      onClick={() => openFolderInFinder(p.path)}
-                      title={`Reveal in Finder: ${p.path}`}
-                      aria-label="Open project folder in Finder"
-                    >
-                      <FolderOpen className="h-3 w-3" />
-                    </Button>
+                        <FolderOpen className="h-3 w-3 text-primary" />
+                        <span className="font-medium">Finder</span>
+                        <span className="text-muted-foreground truncate max-w-[9rem]">
+                          {p.path.split('/').pop()}
+                        </span>
+                      </button>
+
+                      {p.archived && p.nasFolder ? (
+                        <button
+                          onClick={() => openFolderInFinder(p.nasFolder)}
+                          className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 transition-colors"
+                          title={`Open the archived copy on Moon Prism:\n${p.nasFolder}`}
+                        >
+                          <HardDrive className="h-3 w-3" />
+                          <span className="font-medium">NAS</span>
+                          <span className="truncate max-w-[9rem]">
+                            {p.nasFolder.split('/').pop()}
+                          </span>
+                        </button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] gap-1 px-2"
+                          onClick={() => handleArchiveProject(p)}
+                          disabled={archivingPath === p.path || !nasListed || archivingPath !== null}
+                          title={
+                            nasListed
+                              ? `Copy + verify onto Moon Prism (${p.sizeMB} MB) — the local project is not touched`
+                              : 'Mount the NAS first'
+                          }
+                        >
+                          {archivingPath === p.path ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Archive className="h-3 w-3" />
+                          )}
+                          {archivingPath === p.path ? 'Archiving…' : 'Archive to NAS'}
+                        </Button>
+                      )}
+
+                      {p.archived && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px] gap-1 px-2 ml-auto text-amber-600 dark:text-amber-400"
+                          onClick={() => handleTrashLocal(p)}
+                          disabled={trashingPath === p.path}
+                          title="Re-verify the NAS copy, then move the local project to the Trash (recoverable)"
+                        >
+                          {trashingPath === p.path ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3" />
+                          )}
+                          Trash local
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
