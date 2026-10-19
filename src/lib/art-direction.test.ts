@@ -96,6 +96,9 @@ describe('art direction engine', () => {
     const generic = buildArtPrompt(direction, clues, 'generic');
     const metadata = buildArtPrompt(direction, clues, 'metadata');
     expect(metadata).toMatch(/Translating the atmosphere/i);
+    expect(metadata).toContain(
+      'Translating the atmosphere of an ambient / neoclassical piece in D minor at 62 BPM, shaped by',
+    );
     expect(generic).not.toMatch(/Translating the atmosphere/i);
   });
 
