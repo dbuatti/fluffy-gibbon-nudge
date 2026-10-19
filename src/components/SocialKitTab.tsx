@@ -5,9 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import {
   Loader2, Sparkles, Film, FolderOpen, Copy, Instagram, Youtube, Music2,
-  Play, RefreshCw, Check, Info, Clock, ExternalLink, Palette,
+  Play, RefreshCw, Check, Info, Clock, ExternalLink, Palette, ChevronDown,
 } from 'lucide-react';
 import { useLocalBridge, openFolderInFinder, type SocialKit, type SocialKitFile } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
@@ -24,6 +27,18 @@ function fmt(sec?: number): string {
   if (!sec && sec !== 0) return '';
   const s = Math.max(0, Math.round(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Accepts "95", "1:35", "1.35" → seconds, or null when blank/invalid. */
+function parseTime(input: string): number | null {
+  const t = input.trim();
+  if (!t) return null;
+  if (/^\d+:\d{1,2}$/.test(t)) {
+    const [m, s] = t.split(':').map(Number);
+    return m * 60 + s;
+  }
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 }
 
 /**
@@ -76,6 +91,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [showExcerpt, setShowExcerpt] = useState(false);
+  const [clipSec, setClipSec] = useState('90');
+  const [startAt, setStartAt] = useState('');
   const previewUrlRef = useRef<string | null>(null);
 
   const title = useMemo(
@@ -93,6 +111,15 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       if (res.success && res.data?.built) {
         setKit(res.data);
         setCaption(res.data.caption || '');
+        // Mirror the existing excerpt into the controls so "rebuild" reproduces
+        // the same cut instead of silently reverting to the automatic one.
+        const trimmed = (res.data.files || []).find(
+          (f) => f.kind === 'video' && (f.clipStartSec || 0) > 0,
+        );
+        if (trimmed) {
+          if (trimmed.clipSec) setClipSec(String(trimmed.clipSec));
+          setStartAt(fmt(trimmed.clipStartSec));
+        }
       }
       setLoadingKit(false);
     });
@@ -114,7 +141,10 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const handleBuild = useCallback(async () => {
     setBuilding(true);
     try {
-      const res = await client.buildSocialKit(imp.id);
+      const res = await client.buildSocialKit(imp.id, {
+        clipSec: Number(clipSec) || undefined,
+        clipStartSec: parseTime(startAt) ?? undefined,
+      });
       if (res.success && res.data) {
         setKit(res.data);
         setCaption(res.data.caption || '');
@@ -125,7 +155,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     } finally {
       setBuilding(false);
     }
-  }, [client, imp.id]);
+  }, [client, imp.id, clipSec, startAt]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
@@ -275,6 +305,44 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                 the 16:9 YouTube file keeps the full piece.
               </AlertDescription>
             </Alert>
+          )}
+
+          {!building && (
+            <Collapsible open={showExcerpt} onOpenChange={setShowExcerpt}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="px-0 text-muted-foreground">
+                  <ChevronDown className={`w-4 h-4 mr-1 transition-transform ${showExcerpt ? 'rotate-180' : ''}`} />
+                  Adjust the excerpt
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Clip length</label>
+                    <Select value={clipSec} onValueChange={setClipSec}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="60">1:00</SelectItem>
+                        <SelectItem value="90">1:30</SelectItem>
+                        <SelectItem value="180">3:00</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Start at</label>
+                    <Input
+                      value={startAt}
+                      onChange={(e) => setStartAt(e.target.value)}
+                      placeholder="Automatic (m:ss)"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Applies to the Reels/TikTok and square cuts. Leave the start blank and the kit
+                  picks a spot automatically. Songs shorter than the clip length are never trimmed.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </CardContent>
       </Card>

@@ -124,6 +124,10 @@ export interface LocalCapture {
 
 export interface NasStatusResponse {
   mounted: boolean;
+  /** Mount exists and its contents can actually be read (false = stale handle). */
+  readable?: boolean;
+  /** Mountpoint exists but the share is unusable — usually after a network switch. */
+  stale?: boolean;
   nasPath: string | null;
   tailscaleConnected: boolean;
   nasReachable: boolean;
@@ -188,6 +192,13 @@ export interface SocialKit {
   /** How long the last build took (seconds). */
   seconds?: number;
   message?: string;
+}
+
+export interface SocialKitOptions {
+  /** Excerpt length (seconds) for the trimmed Reels/Feed cuts. */
+  clipSec?: number;
+  /** Where that excerpt starts (seconds into the recording). */
+  clipStartSec?: number;
 }
 
 // ============================================================================
@@ -429,10 +440,10 @@ export class BridgeClient {
    * Mac's Desktop. Long-lead (art generation + up to three ffmpeg renders),
    * so this call gets a very generous leash.
    */
-  async buildSocialKit(improvisationId: string): Promise<BridgeResponse<SocialKit>> {
+  async buildSocialKit(improvisationId: string, opts: SocialKitOptions = {}): Promise<BridgeResponse<SocialKit>> {
     return this.request<SocialKit>('/social/build-kit', {
       method: 'POST',
-      body: JSON.stringify({ improvisationId }),
+      body: JSON.stringify({ improvisationId, ...opts }),
     }, 25 * 60 * 1000);
   }
 
@@ -613,8 +624,8 @@ export function useLocalBridge() {
     return client.getSocialKit(improvisationId);
   };
 
-  const buildSocialKit = async (improvisationId: string) => {
-    return client.buildSocialKit(improvisationId);
+  const buildSocialKit = async (improvisationId: string, opts?: SocialKitOptions) => {
+    return client.buildSocialKit(improvisationId, opts);
   };
 
   return {

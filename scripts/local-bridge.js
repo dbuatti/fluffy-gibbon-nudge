@@ -244,6 +244,97 @@ async function checkNasReachable() {
   return { reachable: false, ip: null };
 }
 
+// --- NAS resilience ---------------------------------------------------------
+// Switching networks (Wi-Fi → hotspot) leaves the SMB mount listed but its
+// handles stale: files still stat fine from cache while reads fail with
+// ENOENT. Verify with a real read, repair the mount, and stage audio locally
+// so a blip mid-render can't break a build.
+
+const NAS_MOUNT_PATH = '/Volumes/Moon Prism';
+const NAS_SMB_HOSTS = ['100.124.90.53', 'Crystal-Tokyo.local', '192.168.1.102'];
+
+/** True only if the bytes can actually be read — not just a cached stat. */
+function isFileReadable(file, bytes = 16) {
+  let fd;
+  try {
+    fd = fs.openSync(file, 'r');
+    const buf = Buffer.alloc(bytes);
+    return fs.readSync(fd, buf, 0, bytes, 0) > 0;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch { /* ignore */ } }
+  }
+}
+
+/**
+ * Recover from a stale SMB mount. Unmounts the dead handle and remounts via
+ * Finder so the login keychain supplies credentials. Returns true when the
+ * mount is readable again (probeFile, when given, must read).
+ */
+async function repairNasMount(probeFile) {
+  console.warn('[nas] mount looks stale — attempting a clean remount…');
+  try {
+    await runProcess('diskutil', ['unmount', 'force', NAS_MOUNT_PATH], { timeoutMs: 30000 });
+  } catch (e) {
+    console.warn(`[nas] unmount: ${e.message.split('\n')[0]}`);
+  }
+
+  for (const host of NAS_SMB_HOSTS) {
+    try {
+      await runProcess('osascript', ['-e', `mount volume "smb://${host}/Moon Prism"`], { timeoutMs: 25000 });
+      await new Promise((r) => setTimeout(r, 1500));
+      if (!probeFile || isFileReadable(probeFile)) {
+        console.log(`[nas] remounted via ${host}`);
+        return true;
+      }
+    } catch (e) {
+      console.warn(`[nas] remount via ${host}: ${e.message.split('\n')[0]}`);
+    }
+  }
+
+  console.error('[nas] remount did not restore access');
+  return false;
+}
+
+/**
+ * Copy a NAS file to local temp storage before rendering. Builds can stream
+ * audio for minutes; over SMB one network blip kills the whole render. A
+ * local copy removes that failure mode and reads much faster.
+ */
+async function stageAudioLocally(sourceFile) {
+  if (!isFileReadable(sourceFile)) {
+    const reachable = await checkNasReachable();
+    if (!reachable.reachable) {
+      throw new Error(
+        `NAS unreachable (${path.dirname(sourceFile)}). You may have switched networks — ` +
+        `reconnect so 100.124.90.53 (Tailscale) or the NAS's LAN is reachable, then rebuild.`,
+      );
+    }
+    await repairNasMount(sourceFile);
+  }
+
+  const tmp = path.join(
+    os.tmpdir(),
+    `social-audio-${Date.now()}${path.extname(sourceFile).toLowerCase() || '.mp3'}`,
+  );
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      fs.copyFileSync(sourceFile, tmp);
+      if (!fs.statSync(tmp).size) throw new Error('copy produced 0 bytes');
+      return tmp;
+    } catch (e) {
+      console.warn(`[social] audio copy attempt ${attempt} failed: ${e.message}`);
+      if (attempt < 3) await repairNasMount(sourceFile);
+    }
+  }
+
+  throw new Error(
+    `Could not read the audio at ${sourceFile}. The NAS mount looks stale — ` +
+    `usually after switching networks (e.g. Wi-Fi → hotspot). Repair the mount and rebuild.`,
+  );
+}
+
 async function handleMountNas(req, res) {
   const smbCandidates = [
     { host: '100.124.90.53', url: 'smb://100.124.90.53/Moon%20Prism' },
@@ -252,6 +343,13 @@ async function handleMountNas(req, res) {
   ];
 
   try {
+    // A stale mount left behind by a network switch blocks remounting. Detect
+    // it (mountpoint exists but fails the write test) and clear it first.
+    if (fs.existsSync(NAS_MOUNT_PATH) && !(await checkNasMounted())) {
+      console.warn('[nas] stale mount detected — clearing before remount');
+      await repairNasMount();
+    }
+
     // Method 1: Silent mount via mount_smbfs (fastest, no Finder needed)
     // Tries Tailscale IP first, then Bonjour, then local IP
     for (const c of smbCandidates) {
@@ -307,11 +405,21 @@ async function handleNasStatus(req, res) {
       checkTailscaleConnected(),
       checkNasReachable(),
     ]);
+    // A mount can exist while its handles are stale (network switch): the
+    // directory may be listed from cache but reads fail. Report that
+    // explicitly so the UI can offer a repair instead of looking healthy.
+    let readable = false;
+    if (fs.existsSync(NAS_MOUNT_PATH)) {
+      try { readable = fs.readdirSync(NAS_MOUNT_PATH).length > 0; } catch { readable = false; }
+    }
     sendJson(res, 200, {
       success: true,
       data: {
         mounted,
-        nasPath: mounted ? '/Volumes/Moon Prism' : null,
+        readable,
+        // "mounted but stale" is the dangerous state — surface it plainly.
+        stale: !mounted && fs.existsSync(NAS_MOUNT_PATH),
+        nasPath: mounted ? NAS_MOUNT_PATH : null,
         tailscaleConnected: tailscale,
         nasReachable: reachability.reachable,
         nasIp: reachability.ip,
@@ -887,13 +995,14 @@ async function handleTrashLocal(req, res, body) {
 // Where finished kits land. Desktop so drag-and-drop into an upload tab is
 // one motion — the whole point is "post with minimal thought".
 const SOCIAL_OUTPUT_DIR = '/Users/danielebuatti/Desktop/Social';
-// maxSec = the longest clip that platform accepts; 0 means "no limit, use the
-// whole song". Improvisations can run 20+ minutes, so the vertical/square
-// cuts are trimmed to a shareable excerpt (see pickExcerpt).
+// maxSec = the longest clip that platform accepts (0 = no limit, keep the
+// whole song); defaultSec = the excerpt length used when a recording is too
+// long. Improvisations can run 20+ minutes, so the vertical/square cuts are
+// trimmed to a shareable excerpt (see pickExcerpt).
 const SOCIAL_RATIOS = [
-  { key: 'reels',   label: 'Reels / TikTok / Shorts (9:16)', w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 90 },
-  { key: 'feed',    label: 'Square feed (1:1)',              w: 1080, h: 1080, fileSuffix: '1x1',  maxSec: 90 },
-  { key: 'youtube', label: 'YouTube (16:9)',                 w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0 },
+  { key: 'reels',   label: 'Reels / TikTok / Shorts (9:16)', w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 180, defaultSec: 90 },
+  { key: 'feed',    label: 'Square feed (1:1)',              w: 1080, h: 1080, fileSuffix: '1x1',  maxSec: 180, defaultSec: 90 },
+  { key: 'youtube', label: 'YouTube (16:9)',                 w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0,   defaultSec: 0 },
 ];
 
 /** 95 → "1:35" */
@@ -904,13 +1013,25 @@ function formatTime(sec) {
 
 /**
  * Which slice of a long piece to use for a short-form clip. Improvisations
- * usually settle after the opening minutes, so skip the first 15% and land
- * inside the platform's limit. Returns { startSec, clipSec }.
+ * usually settle after the opening minutes, so the default skips the first
+ * 15%. A caller can override both the length and the start (the app exposes
+ * this for long recordings). Returns { startSec, clipSec }.
  */
-function pickExcerpt(durationSec, maxSec) {
-  if (!maxSec || durationSec <= maxSec) return { startSec: 0, clipSec: durationSec };
-  const startSec = Math.min(Math.round(durationSec * 0.15), Math.max(0, durationSec - maxSec));
-  return { startSec, clipSec: Math.min(maxSec, durationSec - startSec) };
+function pickExcerpt(durationSec, ratio, requestedSec, requestedStartSec) {
+  if (!ratio.maxSec) return { startSec: 0, clipSec: durationSec };
+
+  const clipSec = Math.min(
+    requestedSec || Math.min(ratio.defaultSec, ratio.maxSec),
+    ratio.maxSec,
+    durationSec,
+  );
+  if (durationSec <= clipSec) return { startSec: 0, clipSec: durationSec };
+
+  const latestStart = Math.max(0, durationSec - clipSec);
+  const startSec = requestedStartSec != null
+    ? Math.min(Math.max(0, Math.round(requestedStartSec)), latestStart)
+    : Math.min(Math.round(durationSec * 0.15), latestStart);
+  return { startSec, clipSec };
 }
 
 /** Promisified execFile with a generous timeout — ffmpeg on a full song. */
@@ -971,7 +1092,10 @@ async function findSocialAudio(session, record) {
         };
       })
       .sort((a, b) => (b.preferred - a.preferred) || (b.mtime - a.mtime));
-    if (clips.length) return { file: clips[0].full, source: 'nas' };
+    if (clips.length) {
+      const picked = clips[0].full;
+      return { file: await stageAudioLocally(picked), source: 'nas', original: picked };
+    }
   }
 
   if (record.storage_path) {
@@ -1174,9 +1298,19 @@ async function renderSocialVideo(audioFile, frameFile, outFile, opts = {}) {
   if (fades.length) args.push('-af', fades.join(','));
   args.push('-c:a', 'aac', '-b:a', '192k');
   if (clipSec > 0) args.push('-t', clipSec.toFixed(2));
-  args.push('-shortest', '-movflags', '+faststart', outFile);
 
-  await runProcess('ffmpeg', args, { timeoutMs: 20 * 60 * 1000 });
+  // Encode to a temp name and rename on success, so an interrupted render never
+  // leaves a playable-looking-but-truncated MP4 in the kit folder.
+  const partFile = outFile.replace(/\.mp4$/i, '.part.mp4');
+  args.push('-shortest', '-movflags', '+faststart', partFile);
+
+  try {
+    await runProcess('ffmpeg', args, { timeoutMs: 20 * 60 * 1000 });
+    fs.renameSync(partFile, outFile);
+  } catch (e) {
+    try { fs.unlinkSync(partFile); } catch { /* nothing to clean */ }
+    throw e;
+  }
 }
 
 /** Caption template — title + a short line + hashtags, editable in the app. */
@@ -1188,6 +1322,9 @@ function buildSocialCaption(title) {
 }
 
 async function handleSocialBuildKit(req, res, body) {
+  // Temp audio staged locally for the build — always removed afterwards.
+  let stagedAudio = null;
+  let framesDir = null;
   try {
     const improvisationId = typeof body.improvisationId === 'string' ? body.improvisationId.trim() : '';
     if (!/^[0-9a-f-]{36}$/i.test(improvisationId)) throw new Error('Missing or invalid improvisationId');
@@ -1208,11 +1345,16 @@ async function handleSocialBuildKit(req, res, body) {
     if (!record) throw new Error('Song not found');
 
     const displayTitle = stripDatePrefix(record.original_name || record.generated_name || 'Untitled');
+    // Optional excerpt overrides for long recordings (the app sends these when
+    // the user picks a different moment/length).
+    const requestedSec = Number.isFinite(body.clipSec) ? Math.max(5, Math.round(body.clipSec)) : null;
+    const requestedStartSec = Number.isFinite(body.clipStartSec) ? Math.max(0, Math.round(body.clipStartSec)) : null;
     const startedAt = Date.now();
     const step = (s) => console.log(`[social] ${displayTitle}: ${s}`);
 
     step('finding audio…');
     const audio = await findSocialAudio(session, record);
+    stagedAudio = audio.file;
     const durationSec = await mediaDurationSec(audio.file);
     if (!durationSec) throw new Error('Could not read audio duration — is the file a valid MP3?');
 
@@ -1221,15 +1363,22 @@ async function handleSocialBuildKit(req, res, body) {
 
     const folder = path.join(SOCIAL_OUTPUT_DIR, safeFolderName(displayTitle));
     fs.mkdirSync(folder, { recursive: true });
+    // A bridge killed mid-render can leave *.part.mp4 behind (renders write to
+    // a temp name and rename on success). Clear them so the folder stays clean.
+    for (const name of fs.readdirSync(folder)) {
+      if (name.endsWith('.part.mp4')) {
+        try { fs.unlinkSync(path.join(folder, name)); } catch { /* in use */ }
+      }
+    }
 
     const artCopy = path.join(folder, `${displayTitle} - artwork.png`);
     fs.copyFileSync(art.file, artCopy);
 
     const files = [];
-    const framesDir = path.join(os.tmpdir(), `social-frames-${Date.now()}`);
+    framesDir = path.join(os.tmpdir(), `social-frames-${Date.now()}`);
     fs.mkdirSync(framesDir, { recursive: true });
     for (const ratio of SOCIAL_RATIOS) {
-      const { startSec, clipSec } = pickExcerpt(durationSec, ratio.maxSec);
+      const { startSec, clipSec } = pickExcerpt(durationSec, ratio, requestedSec, requestedStartSec);
       const where = startSec > 0
         ? ` (excerpt ${formatTime(startSec)}–${formatTime(startSec + clipSec)})`
         : '';
@@ -1250,7 +1399,6 @@ async function handleSocialBuildKit(req, res, body) {
         sizeMB: Math.round((fs.statSync(outFile).size / (1024 * 1024)) * 10) / 10,
       });
     }
-    try { fs.rmSync(framesDir, { recursive: true, force: true }); } catch { /* temp dir */ }
 
     const caption = buildSocialCaption(displayTitle);
     const captionPath = path.join(folder, `${displayTitle} - caption.txt`);
@@ -1293,6 +1441,10 @@ async function handleSocialBuildKit(req, res, body) {
   } catch (e) {
     console.error(`[social/build-kit] ${e.message}`);
     sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  } finally {
+    // Temp files are per-build; never leave audio/frames behind.
+    if (stagedAudio) { try { fs.unlinkSync(stagedAudio); } catch { /* already gone */ } }
+    if (framesDir) { try { fs.rmSync(framesDir, { recursive: true, force: true }); } catch { /* temp dir */ } }
   }
 }
 
