@@ -1,11 +1,8 @@
-import { supabase } from '@/integrations/supabase/client';
-import { saveToRepository, base64ToBlob } from '@/lib/art-repository';
-import { upscaleToMinSize, toSquareExport, downloadBlob, getImageDimensions, describeImage } from '@/lib/image-compliance';
-import React, { useState } from 'react';
+import { toSquareExport, downloadBlob, getImageDimensions, describeImage, INSIGHT_TIMER_MIN_DIM, INSIGHT_TIMER_MAX_BYTES } from '@/lib/image-compliance';
+import React, { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles, Copy, Cloud, Cpu, Palette } from 'lucide-react';
+import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import AudioUploadForImprovisation from './AudioUploadForImprovisation';
@@ -22,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import ArtworkUpload from './ArtworkUpload';
+import ArtPromptStudio from './ArtPromptStudio';
 import DistributionTogglesCard from './DistributionTogglesCard';
 import type { Improvisation } from '@/types/improvisation';
 import { DISTROKID_URL, INSIGHT_TIMER_URL, IMAGE_RESIZER_URL, VISUALGPT_AI_IMAGE_EDITOR_URL } from '@/lib/constants';
@@ -113,86 +111,39 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
   const hasArtwork = !!imp.artwork_url;
+  const [artworkInfo, setArtworkInfo] = useState<string | null>(null);
+  const [artworkReady, setArtworkReady] = useState<boolean | null>(null);
 
-  // Inline artwork generator state
-  const [genPrompt, setGenPrompt] = useState(imp.artwork_prompt || imp.generated_name || '');
-  const [genImage, setGenImage] = useState<string | null>(null);
-  const [genLoading, setGenLoading] = useState(false);
-  const [genMode, setGenMode] = useState<'cloudflare' | 'gemini'>('cloudflare');
-
-  const handleGenerateArtwork = async () => {
-    if (!genPrompt.trim()) {
-      showError('Enter a prompt first');
+  // Show the stored file's real dimensions/size so "is this release-ready?"
+  // is answered on the page rather than guessed.
+  useEffect(() => {
+    let cancelled = false;
+    if (!imp.artwork_url) {
+      setArtworkInfo(null);
+      setArtworkReady(null);
       return;
     }
-    setGenLoading(true);
-    setGenImage(null);
-    try {
-      const fn = genMode === 'cloudflare' ? 'generate-ai-artwork' : 'generate-ai-artwork-gemini';
-      const { data, error } = await supabase.functions.invoke(fn, {
-        body: { prompt: genPrompt.trim(), improvisationId: imp.id },
-      });
-      if (error) throw error;
-      if (data?.error) {
-        showError(data.error);
-        return;
-      }
-      if (data?.image) {
-        setGenImage(data.image);
-        showSuccess('Artwork generated');
-        // Auto-save to the repository so the generation is never wasted,
-        // even if not applied to this improvisation. Upscaled to the
-        // Insight Timer minimum before storage.
-        try {
-          const ready = await upscaleToMinSize(base64ToBlob(data.image));
-          await saveToRepository({
-            blob: ready,
-            prompt: genPrompt.trim(),
-            mode: genMode,
-            improvisationId: imp.id,
-          });
-        } catch {
-          // Best-effort — the image is still viewable/downloadable above
+    (async () => {
+      try {
+        const res = await fetch(imp.artwork_url!);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const dims = await getImageDimensions(blob);
+        if (cancelled) return;
+        setArtworkInfo(describeImage(blob, dims));
+        setArtworkReady(
+          Math.min(dims.width, dims.height) >= INSIGHT_TIMER_MIN_DIM &&
+          blob.size <= INSIGHT_TIMER_MAX_BYTES,
+        );
+      } catch {
+        if (!cancelled) {
+          setArtworkInfo(null);
+          setArtworkReady(null);
         }
       }
-    } catch (e: any) {
-      showError(e.message || 'Generation failed');
-    } finally {
-      setGenLoading(false);
-    }
-  };
-
-  const handleSaveGeneratedArtwork = async () => {
-    if (!genImage || !imp.id) return;
-    setGenLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not logged in');
-      const binary = atob(genImage);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      let blob = new Blob([bytes], { type: 'image/png' });
-      // Guarantee release-platform minimums (Insight Timer: ≥1600×1600)
-      blob = await upscaleToMinSize(blob);
-      const path = `${user.id}/artwork/${imp.id}.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from('piano_improvisations')
-        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('piano_improvisations').getPublicUrl(path);
-      const { error: updateError } = await supabase
-        .from('improvisations')
-        .update({ artwork_url: urlData.publicUrl, artwork_prompt: genPrompt })
-        .eq('id', imp.id);
-      if (updateError) throw updateError;
-      showSuccess('Artwork saved to improvisation');
-      handleRefetch();
-    } catch (e: any) {
-      showError(e.message || 'Failed to save artwork');
-    } finally {
-      setGenLoading(false);
-    }
-  };
+    })();
+    return () => { cancelled = true; };
+  }, [imp.artwork_url]);
 
   const handleDownloadArtwork = async () => {
     if (!imp.artwork_url) {
@@ -224,15 +175,6 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
     }
   };
   
-  const handleCopyPrompt = () => {
-    if (imp.artwork_prompt) {
-      navigator.clipboard.writeText(imp.artwork_prompt);
-      showSuccess('AI Artwork Prompt copied to clipboard!');
-    } else {
-      showError('No prompt generated yet.');
-    }
-  };
-
   // A improvisation is blocked if any critical asset or confirmation is missing.
   const hasInsightTimerCategorization = (imp.insight_benefits?.length || 0) > 0 && !!imp.insight_practices && (imp.insight_themes?.length || 0) > 0;
   const isBlocked = !imp.artwork_url || !hasInsightTimerCategorization || !imp.is_metadata_confirmed;
@@ -311,48 +253,56 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                 )}
             </div>
 
-            {/* Prompt Display */}
+            {hasArtwork && (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {artworkInfo && <span className="text-muted-foreground">{artworkInfo}</span>}
+                    {artworkReady === true && (
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-700 dark:text-emerald-400">
+                            Release-ready (≥1600×1600, under 20 MB)
+                        </span>
+                    )}
+                    {artworkReady === false && (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-700 dark:text-amber-400">
+                            Needs attention — download the 3000×3000 release art or re-upload
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Saved prompt summary — the studio below owns editing */}
             <div className={cn(
                 "p-4 rounded-lg border-2 border-dashed",
                 imp.artwork_prompt ? "border-primary/40 bg-muted/50" : "border-destructive/40 bg-destructive/5 dark:bg-destructive/10"
             )}>
                 <h3 className="font-semibold mb-2 flex items-center">
-                    {imp.artwork_prompt ? 'AI Artwork Prompt:' : 'Prompt Missing (Generate Below)'}
+                    {imp.artwork_prompt ? 'Saved Artwork Prompt:' : 'No prompt saved yet'}
                 </h3>
-                <p className={cn("text-sm font-mono", !imp.artwork_prompt && "text-muted-foreground")}>
-                    {imp.artwork_prompt || "Enter a title above, then click 'Generate AI Artwork Prompt' to create one."}
+                <p className={cn("text-xs font-mono whitespace-pre-wrap", !imp.artwork_prompt && "text-muted-foreground")}>
+                    {imp.artwork_prompt || "Build one in the Artwork Prompt Studio below — it can use every piece of song metadata, or go generic."}
                 </p>
             </div>
 
             {/* Actions Column */}
-            <div className="space-y-2">
-                <Button 
+            <div className="flex flex-col sm:flex-row gap-2">
+                <Button
                     onClick={handleRegenerateArtwork}
-                    className="w-full h-10 text-base bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90"
+                    variant="outline"
+                    className="flex-1"
                     disabled={isRegenerating || isAnalyzing || !imp.generated_name}
                 >
                     {isRegenerating ? (
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
-                        <Sparkles className="h-5 w-5 mr-2" />
+                        <Sparkles className="h-4 w-4 mr-2" />
                     )}
-                    {isRegenerating ? 'Generating Prompt...' : 'Generate AI Artwork Prompt'}
-                </Button>
-                <Button 
-                    onClick={handleCopyPrompt} 
-                    variant="outline" 
-                    className="w-full"
-                    disabled={!imp.artwork_prompt}
-                >
-                    <Copy className="h-4 w-4 mr-2" /> Copy Prompt to Clipboard
+                    {isRegenerating ? 'Regenerating…' : 'Quick regenerate prompt'}
                 </Button>
                 {hasArtwork && (
-                    <Button 
-                        onClick={handleDownloadArtwork} 
-                        variant="outline" 
-                        className="w-full"
+                    <Button
+                        onClick={handleDownloadArtwork}
+                        className="flex-1"
                     >
-                        <Download className="h-4 w-4 mr-2" /> Download Uploaded Artwork
+                        <Download className="h-4 w-4 mr-2" /> Download 3000×3000 release art
                     </Button>
                 )}
             </div>
@@ -361,7 +311,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             
             <h3 className="text-lg font-semibold">External Artwork Generation Tools</h3>
             <p className="text-sm text-muted-foreground">
-                Use the generated prompt above with an external AI tool to create your unique 3000x3000 album cover.
+                Copy a prompt from the studio below and use it with an external AI tool — then upload the result here.
             </p>
             <QuickLinkButton href={VISUALGPT_AI_IMAGE_EDITOR_URL} icon={ImageIcon} label="Open VisualGPT AI Image Editor" />
             <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
@@ -377,86 +327,8 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
           </CardContent>
         </Card>
         
-        {/* Inline Artwork Generator */}
-        <Card id="artwork-generator" className="border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" /> Generate Artwork from Song
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Uses the song's title, mood, and tags to generate abstract artwork. No need to leave this page.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Button
-                variant={genMode === 'cloudflare' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setGenMode('cloudflare')}
-                className="text-xs"
-              >
-                <Cloud className="h-3 w-3 mr-1" /> Cloudflare
-              </Button>
-              <Button
-                variant={genMode === 'gemini' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setGenMode('gemini')}
-                className="text-xs"
-              >
-                <Sparkles className="h-3 w-3 mr-1" /> Gemini
-              </Button>
-            </div>
-
-            <Textarea
-              value={genPrompt}
-              onChange={(e) => setGenPrompt(e.target.value)}
-              placeholder="Describe the artwork (auto-filled from song metadata)"
-              className="text-xs min-h-[60px] resize-none"
-            />
-
-            {genImage && (
-              <div className="relative w-full aspect-square rounded-lg overflow-hidden border border-primary/30 max-w-sm mx-auto">
-                <img src={`data:image/png;base64,${genImage}`} alt="Generated artwork" className="w-full h-full object-cover" />
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                onClick={handleGenerateArtwork}
-                disabled={genLoading}
-                className="flex-1"
-                size="sm"
-              >
-                {genLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                {genLoading ? 'Generating...' : 'Generate'}
-              </Button>
-              {genImage && (
-                <Button
-                  onClick={handleSaveGeneratedArtwork}
-                  disabled={genLoading}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Palette className="h-4 w-4 mr-1" /> Save
-                </Button>
-              )}
-              {genImage && (
-                <Button
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.download = `artwork-${imp.id}.png`;
-                    link.href = `data:image/png;base64,${genImage}`;
-                    link.click();
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Prompt studio + inline generator */}
+        <ArtPromptStudio imp={imp} onSaved={handleRefetch} />
 
         {/* File Path Suggestion remains here as it relates to local file assets */}
         <FilePathSuggestion 

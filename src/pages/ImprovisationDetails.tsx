@@ -99,23 +99,26 @@ const ImprovisationDetails: React.FC = () => {
     showSuccess("AI artwork prompt generation started...");
 
     try {
-      const { error: functionError } = await supabase.functions.invoke('generate-artwork', {
+      const { data, error: functionError } = await supabase.functions.invoke('generate-art-prompt', {
         body: {
           improvisationId: imp.id,
-          generatedName: imp.generated_name,
-          primaryGenre: imp.primary_genre,
-          mood: imp.analysis_data?.mood,
+          mode: 'metadata',
         },
       });
 
       if (functionError) {
         throw functionError;
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      handleRefetch();
-      showSuccess("New AI artwork prompt generated successfully! Check the Assets tab.");
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      await handleRefetch();
+      showSuccess(
+        data?.source === 'fallback'
+          ? "Artwork prompt generated (offline fallback used). Check the Assets tab."
+          : "New AI artwork prompt generated successfully! Check the Assets tab.",
+      );
 
     } catch (error) {
       console.error('Artwork prompt generation failed:', error);

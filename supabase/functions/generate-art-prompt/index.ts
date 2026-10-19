@@ -1,5 +1,7 @@
 // @ts-expect-error - Deno
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
+// @ts-expect-error - Deno
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,34 +10,166 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+
+interface Direction {
+  moods?: string[]
+  palette?: { name?: string; colors?: string[] }
+  style?: string
+  texture?: string
+  lighting?: string
+  composition?: string
+  energy?: string
+}
+
+function cleanDirection(raw: Direction | undefined): Required<{
+  moods: string[]
+  palette: { name: string; colors: string[] }
+  style: string
+  texture: string
+  lighting: string
+  composition: string
+  energy: string
+}> {
+  const moods = (raw?.moods || []).filter((m) => typeof m === 'string' && m.trim()).map((m) => m.trim()).slice(0, 4)
+  const colors = (raw?.palette?.colors || [])
+    .filter((c) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c.trim()))
+    .slice(0, 6)
+  return {
+    moods: moods.length ? moods : ['contemplative', 'serene'],
+    palette: {
+      name: (raw?.palette?.name || 'Soft tonal').trim(),
+      colors: colors.length ? colors : ['#EFEAF7', '#D6CCEB', '#B3A3D9', '#7E6BA8', '#3B3350'],
+    },
+    style: (raw?.style || 'ethereal minimalism').trim(),
+    texture: (raw?.texture || 'fine canvas grain').trim(),
+    lighting: (raw?.lighting || 'soft diffused light').trim(),
+    composition: (raw?.composition || 'a centred luminous core').trim(),
+    energy: (raw?.energy || 'gentle').trim(),
   }
+}
 
-  try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing authorization header');
+function colorName(hex: string): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return 'tonal shade'
+  const n = parseInt(m[1], 16)
+  const r = ((n >> 16) & 255) / 255
+  const g = ((n >> 8) & 255) / 255
+  const b = (n & 255) / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const d = max - min
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+  let h = 0
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - b) / d) % 6)
+    else if (max === g) h = 60 * ((b - r) / d + 2)
+    else h = 60 * ((r - g) / d + 4)
+  }
+  if (h < 0) h += 360
+  if (s < 0.1) {
+    if (l > 0.92) return 'pearl white'
+    if (l < 0.1) return 'near-black'
+    return l > 0.62 ? 'soft grey' : 'deep charcoal'
+  }
+  let base: string
+  if (h < 15 || h >= 345) base = 'rose red'
+  else if (h < 35) base = 'warm coral'
+  else if (h < 50) base = 'amber'
+  else if (h < 70) base = 'gold'
+  else if (h < 90) base = 'olive'
+  else if (h < 150) base = 'sage green'
+  else if (h < 175) base = 'teal'
+  else if (h < 200) base = 'sea blue'
+  else if (h < 230) base = 'slate blue'
+  else if (h < 255) base = 'indigo'
+  else if (h < 285) base = 'violet'
+  else if (h < 320) base = 'plum'
+  else base = 'dusty rose'
+  const prefix = l > 0.8 ? 'pale ' : l < 0.26 ? 'deep ' : s < 0.32 ? 'muted ' : ''
+  return prefix + base
+}
 
-    const { theme } = await req.json().catch(() => ({}));
+/** Keep only atmosphere words — nouns like "piano" would be painted literally. */
+const LITERAL_BLOCKLIST = /piano|guitar|drum|violin|cello|sax|voice|vocal|singer|instrument|song|track|album|music/i
 
-    // @ts-expect-error - Deno
-    const geminiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!geminiKey) {
-      return new Response(JSON.stringify({
-        error: 'Gemini API key not configured.',
-        configured: false,
-      }), {
-        status: 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+function themesOf(imp: Record<string, any>): string[] {
+  const raw = [...(imp.insight_themes || []), ...(imp.user_tags || [])]
+  const out: string[] = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const t = item.replace(/^#/, '').replace(/[_-]+/g, ' ').trim().toLowerCase()
+    if (t.length > 2 && t.length < 32 && !LITERAL_BLOCKLIST.test(t) && !out.includes(t)) out.push(t)
+  }
+  return out.slice(0, 4)
+}
 
-    const themeInstruction = theme
-      ? `The theme/mood is: "${theme}".`
-      : 'Choose a random calming, atmospheric theme.';
+function metadataBlock(imp: Record<string, any>, notes: string): string {
+  const analysis = imp.analysis_data || {}
+  const lines = [
+    `- Genre: ${[imp.primary_genre, imp.secondary_genre].filter(Boolean).join(' / ') || 'unknown'}`,
+    `- Mood: ${analysis.mood || 'unknown'}`,
+    `- Key: ${analysis.simulated_key || 'unknown'} · Tempo: ${analysis.simulated_tempo || 'unknown'} BPM`,
+    `- User tags: ${(imp.user_tags || []).join(', ') || 'none'}`,
+    `- Insight Timer themes: ${(imp.insight_themes || []).join(', ') || 'none'}`,
+    `- Benefits: ${(imp.insight_benefits || []).join(', ') || 'none'}`,
+    `- Intended audience: ${imp.insight_audience_level || 'unknown'}`,
+    `- Description: ${imp.description || 'none'}`,
+    `- Creative notes: ${notes || 'none'}`,
+  ]
+  return lines.join('\n')
+}
 
-    const prompt = `You are an expert at writing prompts for AI image generators (like Midjourney, DALL-E, FLUX). Generate a single, detailed prompt for an abstract album cover artwork.
+function fallbackPrompt(
+  direction: ReturnType<typeof cleanDirection>,
+  imp: Record<string, any> | null,
+  mode: string,
+): string {
+  const colors = direction.palette.colors
+    .map((hex) => `${colorName(hex)} (${hex})`)
+    .join(', ')
+  const forms: Record<string, string> = {
+    still: 'quiet fields of colour, minimal gesture, generous negative space',
+    gentle: 'slow-edged organic shapes and softly overlapping translucent fields',
+    flowing: 'long sweeping curves, fluid ribbons of colour, layered depth',
+    turbulent: 'churning interlocking forms, fractured light, dense layering',
+  }
+  const themes = imp ? themesOf(imp) : []
+  const analysis = imp?.analysis_data || {}
+  const facts: string[] = []
+  if (imp?.primary_genre) facts.push(String(imp.primary_genre).toLowerCase())
+  if (analysis.simulated_key) facts.push(`in ${analysis.simulated_key}`)
+  if (analysis.simulated_tempo) facts.push(`at ${analysis.simulated_tempo} BPM`)
+  const atmosphere = mode === 'metadata' && (facts.length || themes.length)
+    ? ` Translating the atmosphere of ${facts.length ? `a ${facts.join(' ')} piece` : 'the piece'}${themes.length ? ` shaped by ${themes.join(', ')}` : ''} into pure colour, light and texture.`
+    : ''
+
+  return [
+    'Abstract album cover artwork, perfectly square 1:1 composition.',
+    `Mood: ${direction.moods.join(', ')}; ${direction.energy} energy.`,
+    `Colour palette: ${direction.palette.name} — ${colors}.`,
+    `Form: ${forms[direction.energy] || forms.gentle}; ${direction.style}.`,
+    `Composition: ${direction.composition}, balanced with generous crop-safe margins.`,
+    `Texture: ${direction.texture}.`,
+    `Light: ${direction.lighting}.`,
+    atmosphere.trim(),
+    'Strictly non-representational: no text, letters, numbers, logos, watermarks, signatures, borders, people, faces, hands, instruments, or recognizable objects.',
+    'Gallery-quality, ultra-detailed, high resolution, 3000×3000.',
+  ].filter(Boolean).join(' ')
+}
+
+/** Legacy theme-only prompt (Generative Art Studio uses this). */
+async function themePrompt(key: string, theme?: string): Promise<string> {
+  const themeInstruction = theme
+    ? `The theme/mood is: "${theme}".`
+    : 'Choose a random calming, atmospheric theme.'
+
+  const prompt = `You are an expert at writing prompts for AI image generators (like Midjourney, DALL-E, FLUX). Generate a single, detailed prompt for an abstract album cover artwork.
 
 ${themeInstruction}
 
@@ -50,56 +184,174 @@ The prompt should describe:
 
 Style: minimalist, impressionistic, ethereal. Square format (1:1). No text, no people, no instruments.
 
-Respond ONLY with the prompt text, nothing else. Keep it under 100 words.`;
+Respond ONLY with the prompt text, nothing else. Keep it under 100 words.`
 
-    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  const text = await callGemini(key, prompt, 0.9)
+  return sanitize(text) || 'A soft, abstract field of muted colour, gentle gradients, hazy light and fine canvas grain. Square 1:1, no text, no objects.'
+}
 
-    const geminiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': geminiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.9,
+async function callGemini(key: string, prompt: string, temperature: number): Promise<string> {
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash']
+  let lastError = ''
+  for (const model of models) {
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: 'POST',
+          headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature },
+          }),
         },
-      }),
-    });
+      )
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        lastError = err.error?.message || `HTTP ${resp.status}`
+        console.error(`Gemini ${model} failed: ${lastError}`)
+        continue
+      }
+      const data = await resp.json()
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      if (text.trim()) return text.trim()
+      lastError = 'empty response'
+    } catch (e: any) {
+      lastError = e.message
+      console.error(`Gemini ${model} exception:`, e)
+    }
+  }
+  throw new Error(lastError || 'Gemini unavailable')
+}
 
-    if (!geminiResponse.ok) {
-      const errBody = await geminiResponse.json().catch(() => ({}));
-      return new Response(JSON.stringify({
-        error: errBody.error?.message || `Gemini API error: HTTP ${geminiResponse.status}`,
-      }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+function sanitize(text: string): string {
+  return text
+    .replace(/```[a-z]*\n?/gi, '')
+    .replace(/```/g, '')
+    .replace(/^["'“”]+|["'“”]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+
+  try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) throw new Error('Missing authorization header')
+
+    const body = await req.json().catch(() => ({}))
+    // @ts-expect-error - Deno
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+
+    // ---------------------------------------------------------------------
+    // Legacy mode: { theme } → one creative prompt, no song attached.
+    // ---------------------------------------------------------------------
+    if (!body.improvisationId) {
+      if (!geminiKey) {
+        return json({
+          error: 'Gemini API key not configured.',
+          configured: false,
+        }, 503)
+      }
+      const prompt = await themePrompt(geminiKey, typeof body.theme === 'string' ? body.theme : undefined)
+      return json({ success: true, prompt, source: 'gemini' })
     }
 
-    const geminiData = await geminiResponse.json();
-    const generatedPrompt = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const supabase = createClient(
+      // @ts-expect-error - Deno
+      Deno.env.get('SUPABASE_URL') ?? '',
+      // @ts-expect-error - Deno
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } },
+    )
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized')
 
-    if (!generatedPrompt) {
-      return new Response(JSON.stringify({ error: 'No prompt generated' }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { data: imp, error: fetchError } = await supabase
+      .from('improvisations')
+      .select('*')
+      .eq('id', body.improvisationId)
+      .single()
+    if (fetchError || !imp) return json({ error: 'Improvisation not found' }, 404)
+    if (imp.user_id !== user.id) return json({ error: 'Unauthorized' }, 403)
+
+    const mode = body.mode === 'generic' ? 'generic' : 'metadata'
+    const direction = cleanDirection(body.direction)
+
+    const notes = (imp.notes || [])
+      .map((n: any) => `${n?.title || ''} ${n?.content || ''}`.trim())
+      .filter(Boolean)
+      .join(' ')
+
+    const cluesUsed = mode === 'generic'
+      ? []
+      : [
+          imp.primary_genre && 'genre',
+          imp.secondary_genre && 'secondary genre',
+          imp.analysis_data?.mood && 'mood',
+          imp.analysis_data?.simulated_key && 'key',
+          imp.analysis_data?.simulated_tempo && 'tempo',
+          imp.user_tags?.length && `${imp.user_tags.length} tags`,
+          imp.description && 'description',
+          notes && 'creative notes',
+          imp.insight_themes?.length && `${imp.insight_themes.length} themes`,
+          imp.insight_benefits?.length && `${imp.insight_benefits.length} benefits`,
+          imp.insight_audience_level && 'audience',
+        ].filter(Boolean) as string[]
+
+    if (!geminiKey) {
+      const prompt = fallbackPrompt(direction, mode === 'metadata' ? imp : null, mode)
+      await supabase.from('improvisations').update({ artwork_prompt: prompt }).eq('id', imp.id)
+      return json({ success: true, prompt, source: 'fallback', cluesUsed, reason: 'GEMINI_API_KEY not set' })
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      prompt: generatedPrompt.replace(/^["']|["']$/g, ''),
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    const instruction = `You are a senior art director writing a single image-generation prompt for a square abstract album cover.
 
-  } catch (error) {
-    console.error('Edge Function error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+SELECTED DIRECTION (honour every line):
+- Moods: ${direction.moods.join(', ')}
+- Palette: ${direction.palette.name} — ${direction.palette.colors.map((c) => `${colorName(c)} ${c}`).join(', ')}
+- Form / style: ${direction.style}
+- Composition: ${direction.composition}
+- Texture: ${direction.texture}
+- Lighting: ${direction.lighting}
+- Energy: ${direction.energy}
+
+${mode === 'metadata' ? `SONG CLUES (translate these into atmosphere; never name the song, the artist, or any object):\n${metadataBlock(imp, notes)}` : 'No song clues for this one: make a self-contained, original abstract direction that matches the selected palette and moods.'}
+
+HARD RULES:
+- Purely abstract and non-representational. No recognizable objects, people, faces, hands, instruments, landscapes, buildings, ships, plants or animals.
+- No text, letters, numbers, logos, watermarks or signatures.
+- Translate emotion into colour, light, texture, composition and movement.
+- Square 1:1, centred subject with crop-safe margins, ultra-detailed, high resolution.
+- 80–120 words, one paragraph, no preamble, no quotation marks, no bullet points.`
+
+    let prompt = ''
+    let source = 'gemini'
+    try {
+      prompt = sanitize(await callGemini(geminiKey, instruction, 0.85))
+    } catch (e: any) {
+      console.error('Prompt generation failed, using fallback:', e)
+      prompt = fallbackPrompt(direction, mode === 'metadata' ? imp : null, mode)
+      source = 'fallback'
+    }
+
+    if (!prompt || prompt.length < 40) {
+      prompt = fallbackPrompt(direction, mode === 'metadata' ? imp : null, mode)
+      source = 'fallback'
+    }
+
+    // Models sometimes drop the safety line — enforce it rather than trust it.
+    if (source === 'gemini' && !/no text|non-representational|no recognizable/i.test(prompt)) {
+      prompt = `${prompt.replace(/\s+$/, '')} Strictly non-representational: no text, letters, logos, watermarks, people, faces, hands, instruments, or recognizable objects.`
+    }
+
+    await supabase.from('improvisations').update({ artwork_prompt: prompt }).eq('id', imp.id)
+
+    return json({ success: true, prompt, source, cluesUsed })
+  } catch (error: any) {
+    console.error('Edge Function error:', error)
+    const status = error.message === 'Unauthorized' || error.message === 'Missing authorization header' ? 401 : 500
+    return json({ error: error.message }, status)
   }
 })

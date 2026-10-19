@@ -73,10 +73,13 @@ serve(async (req) => {
       console.log('Could not list models:', e.message);
     }
 
-    // Try multiple models and methods for image generation
+    // Model names change often. Try the current image-capable models first
+    // (Nano Banana / Imagen 4), then fall back through older names.
     const modelsToTry = [
-      { model: 'gemini-2.0-flash-exp', method: 'generateContent' },
-      { model: 'gemini-2.5-flash-preview-05-20', method: 'generateContent' },
+      { model: 'gemini-2.5-flash-image', method: 'generateContent' },
+      { model: 'gemini-2.5-flash-image-preview', method: 'generateContent' },
+      { model: 'gemini-2.0-flash-exp-image-generation', method: 'generateContent' },
+      { model: 'imagen-4.0-generate-001', method: 'predict' },
       { model: 'imagen-3.0-generate-002', method: 'predict' },
     ];
 
@@ -93,7 +96,11 @@ serve(async (req) => {
           geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`;
           requestBody = {
             instances: [{ prompt: prompt }],
-            parameters: { sampleCount: 1 },
+            parameters: {
+              sampleCount: 1,
+              aspectRatio: '1:1',
+              personGeneration: 'dont_allow',
+            },
           };
         } else {
           geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -157,11 +164,16 @@ serve(async (req) => {
 
     if (!base64Image) {
       console.error('Gemini no image. Errors:', errors);
+      const quotaHit = errors.some((e) => /quota|429|billing|exceeded/i.test(e));
+      const error = quotaHit
+        ? 'Gemini image generation is unavailable for this API key: the image-model quota is exhausted or billing is not enabled. Cloudflare (FLUX) still works. To use Gemini, enable Imagen / Nano Banana billing on the Google AI Studio project, or paste a fresh key with image quota into Supabase secrets as GEMINI_API_KEY.'
+        : 'Gemini image generation is not available for this API key. Cloudflare (FLUX) still works. Check that Imagen / Nano Banana is enabled for the key at https://aistudio.google.com/apikey, then update the GEMINI_API_KEY secret.';
       return new Response(JSON.stringify({
-        error: 'Gemini image generation not available. Your API key only has access to text models (' + availableModels.split(',').slice(0, 3).join(',') + '). Create a new API key at https://aistudio.google.com/apikey with image generation enabled, or use Cloudflare mode.',
+        error,
         configured: true,
-        debug: errors.join('; '),
-        availableModels: availableModels,
+        reason: quotaHit ? 'quota' : 'unavailable',
+        debug: errors.join('; ').slice(0, 800),
+        availableModels: availableModels.split(',').slice(0, 12).join(','),
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

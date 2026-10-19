@@ -1,0 +1,469 @@
+/**
+ * Art Direction Engine — turns song metadata into a controllable visual brief.
+ *
+ * Two jobs:
+ *  1. Suggest moods, palettes, styles, textures, lighting and composition from
+ *     whatever clues the song has (title, genre, tags, notes, description,
+ *     Insight Timer themes, key, tempo). The UI lets the user pick, so the app
+ *     proposes instead of asking the user to invent a visual language.
+ *  2. Compose a release-grade image prompt from the chosen direction. Prompts
+ *     are strictly abstract and deliberately never contain the raw song title,
+ *     which keeps content filters happy and stops models painting literal
+ *     objects ("storm" → a ship, "piano" → a grand piano).
+ */
+
+import type { AnalysisData, Improvisation } from '@/types/improvisation';
+import { displayTitle } from './display-title';
+
+export type ArtPromptMode = 'generic' | 'metadata';
+export type ArtEnergy = 'still' | 'gentle' | 'flowing' | 'turbulent';
+
+export interface ArtClues {
+  title: string;
+  genre: string;
+  genre2: string;
+  mood: string;
+  key: string;
+  tempo: number | null;
+  tags: string[];
+  description: string;
+  notes: string;
+  themes: string[];
+  benefits: string[];
+  practices: string;
+  audience: string;
+  /** True when there is enough metadata for the "from metadata" mode to mean something. */
+  rich: boolean;
+}
+
+export interface ArtPalette {
+  name: string;
+  colors: string[];
+}
+
+export interface ArtSuggestions {
+  moods: string[];
+  palettes: ArtPalette[];
+  styles: string[];
+  textures: string[];
+  lighting: string[];
+  compositions: string[];
+  energies: ArtEnergy[];
+}
+
+export interface ArtDirection {
+  moods: string[];
+  palette: ArtPalette;
+  style: string;
+  texture: string;
+  lighting: string;
+  composition: string;
+  energy: ArtEnergy;
+}
+
+export const ART_PALETTES: Record<string, string[]> = {
+  'Lavender Haze': ['#EFEAF7', '#D6CCEB', '#B3A3D9', '#7E6BA8', '#3B3350'],
+  'Sage & Peach': ['#F7EDE3', '#EFCDB4', '#C7D2B4', '#8FA184', '#4D5A46'],
+  'Storm Steel': ['#0D141E', '#1E2B3B', '#3E5168', '#7E93AC', '#C9D6E2'],
+  'Ember Glow': ['#120D09', '#3B2013', '#7C3D1F', '#C8702F', '#E9B45F'],
+  'Deep Ocean': ['#04121F', '#0B2B42', '#1D5A73', '#5FA6B2', '#D2EAEA'],
+  'Ivory & Ash': ['#F7F3EA', '#DED6C6', '#AAA294', '#6F685C', '#2C2924'],
+  'Dawn Rose': ['#2C1C31', '#6D4162', '#BC7E92', '#E8B7BA', '#F8E4DA'],
+  'Forest Mist': ['#0B1710', '#1D3B29', '#3F6C4C', '#82A57D', '#D8E5CA'],
+  'Neon Dusk': ['#0A0A14', '#241C4F', '#5D2FA0', '#C251AA', '#F2A65A'],
+  'Gold Leaf': ['#151009', '#3B2F15', '#8B6B2B', '#C9A34C', '#F3E4B4'],
+  'Slate & Sky': ['#E8EDF2', '#C5D0DA', '#8FA3B6', '#566B80', '#2A3642'],
+  'Clay & Moss': ['#F2E9DF', '#D9C0A8', '#B08968', '#7E8A6A', '#3F4A3A'],
+};
+
+const MOODS = [
+  'serene', 'contemplative', 'melancholic', 'hopeful', 'bittersweet',
+  'intimate', 'vast', 'weightless', 'warm', 'cool', 'tense', 'resolved',
+  'dreamlike', 'grounded', 'nostalgic', 'luminous', 'hushed', 'searching',
+  'still', 'restless', 'tender', 'solemn', 'playful', 'mysterious',
+];
+
+const STYLES = [
+  'ethereal minimalism', 'impressionist watercolour', 'cinematic abstract',
+  'textured oil painting', 'layered translucent washes', 'soft-focus colour field',
+  'sculptural light study', 'ink diffusion', 'frosted glass abstraction',
+  'brutalist minimalism',
+];
+
+const TEXTURES = [
+  'fine canvas grain', 'soft watercolour bleed', 'frosted glass', 'drifting mist',
+  'impasto strokes', 'raw linen', 'matte paper', 'photographic grain',
+  'silk sheen', 'weathered plaster',
+];
+
+const LIGHTING = [
+  'soft diffused dawn light', 'low-key chiaroscuro', 'hazy backlight',
+  'cool moonlit glow', 'warm rim light', 'overcast flat light',
+  'dappled caustics', 'a single beam through haze', 'candlelit warmth',
+  'a slow twilight gradient',
+];
+
+const COMPOSITIONS = [
+  'a centred luminous core', 'an off-centre light well', 'a horizontal tonal band',
+  'a gentle diagonal drift', 'a vignette around a glowing centre',
+  'a full-bleed colour field', 'horizon-free layered depth', 'a radial bloom',
+  'quiet negative space', 'interlocking soft forms',
+];
+
+export const ENERGY_LABELS: Record<ArtEnergy, string> = {
+  still: 'Still — held breath, minimal movement',
+  gentle: 'Gentle — slow drift, soft motion',
+  flowing: 'Flowing — continuous movement, rising and falling',
+  turbulent: 'Turbulent — churning, high contrast, restless',
+};
+
+const ENERGY_BY_TEMPO = (tempo: number | null): ArtEnergy => {
+  if (!tempo || tempo < 60) return 'still';
+  if (tempo < 90) return 'gentle';
+  if (tempo < 125) return 'flowing';
+  return 'turbulent';
+};
+
+/** Human-readable colour name derived from HSL — avoids hard-coding 60 labels. */
+export function colorName(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return 'tonal shade';
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - b) / d) % 6);
+    else if (max === g) h = 60 * ((b - r) / d + 2);
+    else h = 60 * ((r - g) / d + 4);
+  }
+  if (h < 0) h += 360;
+
+  if (s < 0.1) {
+    if (l > 0.92) return 'pearl white';
+    if (l < 0.1) return 'near-black';
+    return l > 0.62 ? 'soft grey' : 'deep charcoal';
+  }
+  let base: string;
+  if (h < 15 || h >= 345) base = 'rose red';
+  else if (h < 35) base = 'warm coral';
+  else if (h < 50) base = 'amber';
+  else if (h < 70) base = 'gold';
+  else if (h < 90) base = 'olive';
+  else if (h < 150) base = 'sage green';
+  else if (h < 175) base = 'teal';
+  else if (h < 200) base = 'sea blue';
+  else if (h < 230) base = 'slate blue';
+  else if (h < 255) base = 'indigo';
+  else if (h < 285) base = 'violet';
+  else if (h < 320) base = 'plum';
+  else base = 'dusty rose';
+
+  const prefix = l > 0.8 ? 'pale ' : l < 0.26 ? 'deep ' : s < 0.32 ? 'muted ' : '';
+  return prefix + base;
+}
+
+interface Traits {
+  moods?: string[];
+  palettes?: string[];
+  styles?: string[];
+  textures?: string[];
+  lighting?: string[];
+  energy?: ArtEnergy;
+}
+
+/** Keyword → visual traits. Deliberately broad: these are cues, not rules. */
+const KEYWORD_TRAITS: { re: RegExp; traits: Traits }[] = [
+  { re: /storm|thunder|wind|turbul|chaos/i, traits: { moods: ['tense', 'vast'], palettes: ['Storm Steel', 'Slate & Sky'], textures: ['weathered plaster'], energy: 'turbulent' } },
+  { re: /rain|drizzle|mist|fog|haze|smoke/i, traits: { moods: ['mysterious', 'hushed'], palettes: ['Slate & Sky', 'Storm Steel'], textures: ['drifting mist'], lighting: ['a single beam through haze'] } },
+  { re: /sun|dawn|sunrise|morning|light|golden|daybreak/i, traits: { moods: ['hopeful', 'luminous'], palettes: ['Dawn Rose', 'Gold Leaf'], lighting: ['soft diffused dawn light'] } },
+  { re: /dusk|twilight|evening|night|moon|star|midnight/i, traits: { moods: ['contemplative', 'mysterious'], palettes: ['Lavender Haze', 'Neon Dusk'], lighting: ['cool moonlit glow'] } },
+  { re: /fire|ember|burn|flame|smoulder/i, traits: { moods: ['warm', 'restless'], palettes: ['Ember Glow', 'Gold Leaf'], energy: 'flowing' } },
+  { re: /ocean|sea|tide|wave|water|lake|river|rainfall/i, traits: { moods: ['vast', 'weightless'], palettes: ['Deep Ocean', 'Sage & Peach'], textures: ['soft watercolour bleed'] } },
+  { re: /forest|tree|moss|leaf|garden|earth|soil|root/i, traits: { moods: ['grounded', 'tender'], palettes: ['Forest Mist', 'Clay & Moss'] } },
+  { re: /winter|snow|ice|frost|cold/i, traits: { moods: ['still', 'solemn'], palettes: ['Slate & Sky', 'Ivory & Ash'], textures: ['frosted glass'] } },
+  { re: /autumn|harvest|amber|rust|october/i, traits: { moods: ['nostalgic', 'bittersweet'], palettes: ['Ember Glow', 'Gold Leaf'] } },
+  { re: /love|heart|tender|embrace|longing/i, traits: { moods: ['tender', 'intimate'], palettes: ['Dawn Rose', 'Sage & Peach'] } },
+  { re: /grief|loss|goodbye|farewell|mourn|alone|absence/i, traits: { moods: ['melancholic', 'hushed'], palettes: ['Ivory & Ash', 'Storm Steel'], energy: 'still' } },
+  { re: /hope|rise|renew|heal|home|return/i, traits: { moods: ['hopeful', 'serene'], palettes: ['Dawn Rose', 'Gold Leaf'] } },
+  { re: /dream|sleep|drift|float|weightless/i, traits: { moods: ['dreamlike', 'weightless'], palettes: ['Lavender Haze', 'Deep Ocean'], energy: 'gentle' } },
+  { re: /prayer|sacred|spirit|hymn|devotion|meditat|silence/i, traits: { moods: ['serene', 'solemn'], palettes: ['Gold Leaf', 'Ivory & Ash'], lighting: ['soft diffused dawn light'], energy: 'still' } },
+  { re: /child|play|joy|dance|alive/i, traits: { moods: ['playful', 'luminous'], palettes: ['Sage & Peach', 'Dawn Rose'], energy: 'flowing' } },
+  { re: /dark|shadow|deep|void|nightfall/i, traits: { moods: ['mysterious', 'solemn'], palettes: ['Storm Steel', 'Ivory & Ash'] } },
+  { re: /bloom|flower|spring|blossom|seed/i, traits: { moods: ['tender', 'hopeful'], palettes: ['Sage & Peach', 'Dawn Rose'] } },
+  { re: /mountain|cliff|stone|rock|canyon/i, traits: { moods: ['grounded', 'vast'], palettes: ['Clay & Moss', 'Slate & Sky'], textures: ['weathered plaster'] } },
+  { re: /time|memory|remember|yesterday|passing|fading/i, traits: { moods: ['nostalgic', 'contemplative'], palettes: ['Ivory & Ash', 'Slate & Sky'] } },
+];
+
+/** Genre → starting point when the text has few clues. */
+const GENRE_TRAITS: { re: RegExp; traits: Traits }[] = [
+  { re: /ambient|drone|soundscape|new age/i, traits: { moods: ['serene', 'vast'], palettes: ['Deep Ocean', 'Lavender Haze', 'Slate & Sky'], styles: ['ethereal minimalism', 'soft-focus colour field'], energy: 'still' } },
+  { re: /neo.?classical|classical|piano|chamber/i, traits: { moods: ['contemplative', 'tender'], palettes: ['Ivory & Ash', 'Dawn Rose'], styles: ['impressionist watercolour', 'cinematic abstract'], energy: 'gentle' } },
+  { re: /jazz|improvis/i, traits: { moods: ['playful', 'mysterious'], palettes: ['Ember Glow', 'Neon Dusk'], styles: ['textured oil painting', 'sculptural light study'], energy: 'flowing' } },
+  { re: /electronic|synth|techno|experimental/i, traits: { moods: ['restless', 'dreamlike'], palettes: ['Neon Dusk', 'Deep Ocean'], styles: ['brutalist minimalism', 'frosted glass abstraction'], energy: 'turbulent' } },
+  { re: /folk|acoustic|singer.?songwriter/i, traits: { moods: ['grounded', 'nostalgic'], palettes: ['Clay & Moss', 'Sage & Peach'], styles: ['raw linen', 'impressionist watercolour'], energy: 'gentle' } },
+  { re: /cinematic|soundtrack|score|orchestral/i, traits: { moods: ['vast', 'tense'], palettes: ['Storm Steel', 'Gold Leaf'], styles: ['cinematic abstract', 'sculptural light study'], energy: 'turbulent' } },
+  { re: /blues|soul|gospel/i, traits: { moods: ['bittersweet', 'intimate'], palettes: ['Ember Glow', 'Deep Ocean'], energy: 'gentle' } },
+  { re: /rock|metal|punk|grunge/i, traits: { moods: ['restless', 'tense'], palettes: ['Storm Steel', 'Ember Glow'], energy: 'turbulent' } },
+  { re: /pop|indie|alternative/i, traits: { moods: ['luminous', 'playful'], palettes: ['Dawn Rose', 'Neon Dusk'], energy: 'flowing' } },
+];
+
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  return Math.abs(hash);
+}
+
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function unique<T>(items: T[]): T[] {
+  return [...new Set(items)];
+}
+
+export function collectArtClues(imp: Improvisation): ArtClues {
+  const analysis = (imp.analysis_data || {}) as AnalysisData;
+  const notes = (imp.notes || [])
+    .map((n) => `${n.title || ''} ${n.content || ''}`.trim())
+    .filter(Boolean)
+    .join(' ');
+  const tags = (imp.user_tags || []).filter(Boolean);
+  const themes = (imp.insight_themes || []).filter(Boolean);
+  const benefits = (imp.insight_benefits || []).filter(Boolean);
+  const title = displayTitle(imp.generated_name || imp.original_name);
+  const genre = (imp.primary_genre || '').trim();
+  const description = (imp.description || '').trim();
+  const tempo = typeof analysis.simulated_tempo === 'number' ? analysis.simulated_tempo : null;
+
+  return {
+    title,
+    genre,
+    genre2: (imp.secondary_genre || '').trim(),
+    mood: (analysis.mood || '').trim(),
+    key: (analysis.simulated_key || '').trim(),
+    tempo,
+    tags,
+    description,
+    notes,
+    themes,
+    benefits,
+    practices: (imp.insight_practices || '').trim(),
+    audience: (imp.insight_audience_level || '').trim(),
+    rich: !!(genre || tags.length || description || notes || themes.length || analysis.mood),
+  };
+}
+
+interface Scores {
+  moods: Map<string, number>;
+  palettes: Map<string, number>;
+  styles: Map<string, number>;
+  textures: Map<string, number>;
+  lighting: Map<string, number>;
+  compositions: Map<string, number>;
+  energies: Map<ArtEnergy, number>;
+}
+
+function bump<T>(map: Map<T, number>, key: T, amount: number): void {
+  map.set(key, (map.get(key) || 0) + amount);
+}
+
+function applyTraits(scores: Scores, traits: Traits, weight: number): void {
+  traits.moods?.forEach((m) => bump(scores.moods, m, weight));
+  traits.palettes?.forEach((p) => bump(scores.palettes, p, weight));
+  traits.styles?.forEach((s) => bump(scores.styles, s, weight));
+  traits.textures?.forEach((t) => bump(scores.textures, t, weight));
+  traits.lighting?.forEach((l) => bump(scores.lighting, l, weight));
+  if (traits.energy) bump(scores.energies, traits.energy, weight);
+}
+
+function ranked<T>(pool: T[], scores: Map<T, number>, rng: () => number, count: number): T[] {
+  return pool
+    .map((item) => ({ item, score: (scores.get(item) || 0) + rng() }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, count)
+    .map((entry) => entry.item);
+}
+
+/**
+ * Suggest a full art direction from the song's clues. Deterministic for a given
+ * song + salt, so "Suggest again" is the only thing that reshuffles it.
+ */
+export function suggestArtDirection(clues: ArtClues, salt = 0): ArtSuggestions {
+  const scores: Scores = {
+    moods: new Map(), palettes: new Map(), styles: new Map(),
+    textures: new Map(), lighting: new Map(), compositions: new Map(),
+    energies: new Map(),
+  };
+
+  const haystack = [
+    clues.title, clues.mood, clues.description, clues.notes,
+    clues.tags.join(' '), clues.themes.join(' '), clues.benefits.join(' '),
+    clues.practices, clues.genre, clues.genre2,
+  ].join(' ').toLowerCase();
+
+  for (const { re, traits } of KEYWORD_TRAITS) {
+    if (re.test(haystack)) applyTraits(scores, traits, 3);
+  }
+  for (const { re, traits } of GENRE_TRAITS) {
+    if (re.test(clues.genre) || re.test(clues.genre2) || re.test(haystack)) {
+      applyTraits(scores, traits, 2);
+    }
+  }
+
+  // Musical fundamentals still say a lot about the visuals.
+  const tempoEnergy = ENERGY_BY_TEMPO(clues.tempo);
+  bump(scores.energies, tempoEnergy, 2);
+  if (clues.tempo && clues.tempo < 70) {
+    bump(scores.moods, 'hushed', 2);
+    bump(scores.moods, 'intimate', 1);
+    bump(scores.textures, 'fine canvas grain', 1);
+  }
+  if (clues.key && /m(inor)?\b/i.test(clues.key)) {
+    bump(scores.moods, 'melancholic', 2);
+    bump(scores.moods, 'contemplative', 1);
+  }
+  if (clues.key && /maj/i.test(clues.key)) {
+    bump(scores.moods, 'hopeful', 2);
+    bump(scores.moods, 'luminous', 1);
+  }
+  if (clues.benefits.some((b) => /calm|relax|sleep|anxiety|stress/i.test(b))) {
+    bump(scores.moods, 'serene', 2);
+    bump(scores.palettes, 'Lavender Haze', 1);
+  }
+
+  const rng = mulberry32(
+    hashString(`${haystack}|${clues.genre}|${clues.key}|${clues.tempo}|${salt}`),
+  );
+
+  const paletteNames = Object.keys(ART_PALETTES);
+  const palettePicks = ranked(paletteNames, scores.palettes, rng, 3);
+
+  return {
+    moods: unique([
+      ...ranked(MOODS, scores.moods, rng, 6),
+      'contemplative', 'serene',
+    ]).slice(0, 8),
+    palettes: palettePicks.map((name) => ({ name, colors: ART_PALETTES[name] })),
+    styles: ranked(STYLES, scores.styles, rng, 4),
+    textures: ranked(TEXTURES, scores.textures, rng, 4),
+    lighting: ranked(LIGHTING, scores.lighting, rng, 4),
+    compositions: ranked(COMPOSITIONS, scores.compositions, rng, 4),
+    energies: ranked(['still', 'gentle', 'flowing', 'turbulent'] as ArtEnergy[], scores.energies, rng, 4),
+  };
+}
+
+export function defaultDirection(s: ArtSuggestions): ArtDirection {
+  return {
+    moods: s.moods.slice(0, 2),
+    palette: s.palettes[0],
+    style: s.styles[0],
+    texture: s.textures[0],
+    lighting: s.lighting[0],
+    composition: s.compositions[0],
+    energy: s.energies[0],
+  };
+}
+
+/** Keep a hand-picked direction valid when suggestions are reshuffled. */
+export function reconcileDirection(direction: ArtDirection, s: ArtSuggestions): ArtDirection {
+  const palette = s.palettes.find((p) => p.name === direction.palette.name) || s.palettes[0];
+  const keepMoods = direction.moods.filter((m) => s.moods.includes(m));
+  return {
+    moods: keepMoods.length ? keepMoods : s.moods.slice(0, 2),
+    palette,
+    style: s.styles.includes(direction.style) ? direction.style : s.styles[0],
+    texture: s.textures.includes(direction.texture) ? direction.texture : s.textures[0],
+    lighting: s.lighting.includes(direction.lighting) ? direction.lighting : s.lighting[0],
+    composition: s.compositions.includes(direction.composition) ? direction.composition : s.compositions[0],
+    energy: s.energies.includes(direction.energy) ? direction.energy : s.energies[0],
+  };
+}
+
+function joinList(items: string[]): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+const FORM_BY_ENERGY: Record<ArtEnergy, string> = {
+  still: 'quiet fields of colour, minimal gesture, generous negative space',
+  gentle: 'slow-edged organic shapes and softly overlapping translucent fields',
+  flowing: 'long sweeping curves, fluid ribbons of colour, layered depth',
+  turbulent: 'churning interlocking forms, fractured light, dense layering',
+};
+
+/** Words that would make a model paint the object instead of the feeling. */
+const LITERAL_BLOCKLIST = /piano|guitar|drum|violin|cello|sax|voice|vocal|singer|instrument|song|track|album|music/i;
+
+function atmosphericThemes(clues: ArtClues): string[] {
+  const raw = [...clues.themes, ...clues.tags];
+  return unique(
+    raw
+      .map((t) => t.replace(/^#/, '').replace(/[_-]+/g, ' ').trim().toLowerCase())
+      .filter((t) => t.length > 2 && t.length < 32 && !LITERAL_BLOCKLIST.test(t)),
+  ).slice(0, 4);
+}
+
+function metadataSentence(clues: ArtClues): string {
+  const kind = [clues.genre, clues.genre2].filter(Boolean).join(' / ').toLowerCase();
+  const facts: string[] = [];
+  if (kind) facts.push(kind);
+  if (clues.key) facts.push(`in ${clues.key}`);
+  if (clues.tempo) facts.push(`at ${clues.tempo} BPM`);
+  const themes = atmosphericThemes(clues);
+  const atmosphere = themes.length ? ` shaped by ${joinList(themes)}` : '';
+  if (!facts.length && !atmosphere) return '';
+  return `Translating the atmosphere of ${facts.length ? `a ${facts.join(' ')} piece` : 'the piece'}${atmosphere} into pure colour, light and texture.`;
+}
+
+/**
+ * The prompt actually sent to the image model. Keep it abstract, explicit and
+ * free of the title, names and literal objects.
+ */
+export function buildArtPrompt(
+  direction: ArtDirection,
+  clues: ArtClues,
+  mode: ArtPromptMode,
+): string {
+  const colors = direction.palette.colors
+    .map((hex) => `${colorName(hex)} (${hex})`)
+    .join(', ');
+  const metadata = mode === 'metadata' ? metadataSentence(clues) : '';
+
+  const parts = [
+    'Abstract album cover artwork, perfectly square 1:1 composition.',
+    `Mood: ${joinList(direction.moods)}; ${direction.energy} energy.`,
+    `Colour palette: ${direction.palette.name} — ${colors}.`,
+    `Form: ${FORM_BY_ENERGY[direction.energy]}; ${direction.style}.`,
+    `Composition: ${direction.composition}, balanced with generous crop-safe margins.`,
+    `Texture: ${direction.texture}.`,
+    `Light: ${direction.lighting}.`,
+    metadata,
+    'Strictly non-representational: no text, letters, numbers, logos, watermarks, signatures, borders, people, faces, hands, instruments, or recognizable objects.',
+    'Gallery-quality, ultra-detailed, high resolution, 3000×3000.',
+  ].filter(Boolean);
+
+  return parts.join(' ');
+}
+
+/** Shown in the UI so the prompt philosophy is visible, not folklore. */
+export const ART_PROMPT_NOTES = [
+  'The song title never enters the image prompt — titles leak literal objects and trip content filters.',
+  'Metadata becomes atmosphere (mood, colour, light), not nouns.',
+  'Every prompt forbids text, logos, people and instruments, and keeps the subject crop-safe.',
+  'AI images are generated at 1024px, then exported at 3000×3000 for release.',
+];
