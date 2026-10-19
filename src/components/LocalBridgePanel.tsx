@@ -16,6 +16,8 @@ import {
   ChevronRight,
   X,
   Sparkles,
+  Archive,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -194,6 +196,9 @@ export const LocalBridgePanel: React.FC = () => {
     mountNas,
     getCaptures,
     createCaptureEntry,
+    getLogicProjects,
+    archiveLogicProject,
+    trashLocalLogicProject,
     setBridgeHost,
     host,
     latency,
@@ -236,6 +241,13 @@ export const LocalBridgePanel: React.FC = () => {
   const [showCaptures, setShowCaptures] = useState(() => localStorage.getItem('lb_showCaptures') !== 'false');
   const [captures, setCaptures] = useState<any[]>([]);
   const [capturesLoading, setCapturesLoading] = useState(false);
+  const [showArchive, setShowArchive] = useState(() => localStorage.getItem('lb_showArchive') === 'true');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [nasListed, setNasListed] = useState(true);
+  const [showEmptyUntitled, setShowEmptyUntitled] = useState(false);
+  const [archivingPath, setArchivingPath] = useState<string | null>(null);
+  const [trashingPath, setTrashingPath] = useState<string | null>(null);
 
   useEffect(() => { localStorage.setItem('lb_showSystem', String(showSystem)); }, [showSystem]);
   useEffect(() => { localStorage.setItem('lb_showWorkflows', String(showWorkflows)); }, [showWorkflows]);
@@ -243,6 +255,7 @@ export const LocalBridgePanel: React.FC = () => {
   useEffect(() => { localStorage.setItem('lb_showSync', String(showSync)); }, [showSync]);
   useEffect(() => { localStorage.setItem('lb_showConfig', String(showConfig)); }, [showConfig]);
   useEffect(() => { localStorage.setItem('lb_showCaptures', String(showCaptures)); }, [showCaptures]);
+  useEffect(() => { localStorage.setItem('lb_showArchive', String(showArchive)); }, [showArchive]);
 
   const handleUploadAudio = async () => {
     try {
@@ -287,6 +300,77 @@ export const LocalBridgePanel: React.FC = () => {
       setCapturesLoading(false);
     }
   };
+
+  const handleScanProjects = async () => {
+    setProjectsLoading(true);
+    try {
+      const res = await getLogicProjects();
+      if (res?.success && res.data) {
+        setProjects(res.data.projects);
+        setNasListed(res.data.nasListed);
+      } else {
+        showError(res?.error || 'Could not list Logic projects');
+      }
+    } catch (e: any) {
+      showError(e.message || 'Could not list Logic projects');
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const handleArchiveProject = async (p: any) => {
+    setArchivingPath(p.path);
+    try {
+      const res = await archiveLogicProject(p.path);
+      if (res?.success && res.data) {
+        showSuccess(res.data.message);
+        handleScanProjects();
+      } else {
+        showError(res?.error || 'Archive failed');
+      }
+    } catch (e: any) {
+      showError(e.message || 'Archive failed');
+    } finally {
+      setArchivingPath(null);
+    }
+  };
+
+  const handleTrashLocal = async (p: any) => {
+    const ok = window.confirm(
+      `Move "${p.name}" to the Trash?\n\nIts verified copy stays on the NAS, and the Trash copy stays recoverable from Finder until you empty the Trash.`,
+    );
+    if (!ok) return;
+    setTrashingPath(p.path);
+    try {
+      const res = await trashLocalLogicProject(p.path);
+      if (res?.success && res.data) {
+        showSuccess(res.data.message);
+        handleScanProjects();
+      } else {
+        showError(res?.error || 'Could not move to Trash');
+      }
+    } catch (e: any) {
+      showError(e.message || 'Could not move to Trash');
+    } finally {
+      setTrashingPath(null);
+    }
+  };
+
+  // Auto-load the project list the first time the section is opened.
+  useEffect(() => {
+    if (showArchive && projects.length === 0 && !projectsLoading && connected) {
+      handleScanProjects();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showArchive, connected]);
+
+  // Empty "Untitled" shells are Logic's default new-project folders — hide
+  // them unless explicitly asked for, so the real projects stay visible.
+  const visibleProjects = projects.filter(
+    (p) => showEmptyUntitled || !(p.sizeMB === 0 && /^Untitled( \d+)?$/.test(p.name)),
+  );
+  const hiddenUntitledCount = projects.length - visibleProjects.length;
+  const localOnlyCount = visibleProjects.filter((p) => !p.archived).length;
 
   if (!hasToken) {
     return (
@@ -466,6 +550,139 @@ export const LocalBridgePanel: React.FC = () => {
             {captures.length === 0 && !capturesLoading && (
               <p className="text-[10px] text-muted-foreground text-center py-2">
                 Click "Scan" to list local captures from _Captures
+              </p>
+            )}
+          </div>
+        </CollapsibleSection>
+
+        {/* Archive to NAS */}
+        <CollapsibleSection
+          title={`Archive to NAS${projects.length ? ` (${projects.length})` : ''}`}
+          icon={Archive}
+          isOpen={showArchive}
+          onToggle={() => setShowArchive(!showArchive)}
+        >
+          <div className="pt-2 space-y-2">
+            <p className="text-[10px] text-muted-foreground">
+              Move finished Logic projects from{' '}
+              <code className="bg-muted px-1 rounded">Music/Logic</code> to Moon Prism (
+              <code className="bg-muted px-1 rounded">DBP/Creation</code>) — copied, verified
+              file-by-file, then optionally trashed locally so they can leave this Mac.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleScanProjects}
+              disabled={!connected || projectsLoading}
+              className="text-xs gap-1.5 w-full"
+            >
+              {projectsLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              {projectsLoading ? 'Measuring projects…' : 'Refresh list'}
+            </Button>
+            {!nasListed && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                NAS not mounted — archive status unknown. Use "Mount NAS" first.
+              </p>
+            )}
+            {projectsLoading && projects.length === 0 && (
+              <p className="text-[10px] text-muted-foreground text-center py-2">
+                Walking each project folder to measure sizes…
+              </p>
+            )}
+            {localOnlyCount > 0 && nasListed && (
+              <p className="text-[10px] text-muted-foreground bg-muted/50 rounded-md px-2 py-1.5">
+                {localOnlyCount} project{localOnlyCount === 1 ? '' : 's'}{' '}
+                {localOnlyCount === 1 ? 'lives' : 'live'} only on this Mac — archive{' '}
+                {localOnlyCount === 1 ? 'it' : 'them'} to keep{' '}
+                {localOnlyCount === 1 ? 'it' : 'them'} safe on Moon Prism and free up space.
+              </p>
+            )}
+            {visibleProjects.length > 0 && (
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {visibleProjects.map((p) => (
+                  <div
+                    key={p.path}
+                    className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]"
+                    title={p.path}
+                  >
+                    <Music className="h-3 w-3 text-primary flex-shrink-0" />
+                    <span className="flex-1 truncate font-medium">{p.name}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">
+                      {p.sizeMB >= 1 ? `${p.sizeMB} MB` : '<1 MB'}
+                    </span>
+                    {p.archived ? (
+                      <span
+                        className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
+                        title="A verified copy exists in DBP/Creation"
+                      >
+                        <CheckCircle className="h-3 w-3" /> On NAS
+                      </span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 flex-shrink-0"
+                        onClick={() => handleArchiveProject(p)}
+                        disabled={archivingPath === p.path || !nasListed || archivingPath !== null}
+                        title={
+                          nasListed
+                            ? `Copy + verify on Moon Prism (${p.sizeMB} MB) — the local project is not touched`
+                            : 'Mount the NAS first'
+                        }
+                      >
+                        {archivingPath === p.path ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Archive className="h-3 w-3" />
+                        )}
+                      </Button>
+                    )}
+                    {p.archived && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400"
+                        onClick={() => handleTrashLocal(p)}
+                        disabled={trashingPath === p.path}
+                        title="Re-verify the NAS copy, then move the local project to the Trash (recoverable)"
+                      >
+                        {trashingPath === p.path ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3" />
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 flex-shrink-0"
+                      onClick={() => openFolderInFinder(p.path)}
+                      title={`Reveal in Finder: ${p.path}`}
+                      aria-label="Open project folder in Finder"
+                    >
+                      <FolderOpen className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {hiddenUntitledCount > 0 && (
+              <button
+                onClick={() => setShowEmptyUntitled(!showEmptyUntitled)}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              >
+                {showEmptyUntitled ? 'Hide' : 'Show'} {hiddenUntitledCount} empty “Untitled”{' '}
+                project{hiddenUntitledCount === 1 ? '' : 's'}
+              </button>
+            )}
+            {projects.length === 0 && !projectsLoading && (
+              <p className="text-[10px] text-muted-foreground text-center py-2">
+                Click "Refresh list" to find Logic projects in Music/Logic
               </p>
             )}
           </div>

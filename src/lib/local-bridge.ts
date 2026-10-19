@@ -363,6 +363,40 @@ export class BridgeClient {
       body: JSON.stringify({ name, ...opts }),
     });
   }
+
+  /** List top-level Logic projects (Music/Logic) with size + NAS archive status */
+  async getLogicProjects(): Promise<BridgeResponse<{ projects: LogicProject[]; nasListed: boolean; count: number }>> {
+    // Sizes come from walking each bundle locally — usually fast, but give
+    // it room on a cold cache.
+    return this.request<{ projects: LogicProject[]; nasListed: boolean; count: number }>('/logic/projects', {}, 60000);
+  }
+
+  /** Archive a Logic project to the NAS Creation folder (copy + verify; local untouched) */
+  async archiveLogicProject(projectPath: string): Promise<BridgeResponse<{ name: string; archivedTo: string; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>> {
+    // rsync of a possibly multi-hundred-MB bundle over SMB — long leash.
+    return this.request<{ name: string; archivedTo: string; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>('/logic/archive', {
+      method: 'POST',
+      body: JSON.stringify({ path: projectPath }),
+    }, 31 * 60 * 1000);
+  }
+
+  /** Move a local Logic project to the Trash after re-verifying the NAS copy */
+  async trashLocalLogicProject(projectPath: string): Promise<BridgeResponse<{ name: string; freedMB: number; message: string }>> {
+    // Verification stats the NAS copy over SMB before anything is deleted.
+    return this.request<{ name: string; freedMB: number; message: string }>('/logic/trash-local', {
+      method: 'POST',
+      body: JSON.stringify({ path: projectPath }),
+    }, 120000);
+  }
+}
+
+export interface LogicProject {
+  name: string;
+  path: string;
+  mtime: number;
+  files: number;
+  sizeMB: number;
+  archived: boolean;
 }
 
 // Singleton instance for React hooks
@@ -497,6 +531,18 @@ export function useLocalBridge() {
     return client.createCaptureEntry(name, opts);
   };
 
+  const getLogicProjects = async () => {
+    return client.getLogicProjects();
+  };
+
+  const archiveLogicProject = async (projectPath: string) => {
+    return client.archiveLogicProject(projectPath);
+  };
+
+  const trashLocalLogicProject = async (projectPath: string) => {
+    return client.trashLocalLogicProject(projectPath);
+  };
+
   return {
     client,
     connected,
@@ -513,6 +559,9 @@ export function useLocalBridge() {
     mountNas,
     getCaptures,
     createCaptureEntry,
+    getLogicProjects,
+    archiveLogicProject,
+    trashLocalLogicProject,
     setBridgeHost,
     host,
     latency,
