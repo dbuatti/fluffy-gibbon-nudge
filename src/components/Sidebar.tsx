@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen, Home, Music, ListMusic } from 'lucide-react';
+import { LogOut, Settings, Sparkles, User, Menu, FileText, BookOpen, Home, Music, ListMusic, TerminalSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { to: '/composition-script', icon: FileText, label: 'Local Script' },
   { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/instructions', icon: BookOpen, label: 'Instructions' },
+  { to: '/local-bridge', icon: TerminalSquare, label: 'Local Bridge' },
 ];
 
 const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick }) => {

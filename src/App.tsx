@@ -21,6 +21,7 @@ const ImprovisationDetails = React.lazy(() => import("./pages/ImprovisationDetai
 const Settings = React.lazy(() => import("./pages/Settings"));
 const CompositionScript = React.lazy(() => import("./pages/CompositionScript"));
 const Instructions = React.lazy(() => import("./pages/Instructions"));
+const LocalBridge = React.lazy(() => import("./pages/LocalBridge"));
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/composition-script" element={<CompositionScript />} />
                   <Route path="/instructions" element={<Instructions />} />
+                  <Route path="/local-bridge" element={<LocalBridge />} />
                 </Route>
               </Route>
 
