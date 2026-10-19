@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { useLocalBridge, useRealtimeSyncStatus } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 
 const WorkflowButton = ({
   icon: Icon,
@@ -146,6 +147,7 @@ const SyncStatusDisplay: React.FC = () => {
                 {item.status}
               </Badge>
               <span className="flex-1 truncate font-medium">{item.generated_name}</span>
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap">{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</span>
               {item.workflow_mode && (
                 <Badge variant="secondary" className="text-xs px-2 py-0.5">
                   {item.workflow_mode}
@@ -172,6 +174,7 @@ export const LocalBridgePanel: React.FC = () => {
     connected,
     status,
     loading,
+    loadingMode,
     launchPicker,
     checkConnection,
     hasToken,
@@ -308,19 +311,19 @@ export const LocalBridgePanel: React.FC = () => {
         {/* Workflows */}
         <CollapsibleSection title="Workflows" icon={Zap} isOpen={showWorkflows} onToggle={() => setShowWorkflows(!showWorkflows)}>
           <div className="space-y-1.5 pt-2">
-            <WorkflowButton icon={Video} label="TikTok / Shorts" desc="Streaming template + Meld TikTok scene + upload page" mode="tiktok" onClick={() => handleLaunch('tiktok')} color="text-pink-600" disabled={!connected || loading} loading={loading} />
-            <WorkflowButton icon={Video} label="IG Story (Quick Capture)" desc="Streaming template + Meld IG scene, no upload step" mode="ig_story" onClick={() => handleLaunch('ig_story')} color="text-purple-600" disabled={!connected || loading} loading={loading} />
-            <WorkflowButton icon={Music} label="Piano Improvisation" desc="Felt/Piano template + daily prompt + Composer Hub entry" mode="piano_improvisation" onClick={() => handleLaunch('piano_improvisation', { sound: 'felt_piano', film: true })} color="text-blue-600" disabled={!connected || loading} loading={loading} />
-            <WorkflowButton icon={FolderOpen} label="Deep Composition" desc="Mount NAS + Logic/Sibelius templates + dated project folder" mode="deep_composition" onClick={() => handleLaunch('deep_composition')} color="text-green-600" disabled={!connected || loading} loading={loading} />
-            <WorkflowButton icon={Zap} label="Finish Take" desc="Pair newest Logic capture with Meld video → Movies folder" mode="finish_take" onClick={() => handleLaunch('finish_take')} color="text-amber-600" disabled={!connected || loading} loading={loading} />
+            <WorkflowButton icon={Video} label="TikTok / Shorts" desc="Streaming template + Meld TikTok scene + upload page" mode="tiktok" onClick={() => handleLaunch('tiktok')} color="text-pink-600" disabled={!connected || loading} loading={loading && loadingMode === 'tiktok'} />
+            <WorkflowButton icon={Video} label="IG Story (Quick Capture)" desc="Streaming template + Meld IG scene, no upload step" mode="ig_story" onClick={() => handleLaunch('ig_story')} color="text-purple-600" disabled={!connected || loading} loading={loading && loadingMode === 'ig_story'} />
+            <WorkflowButton icon={Music} label="Piano Improvisation" desc="Felt/Piano template + daily prompt + Composer Hub entry" mode="piano_improvisation" onClick={() => handleLaunch('piano_improvisation', { sound: 'felt_piano', film: true })} color="text-blue-600" disabled={!connected || loading} loading={loading && loadingMode === 'piano_improvisation'} />
+            <WorkflowButton icon={FolderOpen} label="Deep Composition" desc="Mount NAS + Logic/Sibelius templates + dated project folder" mode="deep_composition" onClick={() => handleLaunch('deep_composition')} color="text-green-600" disabled={!connected || loading} loading={loading && loadingMode === 'deep_composition'} />
+            <WorkflowButton icon={Zap} label="Finish Take" desc="Pair newest Logic capture with Meld video → Movies folder" mode="finish_take" onClick={() => handleLaunch('finish_take')} color="text-amber-600" disabled={!connected || loading} loading={loading && loadingMode === 'finish_take'} />
           </div>
         </CollapsibleSection>
 
         {/* Audio & Video */}
         <CollapsibleSection title="Audio & Video" icon={Upload} isOpen={showAudio} onToggle={() => setShowAudio(!showAudio)}>
           <div className="space-y-1.5 pt-2">
-            <WorkflowButton icon={Upload} label="Upload Latest Audio" desc="Find bounced audio in latest Logic project & upload to Composer Hub" mode="upload_audio" onClick={handleUploadAudio} color="text-emerald-600" disabled={!connected || loading} loading={loading} />
-            <WorkflowButton icon={HardDrive} label="Sync to NAS" desc={status?.nasMounted ? "Copy local captures to Moon Prism backup" : "NAS (Moon Prism) not mounted — connect to home network"} mode="sync_nas" onClick={handleSyncNAS} color="text-cyan-600" disabled={!connected || loading || !status?.nasMounted} loading={loading} />
+            <WorkflowButton icon={Upload} label="Upload Latest Audio" desc="Find bounced audio in latest Logic project & upload to Composer Hub" mode="upload_audio" onClick={handleUploadAudio} color="text-emerald-600" disabled={!connected || loading} loading={loading && loadingMode === 'upload_audio'} />
+            <WorkflowButton icon={HardDrive} label="Sync to NAS" desc={status?.nasMounted ? "Copy local captures to Moon Prism backup" : "NAS (Moon Prism) not mounted — connect to home network"} mode="sync_nas" onClick={handleSyncNAS} color="text-cyan-600" disabled={!connected || loading || !status?.nasMounted} loading={loading && loadingMode === 'sync_nas'} />
             {!status?.nasMounted && (
               <Button variant="outline" size="sm" className="w-full justify-start gap-1.5 text-xs" onClick={async () => { const res = await mountNas(); if (res?.success) showSuccess(res.data?.message || 'Mount dialog opened'); else showError(res?.error || 'Mount failed'); }} disabled={!connected || loading}>
                 <HardDrive className="h-3 w-3 text-cyan-600" />

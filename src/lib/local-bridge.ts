@@ -288,6 +288,7 @@ export function useLocalBridge() {
   const [status, setStatus] = useState<BridgeStatusResponse | null>(null);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMode, setLoadingMode] = useState<string | null>(null);
   const [host, setHostState] = useState(() => bridgeClient.getHost());
 
   const checkConnection = useCallback(async () => {
@@ -315,6 +316,7 @@ export function useLocalBridge() {
 
   const launchPicker = async (req: LaunchPickerRequest) => {
     setLoading(true);
+    setLoadingMode(req.mode);
     try {
       const res = await client.launchPicker(req);
       if (res.success) {
@@ -327,6 +329,7 @@ export function useLocalBridge() {
       showError(String(e));
     } finally {
       setLoading(false);
+      setLoadingMode(null);
     }
   };
 
@@ -379,6 +382,7 @@ export function useLocalBridge() {
     connected,
     status,
     loading,
+    loadingMode,
     checkConnection,
     launchPicker,
     setMeldScene,
