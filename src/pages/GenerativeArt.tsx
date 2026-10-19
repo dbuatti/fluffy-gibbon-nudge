@@ -36,6 +36,18 @@ const GenerativeArt: React.FC = () => {
   const [aiImage, setAiImage] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [history, setHistory] = useState<{ type: 'procedural' | 'cloudflare' | 'gemini'; image: string; prompt: string; seed?: number }[]>([]);
+  // Cloudflare usage tracking
+  const [cfUsage, setCfUsage] = useState<{ count: number; date: string }>(() => {
+    try {
+      const stored = localStorage.getItem('cf_usage');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const today = new Date().toISOString().slice(0, 10);
+        if (parsed.date === today) return parsed;
+      }
+    } catch {}
+    return { count: 0, date: new Date().toISOString().slice(0, 10) };
+  });
 
   useEffect(() => {
     document.title = 'Generative Art - AI Composer Hub';
@@ -109,6 +121,14 @@ const GenerativeArt: React.FC = () => {
         setAiConfigured(true);
         setHistory((h) => [{ type: 'cloudflare', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('AI artwork generated');
+        // Track usage
+        setCfUsage((prev) => {
+          const today = new Date().toISOString().slice(0, 10);
+          const newCount = prev.date === today ? prev.count + 1 : 1;
+          const updated = { count: newCount, date: today };
+          localStorage.setItem('cf_usage', JSON.stringify(updated));
+          return updated;
+        });
       }
     } catch (e: any) {
       showError(e.message || 'AI generation failed');
@@ -330,6 +350,12 @@ const GenerativeArt: React.FC = () => {
                 <Button variant="default" onClick={handleSaveToImprovisation} disabled={generating} className="gap-2">
                   <Palette className="h-4 w-4" /> Save to Improvisation
                 </Button>
+              )}
+              {mode === 'cloudflare' && (
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto">
+                  <Cloud className="h-3 w-3" />
+                  <span>{cfUsage.count} images today · ~{cfUsage.count * 150} neurons used · 10,000/day free</span>
+                </div>
               )}
               <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
                 {mode === 'procedural' && (
