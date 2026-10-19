@@ -1,5 +1,5 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "composer-hub",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ch:login": "node scripts/composer-hub-login.js",
+    "ch:capture": "node scripts/composer-hub.js",
+    "ch:prompt": "node scripts/composer-hub.js --prompt",
+    "ch:deploy": "node scripts/deploy-scripts.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

@@ -1,0 +1,363 @@
+/**
+ * Local Bridge API — TypeScript contract for the HTTP bridge server
+ * running on the user's Mac (~/Music/Logic/_Scripts/local-bridge.js).
+ *
+ * The bridge binds to 127.0.0.1:34567 (configurable) and accepts requests
+ * from https://composerhub.vercel.app with a shared secret Bearer token.
+ *
+ * Run locally: node local-bridge.js
+ * Config: ~/.config/composer-hub/bridge-config.json
+ */
+
+export const BRIDGE_DEFAULT_PORT = 34567;
+export const BRIDGE_CONFIG_PATH = '~/.config/composer-hub/bridge-config.json';
+
+// ============================================================================
+// Request/Response Types
+// ============================================================================
+
+export interface BridgeConfig {
+  port: number;
+  token: string;           // Shared secret (generated on first run)
+  allowedOrigins: string[]; // ['https://composerhub.vercel.app', 'http://localhost:5173']
+}
+
+export interface BridgeResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  timestamp: string;
+}
+
+// --- Workflow Picker Launch ---
+
+export type WorkflowMode =
+  | 'tiktok'
+  | 'ig_story'
+  | 'piano_improvisation'
+  | 'deep_composition'
+  | 'finish_take';
+
+export interface LaunchPickerRequest {
+  mode: WorkflowMode;
+  // Optional params per mode
+  title?: string;              // For piano_improvisation / deep_composition (if pre-known)
+  sound?: 'felt_piano' | 'piano'; // For piano_improvisation
+  film?: boolean;              // For piano_improvisation
+  projectName?: string;        // For deep_composition
+  videoTitle?: string;         // For finish_take (optional title to append)
+}
+
+export interface LaunchPickerResponse {
+  launched: boolean;
+  mode: WorkflowMode;
+  message: string;
+  // If an entry was created in Composer Hub, include its ID and URL
+  improvisationId?: string;
+  improvisationUrl?: string;
+}
+
+// --- Meld Scene Control ---
+
+export interface SetMeldSceneRequest {
+  scene: string; // e.g. 'TikTok', 'Felt Piano', 'IG Story'
+}
+
+export interface SetMeldSceneResponse {
+  success: boolean;
+  scene: string;
+  message: string;
+}
+
+// --- Logic Project Open ---
+
+export interface OpenLogicRequest {
+  projectPath: string; // Full path to .logicx file
+}
+
+export interface OpenLogicResponse {
+  success: boolean;
+  projectPath: string;
+  message: string;
+}
+
+// --- Status / Health ---
+
+export interface BridgeStatusResponse {
+  bridge: 'ok';
+  version: string;
+  uptimeSeconds: number;
+  meldConnected: boolean;
+  logicRunning: boolean;
+  nasMounted: boolean;
+  nasPath?: string;
+  config: Pick<BridgeConfig, 'port' | 'allowedOrigins'>;
+}
+
+// --- Sync / Query (local script → Supabase) ---
+
+export interface SyncStatusRequest {
+  // Optional filters
+  status?: 'uploaded' | 'analyzing' | 'completed' | 'failed' | 'ready_for_release';
+  workflowMode?: WorkflowMode;
+  limit?: number;
+}
+
+export interface SyncStatusItem {
+  id: string;
+  generatedName: string;
+  status: string;
+  workflowMode: string | null;
+  hasAudio: boolean;
+  hasVideo: boolean;
+  isReadyForRelease: boolean;
+  createdAt: string;
+  nasFolderPath: string | null;
+  logicProjectPath: string | null;
+}
+
+export interface SyncStatusResponse {
+  items: SyncStatusItem[];
+  counts: {
+    total: number;
+    readyForRelease: number;
+    staleNoAudio: number; // uploaded > 7 days, no audio
+  };
+}
+
+// ============================================================================
+// Client Helper (for web app)
+// ============================================================================
+
+export interface BridgeClientOptions {
+  baseUrl?: string; // e.g. 'http://127.0.0.1:34567'
+  token?: string;   // If not provided, reads from localStorage
+  fetchImpl?: typeof fetch;
+}
+
+export class BridgeClient {
+  private baseUrl: string;
+  private token: string;
+  private fetchImpl: typeof fetch;
+
+  constructor(options: BridgeClientOptions = {}) {
+    this.baseUrl = options.baseUrl || `http://127.0.0.1:${BRIDGE_DEFAULT_PORT}`;
+    this.token = options.token || this.getStoredToken();
+    this.fetchImpl = options.fetchImpl || fetch;
+  }
+
+  private getStoredToken(): string {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('composer-hub-bridge-token') || '';
+    }
+    return '';
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<BridgeResponse<T>> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const res = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { success: false, error: `HTTP ${res.status}: ${text}`, timestamp: new Date().toISOString() };
+    }
+
+    return res.json();
+  }
+
+  setToken(token: string) {
+    this.token = token;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('composer-hub-bridge-token', token);
+    }
+  }
+
+  clearToken() {
+    this.token = '';
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('composer-hub-bridge-token');
+    }
+  }
+
+  hasToken(): boolean {
+    return !!this.token;
+  }
+
+  // --- API Methods ---
+
+  /** Launch a Workflow Picker mode */
+  async launchPicker(req: LaunchPickerRequest): Promise<BridgeResponse<LaunchPickerResponse>> {
+    return this.request<LaunchPickerResponse>('/workflow/launch', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  /** Switch Meld Studio scene */
+  async setMeldScene(req: SetMeldSceneRequest): Promise<BridgeResponse<SetMeldSceneResponse>> {
+    return this.request<SetMeldSceneResponse>('/meld/scene', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  /** Open a Logic project */
+  async openLogic(req: OpenLogicRequest): Promise<BridgeResponse<OpenLogicResponse>> {
+    return this.request<OpenLogicResponse>('/logic/open', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  /** Get bridge health + local system status */
+  async getStatus(): Promise<BridgeResponse<BridgeStatusResponse>> {
+    return this.request<BridgeStatusResponse>('/status');
+  }
+
+  /** Query local script's view of Supabase entries (sync status) */
+  async getSyncStatus(req?: SyncStatusRequest): Promise<BridgeResponse<SyncStatusResponse>> {
+    const params = new URLSearchParams();
+    if (req?.status) params.set('status', req.status);
+    if (req?.workflowMode) params.set('workflowMode', req.workflowMode);
+    if (req?.limit) params.set('limit', String(req.limit));
+    const qs = params.toString();
+    return this.request<SyncStatusResponse>(`/sync/status${qs ? `?${qs}` : ''}`);
+  }
+
+  /** Test connectivity (no auth required) */
+  async ping(): Promise<BridgeResponse<{ pong: boolean }>> {
+    return this.request<{ pong: boolean }>('/ping');
+  }
+}
+
+// Singleton instance for React hooks
+export const bridgeClient = new BridgeClient();
+
+// ============================================================================
+// React Hook
+// ============================================================================
+
+import { useState, useCallback, useEffect } from 'react';
+import { showSuccess, showError } from '@/utils/toast';
+
+export function useLocalBridge() {
+  const [client] = useState(() => bridgeClient);
+  const [status, setStatus] = useState<BridgeStatusResponse | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const checkConnection = useCallback(async () => {
+    try {
+      const res = await client.ping();
+      setConnected(res.success);
+      if (res.success) {
+        const statusRes = await client.getStatus();
+        if (statusRes.success && statusRes.data) {
+          setStatus(statusRes.data);
+        }
+      }
+    } catch {
+      setConnected(false);
+      setStatus(null);
+    }
+  }, [client]);
+
+  useEffect(() => {
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000); // 30s
+    return () => clearInterval(interval);
+  }, [checkConnection]);
+
+  const launchPicker = async (req: LaunchPickerRequest) => {
+    setLoading(true);
+    try {
+      const res = await client.launchPicker(req);
+      if (res.success) {
+        showSuccess(res.data?.message || 'Workflow launched');
+        return res.data;
+      } else {
+        showError(res.error || 'Launch failed');
+      }
+    } catch (e) {
+      showError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setMeldScene = async (scene: string) => {
+    const res = await client.setMeldScene({ scene });
+    if (!res.success) {
+      showError(res.error || 'Meld scene failed');
+    }
+    return res;
+  };
+
+  const openLogic = async (projectPath: string) => {
+    const res = await client.openLogic({ projectPath });
+    if (!res.success) {
+      showError(res.error || 'Open Logic failed');
+    }
+    return res;
+  };
+
+  const getSyncStatus = async (req?: SyncStatusRequest) => {
+    const res = await client.getSyncStatus(req);
+    return res.success ? res.data : null;
+  };
+
+  const configureToken = (token: string) => {
+    client.setToken(token);
+    checkConnection();
+  };
+
+  return {
+    client,
+    connected,
+    status,
+    loading,
+    checkConnection,
+    launchPicker,
+    setMeldScene,
+    openLogic,
+    getSyncStatus,
+    configureToken,
+    hasToken: client.hasToken(),
+  };
+}
+
+// ============================================================================
+// Token Setup Helper (run once in browser console or via UI)
+// ============================================================================
+
+/**
+ * Generate a secure random token for the bridge.
+ * Run this once in the browser console on composerhub.vercel.app:
+ *   await setupBridgeToken()
+ * Then copy the printed token to ~/.config/composer-hub/bridge-config.json on your Mac.
+ */
+export async function generateBridgeToken(): Promise<string> {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function setupBridgeToken(): Promise<void> {
+  const token = await generateBridgeToken();
+  localStorage.setItem('composer-hub-bridge-token', token);
+  console.log('🔐 Bridge token generated and stored in localStorage:');
+  console.log(token);
+  console.log('');
+  console.log('📋 Copy this token to your Mac:');
+  console.log(`echo '${JSON.stringify({ token, port: BRIDGE_DEFAULT_PORT, allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'] }, null, 2)}' > ~/.config/composer-hub/bridge-config.json`);
+}

@@ -45,4 +45,12 @@ export interface Improvisation {
   description: string | null;
   is_submitted_to_distrokid: boolean | null;
   is_submitted_to_insight_timer: boolean | null;
+
+  // Local workflow metadata (populated by Workflow Picker / composer-hub.js)
+  nas_folder_path: string | null;
+  template_used: string | null;
+  sound_choice: string | null;
+  video_path: string | null;
+  workflow_mode: 'tiktok' | 'ig_story' | 'piano_improvisation' | 'deep_composition' | string | null;
+  logic_project_path: string | null;
 }

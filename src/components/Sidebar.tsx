@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import ThemeToggle from './ThemeToggle';
+import { LocalBridgePanel } from './LocalBridgePanel';
 
 interface NavItem {
   to: string;
@@ -85,6 +86,11 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
           );
         })}
       </nav>
+
+      <Separator className="my-4" />
+
+      {/* Local Bridge Panel */}
+      <LocalBridgePanel />
 
       <Separator className="my-4" />
 

@@ -12,11 +12,12 @@
  *   node composer-hub-login.js
  */
 
-const readline = require('readline');
-const fs = require('fs');
-const path = require('path');
+import readline from 'readline';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
-const CONFIG_DIR = path.join(require('os').homedir(), '.config', 'composer-hub');
+const CONFIG_DIR = path.join(os.homedir(), '.config', 'composer-hub');
 const AUTH_FILE = path.join(CONFIG_DIR, 'auth.json');
 
 const SUPABASE_URL = 'https://rqesjpnhrjdjnrzdhzgw.supabase.co';
@@ -36,11 +37,11 @@ async function prompt(question) {
  */
 function extractSessionFromChrome() {
   const chromeProfiles = [
-    path.join(require('os').homedir(), 'Library', 'Application Support', 'Google', 'Chrome'),
-    path.join(require('os').homedir(), 'Library', 'Application Support', 'Google', 'Chrome Canary'),
-    path.join(require('os').homedir(), 'Library', 'Application Support', 'BraveSoftware', 'Brave-Browser'),
-    path.join(require('os').homedir(), 'Library', 'Application Support', 'Chromium'),
-    path.join(require('os').homedir(), 'Library', 'Application Support', 'Microsoft Edge'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome Canary'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'BraveSoftware', 'Brave-Browser'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'Chromium'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'Microsoft Edge'),
   ];
 
   const storageKey = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
@@ -110,13 +111,64 @@ async function loginWithPassword() {
   return { refresh_token: body.refresh_token, email: body.user.email };
 }
 
+/**
+ * Reads the pasted session JSON from a file instead of an interactive
+ * terminal prompt. Long single-line pastes (the full Supabase session
+ * object is several KB on one line) are unreliable typed directly into
+ * readline — many terminals mangle or truncate very long single-line
+ * pastes. Writing the clipboard to a file first (pbpaste > file.json)
+ * and pointing here avoids that entirely.
+ */
+function loginWithTokenFile(filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf-8');
+  } catch (err) {
+    console.error(`Could not read ${filePath}: ${err.message}`);
+    return null;
+  }
+
+  let session;
+  try {
+    session = JSON.parse(raw.trim());
+  } catch {
+    console.error(`${filePath} did not contain valid JSON. Re-run: pbpaste > ${filePath}`);
+    return null;
+  }
+
+  return parseSessionObject(session);
+}
+
+/**
+ * Shared parsing logic for a pasted/loaded Supabase session — accepts
+ * either the array format ["access_token", "refresh_token", ...] or the
+ * object format {refresh_token, user: {...}}.
+ */
+function parseSessionObject(session) {
+  if (Array.isArray(session)) {
+    if (session.length < 2 || !session[1]) {
+      console.error('No refresh token found. Make sure you are logged in.');
+      return null;
+    }
+    return { refresh_token: session[1], email: session[3] || null };
+  } else if (typeof session === 'object' && session && session.refresh_token) {
+    return { refresh_token: session.refresh_token, email: session.user?.email || null };
+  }
+  console.error('Could not find a refresh token in the value. Make sure you are logged in.');
+  return null;
+}
+
 async function loginWithPastedToken() {
   console.log('\n--- GitHub / SSO users ---');
   console.log('1. Open https://composerhub.vercel.app in Chrome');
   console.log('2. Open Dev Tools → Application → Local Storage');
   console.log(`3. Find the key: sb-${SUPABASE_PROJECT_REF}-auth-token`);
   console.log('4. Double-click its Value field and copy the entire JSON array');
-  console.log('   (starts with "[", ends with "]" — it has your tokens inside)\n');
+  console.log('   (starts with "[", ends with "]" — it has your tokens inside)');
+  console.log('   Tip: this value can be several KB on one line, which some terminals');
+  console.log('   mangle when pasted directly. If this fails, run instead:');
+  console.log('     pbpaste > /tmp/ch-token.json');
+  console.log('     node composer-hub-login.js --token-file /tmp/ch-token.json\n');
 
   const raw = await prompt('Paste the auth token value here: ');
 
@@ -128,26 +180,7 @@ async function loginWithPastedToken() {
     return null;
   }
 
-  let refresh_token, email;
-
-  if (Array.isArray(session)) {
-    // Format: ["access_token", "refresh_token", "token_type", "expires_in", ...]
-    if (session.length < 2 || !session[1]) {
-      console.error('No refresh token found. Make sure you are logged in.');
-      return null;
-    }
-    refresh_token = session[1];
-    email = session[3] || null;
-  } else if (typeof session === 'object' && session.refresh_token) {
-    // Format: {"access_token": "...", "refresh_token": "...", "user": {...}}
-    refresh_token = session.refresh_token;
-    email = session.user?.email || null;
-  } else {
-    console.error('Could not find a refresh token in the pasted value. Make sure you are logged in.');
-    return null;
-  }
-
-  return { refresh_token, email };
+  return parseSessionObject(session);
 }
 
 async function validateAndSave(refresh_token, email) {
@@ -178,12 +211,33 @@ async function validateAndSave(refresh_token, email) {
   fs.chmodSync(AUTH_FILE, 0o600);
 
   console.log(`\nLogged in as ${body.user.email || email}. Session cached in ${AUTH_FILE}`);
-  console.log('You can now run Finish Take and it will auto-create ideas in Composer Hub.');
+  console.log('You can now use Piano Improvisation / Deep Composition from the picker — both log to Composer Hub automatically at record-start.');
   return true;
 }
 
 async function main() {
   console.log('Composer Hub — Login\n');
+
+  // --token-file <path>: read a pasted session from a file instead of an
+  // interactive prompt. Use this if pasting directly into the terminal
+  // garbles or truncates (long single-line JSON pastes are unreliable in
+  // some terminals). Usage:
+  //   pbpaste > /tmp/ch-token.json
+  //   node composer-hub-login.js --token-file /tmp/ch-token.json
+  if (process.argv[2] === '--token-file') {
+    const filePath = process.argv[3];
+    if (!filePath) {
+      console.error('Usage: node composer-hub-login.js --token-file /path/to/pasted-token.json');
+      process.exit(1);
+    }
+    const result = loginWithTokenFile(filePath);
+    if (!result) {
+      console.error('Login failed.');
+      process.exit(1);
+    }
+    await validateAndSave(result.refresh_token, result.email);
+    return;
+  }
 
   // First, try to extract from Chrome automatically (works if logged in via browser)
   console.log('Checking Chrome for an existing session...');
@@ -223,7 +277,10 @@ async function main() {
   await validateAndSave(result.refresh_token, result.email);
 }
 
-main().catch((err) => {
-  console.error('Unexpected error:', err);
-  process.exit(1);
-});
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  main().catch((err) => {
+    console.error('Unexpected error:', err);
+    process.exit(1);
+  });
+}

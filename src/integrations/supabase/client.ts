@@ -19,3 +19,59 @@ export const getPublicAudioUrl = (storagePath: string): string => {
     const { data } = supabase.storage.from('piano_improvisations').getPublicUrl(storagePath); // Updated bucket name
     return data.publicUrl;
 };
+
+/**
+ * Uploads an audio file to Supabase Storage and returns the public URL.
+ * Mirrors the logic in scripts/composer-hub.js uploadAudio().
+ * @param file The audio File object (MP3, M4A, WAV, AIFF)
+ * @param improvisationId The ID of the improvisation entry
+ * @returns The public URL of the uploaded file
+ */
+export const uploadAudio = async (
+  file: File,
+  improvisationId: string
+): Promise<{ publicUrl: string; storagePath: string; fileName: string }> => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (!['mp3', 'm4a', 'wav', 'aiff'].includes(ext || '')) {
+    throw new Error('Unsupported audio format. Use MP3, M4A, WAV, or AIFF.');
+  }
+
+  const storagePath = `${user.id}/${improvisationId}.${ext}`;
+  const fileName = file.name;
+
+  const { error: uploadError } = await supabase.storage
+    .from('piano_improvisations')
+    .upload(storagePath, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) throw uploadError;
+
+  const publicUrl = getPublicAudioUrl(storagePath);
+
+  return { publicUrl, storagePath, fileName };
+};
+
+/**
+ * Updates an improvisation record after audio upload.
+ * Sets file_name, storage_path, and status to 'analyzing' (triggers analyze-improvisation edge function).
+ */
+export const markImprovisationAnalyzing = async (
+  improvisationId: string,
+  fileName: string,
+  storagePath: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('improvisations')
+    .update({
+      file_name: fileName,
+      storage_path: storagePath,
+      status: 'analyzing',
+    })
+    .eq('id', improvisationId);
+
+  if (error) throw error;
+};
