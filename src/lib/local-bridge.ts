@@ -185,6 +185,9 @@ export interface SocialKitFile {
   /** Trim window for long songs (seconds into the original). */
   clipStartSec?: number;
   clipSec?: number;
+  /** 1-based index + total when a build made several excerpts. */
+  clipIndex?: number;
+  clipCount?: number;
   /** True when the excerpt was chosen automatically (strongest passage). */
   autoExcerpt?: boolean;
   sizeMB?: number;
@@ -199,6 +202,10 @@ export interface SocialKit {
   /** Instagram/Reels caption (kept for older kits). */
   caption?: string;
   captions?: SocialCaptions;
+  /** Number of excerpt cuts requested for the short-form videos. */
+  clipCount?: number;
+  /** ISO timestamps of the last post per platform (local record). */
+  posted?: Partial<Record<SocialCaptionPlatform, string>>;
   artworkSource?: 'existing' | 'generated';
   artworkUrl?: string | null;
   files: SocialKitFile[];
@@ -212,6 +219,8 @@ export interface SocialKitOptions {
   clipSec?: number;
   /** Where that excerpt starts (seconds into the recording). */
   clipStartSec?: number;
+  /** How many non-overlapping excerpts to render (1–3). */
+  clipCount?: number;
 }
 
 // ============================================================================
@@ -489,6 +498,19 @@ export class BridgeClient {
       method: 'POST',
       body: JSON.stringify({ improvisationId, platform, text }),
     }, 30000);
+  }
+
+  /** Mark (or unmark) a platform as posted, kept locally in the kit. */
+  async markSocialPosted(
+    improvisationId: string,
+    platform: SocialCaptionPlatform,
+    posted = true,
+  ): Promise<BridgeResponse<{ posted: Partial<Record<SocialCaptionPlatform, string>>; message: string }>> {
+    return this.request<{ posted: Partial<Record<SocialCaptionPlatform, string>>; message: string }>(
+      '/social/posted',
+      { method: 'POST', body: JSON.stringify({ improvisationId, platform, posted }) },
+      30000,
+    );
   }
 }
 

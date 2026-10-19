@@ -80,6 +80,16 @@ const PLATFORMS = [
   },
 ] as const;
 
+/** "2026-10-19T22:13:00Z" → "just now" / "12m ago" / "2d ago" */
+function timeAgo(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 /** YouTube captions keep the title on the first line; split it for the two fields. */
 function splitYouTube(text: string): { title: string; body: string } {
   const lines = text.split('\n');
@@ -123,7 +133,10 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showExcerpt, setShowExcerpt] = useState(false);
   const [clipSec, setClipSec] = useState('90');
+  const [clipCount, setClipCount] = useState('1');
   const [startAt, setStartAt] = useState('');
+  const [posted, setPosted] = useState<Partial<Record<SocialCaptionPlatform, string>>>({});
+  const [markingPosted, setMarkingPosted] = useState<SocialCaptionPlatform | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
   const title = useMemo(
@@ -146,6 +159,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     };
     setCaptions(complete);
     setSavedCaptions(complete);
+    setPosted(next.posted || {});
   }, []);
 
   // --- Load any existing kit (so re-opening the page is instant) ---
@@ -164,8 +178,14 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         );
         if (trimmed) {
           if (trimmed.clipSec) setClipSec(String(trimmed.clipSec));
-          setStartAt(fmt(trimmed.clipStartSec));
+          // Only pin a manual cut; auto excerpts should re-pick on rebuild.
+          setStartAt(trimmed.autoExcerpt ? '' : fmt(trimmed.clipStartSec));
         }
+        setClipCount(String(res.data.clipCount || 1));
+      } else {
+        setPosted({});
+        setClipCount('1');
+        setStartAt('');
       }
       setLoadingKit(false);
     });
@@ -190,6 +210,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       const res = await client.buildSocialKit(imp.id, {
         clipSec: Number(clipSec) || undefined,
         clipStartSec: parseTime(startAt) ?? undefined,
+        clipCount: Number(clipCount) || 1,
       });
       if (res.success && res.data) {
         applyKit(res.data);
@@ -200,7 +221,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     } finally {
       setBuilding(false);
     }
-  }, [client, imp.id, clipSec, startAt, applyKit]);
+  }, [client, imp.id, clipSec, clipCount, startAt, applyKit]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
@@ -245,6 +266,23 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       }
     } finally {
       setSavingCaption(false);
+    }
+  };
+
+  const handleTogglePosted = async (platform: SocialCaptionPlatform, next: boolean) => {
+    setMarkingPosted(platform);
+    try {
+      const res = await client.markSocialPosted(imp.id, platform, next);
+      if (res.success && res.data) {
+        setPosted(res.data.posted || {});
+        showSuccess(res.data.message || 'Updated');
+      } else {
+        showError(res.error || 'Could not update the post record');
+      }
+    } catch (e) {
+      showError(e instanceof Error ? e.message : 'Could not update the post record');
+    } finally {
+      setMarkingPosted(null);
     }
   };
 
@@ -295,7 +333,12 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const stills = (kit?.files || []).filter((f) => f.kind !== 'video');
   const longSong = (kit?.durationSec || 0) > 90;
   const trimmedVideos = videos.filter((v) => (v.clipStartSec || 0) > 0);
+  // 9:16 and 1:1 share the same cut — list each window once in the summary.
+  const trimmedWindows = [...new Map(
+    trimmedVideos.map((v) => [`${v.clipStartSec}-${v.clipSec}`, v]),
+  ).values()];
   const autoPicked = trimmedVideos.some((v) => v.autoExcerpt);
+  const postedCount = Object.keys(posted).length;
   const activeCaption = captions[captionTab] || '';
   const captionDirty = activeCaption !== (savedCaptions[captionTab] || '');
   const isImagePreview = !!previewName && /\.(png|jpe?g)$/i.test(previewName);
@@ -336,8 +379,11 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
             <Film className="w-5 h-5" /> Social Kit
+            {kit?.built && postedCount > 0 && (
+              <Badge variant="outline" className="ml-auto">{postedCount}/3 posted</Badge>
+            )}
             {kit?.built && (
-              <Badge variant="secondary" className="ml-auto flex items-center gap-1">
+              <Badge variant="secondary" className={`${postedCount > 0 ? '' : 'ml-auto'} flex items-center gap-1`}>
                 <Check className="w-3 h-3" /> Ready
               </Badge>
             )}
@@ -400,8 +446,8 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               <AlertDescription className="text-xs">
                 This recording is {fmt(kit?.durationSec)} — too long for Reels/TikTok/Shorts.
                 Those cuts are trimmed to a shareable excerpt
-                ({trimmedVideos.map((v) => `${fmt(v.clipStartSec)}–${fmt((v.clipStartSec || 0) + (v.clipSec || 0))}`).join(', ')}
-                {autoPicked ? ', picked automatically' : ''});
+                ({trimmedWindows.map((v) => `${fmt(v.clipStartSec)}–${fmt((v.clipStartSec || 0) + (v.clipSec || 0))}`).join(', ')}
+                {autoPicked ? ', strongest first' : ''});
                 the 16:9 YouTube file keeps the full piece.
               </AlertDescription>
             </Alert>
@@ -416,7 +462,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-3">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Clip length</label>
                     <Select value={clipSec} onValueChange={setClipSec}>
@@ -425,6 +471,17 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                         <SelectItem value="60">1:00</SelectItem>
                         <SelectItem value="90">1:30</SelectItem>
                         <SelectItem value="180">3:00</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Clips</label>
+                    <Select value={clipCount} onValueChange={setClipCount}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 clip</SelectItem>
+                        <SelectItem value="2">2 clips</SelectItem>
+                        <SelectItem value="3">3 clips</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -439,7 +496,8 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Applies to the Reels/TikTok and square cuts. Leave the start blank and the kit
-                  picks the most active passage. Songs shorter than the clip length are never trimmed.
+                  picks the most active passages — extra clips never overlap. Songs shorter than
+                  the clip length are never trimmed.
                 </p>
               </CollapsibleContent>
             </Collapsible>
@@ -554,19 +612,42 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {PLATFORMS.map((platform) => {
                   const Icon = platform.icon;
+                  const postedAt = posted[platform.captionPlatform];
+                  const busy = markingPosted === platform.captionPlatform;
                   return (
-                    <Button
-                      key={platform.key}
-                      variant="outline"
-                      className="h-auto py-3 flex-col items-start gap-1"
-                      onClick={() => handlePlatform(platform)}
-                    >
-                      <span className="flex items-center gap-2 font-medium">
-                        <Icon className="w-4 h-4" /> {platform.label}
-                        <ExternalLink className="w-3 h-3 opacity-60" />
-                      </span>
-                      <span className="text-xs text-muted-foreground text-left">{platform.fileHint}</span>
-                    </Button>
+                    <div key={platform.key} className="rounded-lg border p-3 space-y-2">
+                      <Button
+                        variant="outline"
+                        className="w-full h-auto py-2 flex-col items-start gap-1"
+                        onClick={() => handlePlatform(platform)}
+                      >
+                        <span className="flex items-center gap-2 font-medium">
+                          <Icon className="w-4 h-4" /> {platform.label}
+                          <ExternalLink className="w-3 h-3 opacity-60" />
+                        </span>
+                        <span className="text-xs text-muted-foreground text-left">{platform.fileHint}</span>
+                      </Button>
+                      <div className="flex items-center justify-between gap-2">
+                        {postedAt ? (
+                          <span className="flex items-center gap-1 text-xs text-green-600">
+                            <Check className="w-3 h-3" /> Posted {timeAgo(postedAt)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Not posted</span>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          disabled={busy}
+                          onClick={() => handleTogglePosted(platform.captionPlatform, !postedAt)}
+                        >
+                          {busy
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : postedAt ? 'Undo' : 'Mark posted'}
+                        </Button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
