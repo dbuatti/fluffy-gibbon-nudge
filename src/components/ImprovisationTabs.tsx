@@ -1,6 +1,7 @@
-import React from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles, Copy } from 'lucide-react';
+import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles, Copy, Cloud, Cpu, Palette } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -108,6 +109,70 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
   const hasArtwork = !!imp.artwork_url;
+
+  // Inline artwork generator state
+  const [genPrompt, setGenPrompt] = useState(imp.artwork_prompt || imp.generated_name || '');
+  const [genImage, setGenImage] = useState<string | null>(null);
+  const [genLoading, setGenLoading] = useState(false);
+  const [genMode, setGenMode] = useState<'cloudflare' | 'gemini'>('cloudflare');
+
+  const handleGenerateArtwork = async () => {
+    if (!genPrompt.trim()) {
+      showError('Enter a prompt first');
+      return;
+    }
+    setGenLoading(true);
+    setGenImage(null);
+    try {
+      const fn = genMode === 'cloudflare' ? 'generate-ai-artwork' : 'generate-ai-artwork-gemini';
+      const { data, error } = await supabase.functions.invoke(fn, {
+        body: { prompt: genPrompt.trim(), improvisationId: imp.id },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        showError(data.error);
+        return;
+      }
+      if (data?.image) {
+        setGenImage(data.image);
+        showSuccess('Artwork generated');
+      }
+    } catch (e: any) {
+      showError(e.message || 'Generation failed');
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const handleSaveGeneratedArtwork = async () => {
+    if (!genImage || !imp.id) return;
+    setGenLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+      const binary = atob(genImage);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'image/png' });
+      const path = `${user.id}/artwork/${imp.id}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('piano_improvisations')
+        .upload(path, blob, { upsert: true, contentType: 'image/png' });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('piano_improvisations').getPublicUrl(path);
+      const { error: updateError } = await supabase
+        .from('improvisations')
+        .update({ artwork_url: urlData.publicUrl, artwork_prompt: genPrompt })
+        .eq('id', imp.id);
+      if (updateError) throw updateError;
+      showSuccess('Artwork saved to improvisation');
+      handleRefetch();
+    } catch (e: any) {
+      showError(e.message || 'Failed to save artwork');
+    } finally {
+      setGenLoading(false);
+    }
+  };
 
   const handleDownloadArtwork = () => {
     if (imp.artwork_url) {
@@ -286,6 +351,87 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
           </CardContent>
         </Card>
         
+        {/* Inline Artwork Generator */}
+        <Card id="artwork-generator" className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> Generate Artwork from Song
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Uses the song's title, mood, and tags to generate abstract artwork. No need to leave this page.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                variant={genMode === 'cloudflare' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setGenMode('cloudflare')}
+                className="text-xs"
+              >
+                <Cloud className="h-3 w-3 mr-1" /> Cloudflare
+              </Button>
+              <Button
+                variant={genMode === 'gemini' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setGenMode('gemini')}
+                className="text-xs"
+              >
+                <Sparkles className="h-3 w-3 mr-1" /> Gemini
+              </Button>
+            </div>
+
+            <Textarea
+              value={genPrompt}
+              onChange={(e) => setGenPrompt(e.target.value)}
+              placeholder="Describe the artwork (auto-filled from song metadata)"
+              className="text-xs min-h-[60px] resize-none"
+            />
+
+            {genImage && (
+              <div className="relative w-full aspect-square rounded-lg overflow-hidden border border-primary/30 max-w-sm mx-auto">
+                <img src={`data:image/png;base64,${genImage}`} alt="Generated artwork" className="w-full h-full object-cover" />
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGenerateArtwork}
+                disabled={genLoading}
+                className="flex-1"
+                size="sm"
+              >
+                {genLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                {genLoading ? 'Generating...' : 'Generate'}
+              </Button>
+              {genImage && (
+                <Button
+                  onClick={handleSaveGeneratedArtwork}
+                  disabled={genLoading}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Palette className="h-4 w-4 mr-1" /> Save
+                </Button>
+              )}
+              {genImage && (
+                <Button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.download = `artwork-${imp.id}.png`;
+                    link.href = `data:image/png;base64,${genImage}`;
+                    link.click();
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* File Path Suggestion remains here as it relates to local file assets */}
         <FilePathSuggestion 
             generatedName={imp.generated_name}
