@@ -11,6 +11,8 @@ import {
   LinkIcon,
   RefreshCw,
   Settings,
+  Upload,
+  HardDrive,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,6 +177,38 @@ export const LocalBridgePanel: React.FC = () => {
     else showError(description || title);
   };
 
+  const handleUploadAudio = async () => {
+    setLoading(true);
+    try {
+      const res = await launchPicker({ mode: 'upload_audio' });
+      if (res?.success) {
+        showToast(true, 'Audio upload started', res.data?.message);
+      } else {
+        showToast(false, 'Upload failed', res?.error);
+      }
+    } catch (e) {
+      showToast(false, 'Error', String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncNAS = async () => {
+    setLoading(true);
+    try {
+      const res = await launchPicker({ mode: 'sync_nas' });
+      if (res?.success) {
+        showToast(true, 'NAS sync started', res.data?.message);
+      } else {
+        showToast(false, 'Sync failed', res?.error);
+      }
+    } catch (e) {
+      showToast(false, 'Error', String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!hasToken) {
     return (
       <>
@@ -287,6 +321,35 @@ export const LocalBridgePanel: React.FC = () => {
             mode="finish_take"
             onClick={() => handleLaunch('finish_take')}
             color="text-amber-600"
+            disabled={!connected || loading}
+            loading={loading}
+          />
+        </div>
+
+        <Separator />
+
+        {/* Audio & Video Actions */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Audio & Video</h4>
+
+          <WorkflowButton
+            icon={Upload}
+            label="Upload Latest Audio"
+            description="Find bounced audio in latest Logic project & upload to Composer Hub"
+            mode="upload_audio"
+            onClick={handleUploadAudio}
+            color="text-emerald-600"
+            disabled={!connected || loading}
+            loading={loading}
+          />
+
+          <WorkflowButton
+            icon={HardDrive}
+            label="Sync to NAS"
+            description="Copy local captures to Moon Prism backup (run when home)"
+            mode="sync_nas"
+            onClick={handleSyncNAS}
+            color="text-cyan-600"
             disabled={!connected || loading}
             loading={loading}
           />

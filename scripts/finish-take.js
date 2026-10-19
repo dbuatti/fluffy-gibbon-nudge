@@ -39,11 +39,17 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { uploadAudio, getEntryStatus } from './composer-hub.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
 const INBOX_DIR = '/Users/danielebuatti/Movies/_Inbox'; // point Meld's Local Destination here, once
 const MOVIES_DIR = '/Users/danielebuatti/Movies';
 const VIDEO_EXTENSIONS = new Set(['.mov', '.mp4', '.mkv', '.flv']);
+const AUDIO_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.aiff']);
 const STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 
 function allEntriesSorted(dirPath, filterFn) {
@@ -76,8 +82,89 @@ function sanitizeTitle(rawTitle) {
   return trimmed.replace(/[:\/]/g, '-').replace(/\s+/g, ' ');
 }
 
+async function uploadAudioOnlyMain() {
+  console.log('🎵 Upload Latest Audio — finding bounced audio...');
+
+  // Find newest Logic project
+  const newestLogic = newestEntry(
+    CAPTURES_DIR,
+    (entry) => entry.isDirectory() && entry.name.endsWith('.logicx')
+  );
+
+  if (!newestLogic) {
+    console.error(`No .logicx files found in ${CAPTURES_DIR}.`);
+    process.exit(1);
+  }
+
+  const logicProjectDir = path.join(CAPTURES_DIR, newestLogic.name);
+  const targetStem = newestLogic.name.replace(/\.logicx$/, '');
+
+  // Find bounced audio
+  const bouncesDir = path.join(logicProjectDir, 'Bounces');
+  let audioFile = null;
+
+  if (fs.existsSync(bouncesDir)) {
+    const files = fs.readdirSync(bouncesDir)
+      .filter(f => AUDIO_EXTENSIONS.has(path.extname(f).toLowerCase()))
+      .map(f => ({ name: f, fullPath: path.join(bouncesDir, f), mtime: fs.statSync(path.join(bouncesDir, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    if (files.length > 0) audioFile = files[0];
+  }
+
+  if (!audioFile && fs.existsSync(logicProjectDir)) {
+    const files = fs.readdirSync(logicProjectDir)
+      .filter(f => AUDIO_EXTENSIONS.has(path.extname(f).toLowerCase()))
+      .map(f => ({ name: f, fullPath: path.join(logicProjectDir, f), mtime: fs.statSync(path.join(logicProjectDir, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    if (files.length > 0) audioFile = files[0];
+  }
+
+  if (!audioFile) {
+    console.log('ℹ️  No bounced audio file found in Logic project.');
+    console.log('   Bounce your track in Logic (File > Bounce), then re-run.');
+    process.exit(0);
+  }
+
+  console.log(`🎵 Found: ${audioFile.name}`);
+
+  // Find matching entry in Supabase
+  const { getSyncSummary, uploadAudio } = await import('./composer-hub.js');
+  const syncResult = await getSyncSummary({ limit: 100 });
+
+  if (!syncResult.success) {
+    console.error('❌ Could not fetch sync status');
+    process.exit(1);
+  }
+
+  const match = syncResult.data.items.find(item =>
+    item.logicProjectPath?.includes(targetStem)
+  );
+
+  if (!match) {
+    console.error('❌ No matching Composer Hub entry found');
+    process.exit(1);
+  }
+
+  console.log(`📤 Uploading to: ${match.generatedName} (${match.id})`);
+  const uploadResult = await uploadAudio(match.id, audioFile.fullPath);
+
+  if (uploadResult.success) {
+    console.log(`✅ Uploaded: ${uploadResult.publicUrl}`);
+  } else {
+    console.error(`❌ Upload failed: ${uploadResult.error}`);
+    process.exit(1);
+  }
+}
+
 function main() {
-  const title = sanitizeTitle(process.argv[2]);
+  const args = process.argv.slice(2);
+  const uploadAudioOnly = args.includes('--upload-audio-only');
+  const title = sanitizeTitle(args.find(a => !a.startsWith('--')));
+
+  if (uploadAudioOnly) {
+    return uploadAudioOnlyMain();
+  }
+
   const newestLogic = newestEntry(
     CAPTURES_DIR,
     (entry) => entry.isDirectory() && entry.name.endsWith('.logicx')
@@ -128,6 +215,10 @@ function main() {
   fs.renameSync(newestVideo.fullPath, newVideoPath);
   console.log(`Moved:\n  ${INBOX_DIR}/${newestVideo.name}\n  -> ${newVideoPath}`);
   console.log(`Now paired with: ${newestLogic.name}`);
+
+  // --- Audio upload to Composer Hub ---
+  await uploadMatchingAudio(targetStem, newestLogic.name);
+
   // Anything else left in the inbox is presumably from an earlier session
   // where Finish Take didn't get run — surface it rather than let it pile
   // up silently, since only the single newest file is ever auto-handled.
@@ -153,6 +244,79 @@ function main() {
   // moved/renamed video in Finder, mirroring the Logic-file reveal that
   // already happens when a capture is created.
   console.log(`VIDEO_PATH: ${newVideoPath}`);
+}
+
+async function uploadMatchingAudio(targetStem, logicxName) {
+  try {
+    // Find the improvisation in Supabase by logic_project_path
+    const { getEntryStatus } = await import('./composer-hub.js');
+    const statusResult = await getEntryStatus(''); // We'll search by logic_project_path instead
+
+    // For now, search for bounced audio in the Logic project folder
+    const logicProjectDir = path.join(CAPTURES_DIR, logicxName);
+    const bouncesDir = path.join(logicProjectDir, 'Bounces');
+
+    let audioFile = null;
+
+    // Check Bounces folder first
+    if (fs.existsSync(bouncesDir)) {
+      const files = fs.readdirSync(bouncesDir)
+        .filter(f => AUDIO_EXTENSIONS.has(path.extname(f).toLowerCase()))
+        .map(f => ({ name: f, fullPath: path.join(bouncesDir, f), mtime: fs.statSync(path.join(bouncesDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      if (files.length > 0) {
+        audioFile = files[0];
+      }
+    }
+
+    // Fallback: check project root for bounced files
+    if (!audioFile && fs.existsSync(logicProjectDir)) {
+      const files = fs.readdirSync(logicProjectDir)
+        .filter(f => AUDIO_EXTENSIONS.has(path.extname(f).toLowerCase()))
+        .map(f => ({ name: f, fullPath: path.join(logicProjectDir, f), mtime: fs.statSync(path.join(logicProjectDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      if (files.length > 0) {
+        audioFile = files[0];
+      }
+    }
+
+    if (!audioFile) {
+      console.log('ℹ️  No bounced audio file found in Logic project. Upload manually in web app when ready.');
+      return;
+    }
+
+    console.log(`🎵 Found bounced audio: ${audioFile.name}`);
+
+    // Find matching improvisation by logic_project_path
+    const { getSyncSummary } = await import('./composer-hub.js');
+    const syncResult = await getSyncSummary({ limit: 100 });
+    if (!syncResult.success) {
+      console.log('⚠️  Could not fetch sync status to find matching entry');
+      return;
+    }
+
+    const match = syncResult.data.items.find(item =>
+      item.logicProjectPath?.includes(targetStem)
+    );
+
+    if (!match) {
+      console.log('⚠️  No matching Composer Hub entry found for this Logic project');
+      return;
+    }
+
+    console.log(`📤 Uploading audio to entry: ${match.generatedName} (${match.id})`);
+
+    const { uploadAudio } = await import('./composer-hub.js');
+    const uploadResult = await uploadAudio(match.id, audioFile.fullPath);
+
+    if (uploadResult.success) {
+      console.log(`✅ Audio uploaded: ${uploadResult.publicUrl}`);
+    } else {
+      console.log(`❌ Audio upload failed: ${uploadResult.error}`);
+    }
+  } catch (e) {
+    console.log(`⚠️  Audio upload skipped: ${e.message}`);
+  }
 }
 
 main();

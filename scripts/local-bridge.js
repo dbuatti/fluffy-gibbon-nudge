@@ -264,6 +264,26 @@ async function handleLaunchPicker(req, res, body) {
         break;
       }
 
+      case 'upload_audio': {
+        const output = await runScript('finish-take.js', ['--upload-audio-only']);
+        result = {
+          launched: true,
+          message: 'Audio upload initiated',
+          output: output.split('\n')[0],
+        };
+        break;
+      }
+
+      case 'sync_nas': {
+        const output = await runScript('sync-to-nas.js', ['--apply']);
+        result = {
+          launched: true,
+          message: 'NAS sync initiated',
+          output: output.split('\n')[0],
+        };
+        break;
+      }
+
       default:
         sendJson(res, 400, { success: false, error: `Unknown mode: ${mode}`, timestamp: new Date().toISOString() });
         return;

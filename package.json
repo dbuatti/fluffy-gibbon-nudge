@@ -15,7 +15,10 @@
     "ch:login": "node scripts/composer-hub-login.js",
     "ch:capture": "node scripts/composer-hub.js",
     "ch:prompt": "node scripts/composer-hub.js --prompt",
-    "ch:deploy": "node scripts/deploy-scripts.js"
+    "ch:deploy": "node scripts/deploy-scripts.js",
+    "ch:sync-nas": "node scripts/sync-to-nas.js",
+    "ch:sync-nas:apply": "node scripts/sync-to-nas.js --apply",
+    "ch:sync-nas:status": "node scripts/sync-to-nas.js --status"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

@@ -28,6 +28,7 @@ const FILES = [
   'meld-scene.js',
   'finish-take.js',
   'local-bridge.js',
+  'sync-to-nas.js',
 ];
 
 async function main() {
