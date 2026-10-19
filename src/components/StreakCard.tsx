@@ -16,7 +16,7 @@ const StreakCard: React.FC<StreakCardProps> = ({ streak, todayActivity }) => {
       "relative overflow-hidden h-full border shadow-card-light dark:shadow-card-dark transition-shadow hover:shadow-xl",
       active ? "border-orange-500/30 bg-gradient-to-br from-orange-50/80 to-amber-50/40 dark:from-orange-950/40 dark:to-amber-950/20" : "border-muted-foreground/20 bg-muted/50 dark:bg-muted/20"
     )}>
-      <div className="absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-orange-400/10 blur-2xl" aria-hidden />
+      <div className="absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-orange-400/10 blur-2xl pointer-events-none" aria-hidden />
       <CardHeader className="pb-2">
         <CardTitle className={cn(
           "text-lg font-bold flex items-center",

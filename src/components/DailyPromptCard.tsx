@@ -46,7 +46,8 @@ const DailyPromptCard: React.FC = () => {
 
   return (
     <Card className="relative overflow-hidden border-2 border-primary/20 bg-card shadow-card-light dark:shadow-card-dark transition-shadow hover:shadow-xl h-full">
-      <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-gradient-to-br from-primary/15 to-violet-600/15 blur-2xl" aria-hidden />
+      {/* Decorative glow — must not intercept clicks on the refresh button below */}
+      <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-gradient-to-br from-primary/15 to-violet-600/15 blur-2xl pointer-events-none" aria-hidden />
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-lg font-bold flex items-center text-primary">
           <span className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center mr-2.5">
