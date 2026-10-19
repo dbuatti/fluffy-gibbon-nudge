@@ -32,7 +32,7 @@ const GenerativeArt: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [paletteName, setPaletteName] = useState('Midnight Indigo');
   const [generating, setGenerating] = useState(false);
-  const [mode, setMode] = useState<'procedural' | 'ai'>('procedural');
+  const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
   const [aiImage, setAiImage] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
 
@@ -112,6 +112,39 @@ const GenerativeArt: React.FC = () => {
     }
   }, [prompt, improvisationId]);
 
+  const generateGemini = useCallback(async () => {
+    if (!prompt.trim()) {
+      showError('Enter a prompt first');
+      return;
+    }
+    setGenerating(true);
+    setAiImage(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-ai-artwork-gemini', {
+        body: { prompt: prompt.trim(), improvisationId: improvisationId || undefined },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        if (data.configured === false) {
+          showError('Gemini API key not configured.');
+          setAiConfigured(false);
+        } else {
+          showError(data.error);
+        }
+        return;
+      }
+      if (data?.image) {
+        setAiImage(data.image);
+        setAiConfigured(true);
+        showSuccess('Gemini artwork generated');
+      }
+    } catch (e: any) {
+      showError(e.message || 'Gemini generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  }, [prompt, improvisationId]);
+
   const randomize = useCallback(() => {
     const newParams = createParams({
       palette: PALETTES[paletteName],
@@ -133,7 +166,7 @@ const GenerativeArt: React.FC = () => {
   }, []);
 
   const handleDownload = () => {
-    if (mode === 'ai' && aiImage) {
+    if ((mode === 'cloudflare' || mode === 'gemini') && aiImage) {
       const link = document.createElement('a');
       link.download = `ai-art-${Date.now()}.png`;
       link.href = `data:image/png;base64,${aiImage}`;
@@ -152,7 +185,7 @@ const GenerativeArt: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
       let blob: Blob;
-      if (mode === 'ai' && aiImage) {
+      if ((mode === 'cloudflare' || mode === 'gemini') && aiImage) {
         const binary = atob(aiImage);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -217,7 +250,7 @@ const GenerativeArt: React.FC = () => {
             <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="relative bg-muted/30 flex items-center justify-center min-h-[400px]">
-                  {mode === 'ai' && aiImage ? (
+                  {(mode === 'cloudflare' || mode === 'gemini') && aiImage ? (
                     <img
                       src={`data:image/png;base64,${aiImage}`}
                       alt="AI generated artwork"
@@ -250,12 +283,20 @@ const GenerativeArt: React.FC = () => {
                   <Cpu className="h-3 w-3" /> Procedural
                 </Button>
                 <Button
-                  variant={mode === 'ai' ? 'default' : 'ghost'}
+                  variant={mode === 'cloudflare' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setMode('ai')}
+                  onClick={() => setMode('cloudflare')}
                   className="h-8 text-xs gap-1.5"
                 >
-                  <Cloud className="h-3 w-3" /> AI (Cloudflare)
+                  <Cloud className="h-3 w-3" /> Cloudflare
+                </Button>
+                <Button
+                  variant={mode === 'gemini' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setMode('gemini')}
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <Sparkles className="h-3 w-3" /> Gemini
                 </Button>
               </div>
               {mode === 'procedural' ? (
@@ -267,9 +308,13 @@ const GenerativeArt: React.FC = () => {
                     <Shuffle className="h-4 w-4" /> Randomize
                   </Button>
                 </>
-              ) : (
+              ) : mode === 'cloudflare' ? (
                 <Button onClick={generateAI} disabled={generating || !prompt.trim()} className="gap-2">
-                  <Sparkles className="h-4 w-4" /> Generate with AI
+                  <Sparkles className="h-4 w-4" /> Generate with Cloudflare
+                </Button>
+              ) : (
+                <Button onClick={generateGemini} disabled={generating || !prompt.trim()} className="gap-2">
+                  <Sparkles className="h-4 w-4" /> Generate with Gemini
                 </Button>
               )}
               <Button variant="outline" onClick={handleDownload} className="gap-2">
@@ -419,11 +464,11 @@ const GenerativeArt: React.FC = () => {
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={mode === 'ai' ? 'Describe the abstract artwork you want (e.g. "minimalist indigo and gold flow field, soft light, cinematic")' : 'Describe the mood, imagery, or feeling… (e.g. "a single line of sunlight cutting through smoke")'}
+                  placeholder={mode === 'procedural' ? 'Describe the mood, imagery, or feeling… (e.g. "a single line of sunlight cutting through smoke")' : 'Describe the abstract artwork you want (e.g. "minimalist indigo and gold flow field, soft light, cinematic")'}
                   className="text-xs min-h-[80px] resize-none"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {mode === 'ai' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID in Supabase secrets.' : 'The prompt influences the seed for reproducible variations.'}
+                  {mode === 'procedural' ? 'The prompt influences the seed for reproducible variations.' : mode === 'cloudflare' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID.' : 'Sent to Google Gemini 2.0 Flash. Requires GEMINI_API_KEY (already configured).'}
                 </p>
               </CardContent>
             </Card>
