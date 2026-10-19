@@ -371,9 +371,7 @@ export async function setupBridgeToken(): Promise<void> {
 // Real-time Sync Status Hook (Supabase Realtime)
 // ============================================================================
 
-import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
 
 interface RealtimeSyncItem {
   id: string;
