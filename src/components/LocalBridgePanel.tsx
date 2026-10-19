@@ -317,6 +317,7 @@ export const LocalBridgePanel: React.FC = () => {
         </div>
       </CardContent>
     </Card>
+    <LocalBridgeTokenSetup open={showTokenSetup} onClose={() => setShowTokenSetup(false)} />
   );
 };
 
