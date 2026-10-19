@@ -50,6 +50,31 @@ const LocalBridge: React.FC = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-primary" />
+                  NAS (Crystal Tokyo)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-xs space-y-2">
+                <p className="text-muted-foreground">Remote DSM: <code className="bg-muted px-1 rounded">https://100.124.90.53:5001</code></p>
+                <p className="text-muted-foreground">SMB mount: <code className="bg-muted px-1 rounded">smb://100.124.90.53</code></p>
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" className="text-xs" asChild>
+                    <a href={localStorage.getItem('composer-hub-nas-url') || 'https://100.124.90.53:5001'} target="_blank" rel="noopener noreferrer">
+                      Open DSM
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs" asChild>
+                    <a href="smb://100.124.90.53" target="_blank" rel="noopener noreferrer">
+                      Mount SMB
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
                   <Monitor className="h-4 w-4 text-primary" />
                   Terminal commands
                 </CardTitle>

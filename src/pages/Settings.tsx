@@ -1,22 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useSession } from '@/integrations/supabase/session-context';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Separator } from '@/components/ui/separator';
-import { User, Palette, Shield, Mail } from 'lucide-react';
+import { User, Palette, Shield, Mail, HardDrive, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { showSuccess } from '@/utils/toast';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const Settings: React.FC = () => {
   const { session } = useSession();
   const navigate = useNavigate();
+  const [nasUrl, setNasUrl] = useState(() => localStorage.getItem('composer-hub-nas-url') || 'https://100.124.90.53:5001');
+  const [nasSaved, setNasSaved] = useState(false);
 
   useEffect(() => {
     document.title = 'Settings - AI Composer Hub';
   }, []);
+
+  const handleSaveNasUrl = () => {
+    localStorage.setItem('composer-hub-nas-url', nasUrl);
+    setNasSaved(true);
+    showSuccess('NAS URL saved');
+    setTimeout(() => setNasSaved(false), 2000);
+  };
 
   const user = session?.user;
 
@@ -77,7 +88,49 @@ const Settings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Account Section */}
+      {/* NAS Configuration Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl">
+            <HardDrive className="w-5 h-5 mr-2 text-primary" />
+            NAS Configuration
+          </CardTitle>
+          <CardDescription>Crystal Tokyo (Synology) — remote access via Tailscale</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="nas-url">Remote NAS URL</Label>
+            <div className="flex gap-2">
+              <Input
+                id="nas-url"
+                type="url"
+                value={nasUrl}
+                onChange={(e) => setNasUrl(e.target.value)}
+                placeholder="https://100.124.90.53:5001"
+                className="flex-1"
+              />
+              <Button onClick={handleSaveNasUrl} variant="outline">
+                {nasSaved ? 'Saved!' : 'Save'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Access your Synology DSM from anywhere via Tailscale. Default: https://100.124.90.53:5001
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" asChild>
+              <a href={nasUrl} target="_blank" rel="noopener noreferrer">
+                <Globe className="w-4 h-4 mr-2" /> Open NAS (DSM)
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <a href="smb://100.124.90.53" target="_blank" rel="noopener noreferrer">
+                <HardDrive className="w-4 h-4 mr-2" /> Mount via SMB
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center text-xl">
