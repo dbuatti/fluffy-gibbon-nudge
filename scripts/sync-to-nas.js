@@ -115,7 +115,12 @@ function getNasSyncPath(captureName) {
   const match = captureName.match(/^(\d{8})/);
   const dateFolder = match ? match[1] : new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const sanitized = captureName.replace(/\.logicx$/, '').replace(/[^\w\s-]/g, '_');
-  return path.join(NAS_BASE, dateFolder, sanitized + '.logicx');
+  const result = path.join(NAS_BASE, dateFolder, sanitized + '.logicx');
+  // Security: ensure result is within NAS_BASE
+  if (!result.startsWith(NAS_BASE + path.sep) && result !== NAS_BASE) {
+    throw new Error(`Path traversal detected: ${captureName}`);
+  }
+  return result;
 }
 
 async function getSupabaseSyncStatus(session) {

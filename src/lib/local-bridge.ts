@@ -98,6 +98,15 @@ export interface BridgeStatusResponse {
 
 // --- Sync / Query (local script → Supabase) ---
 
+export interface NasStatusResponse {
+  mounted: boolean;
+  nasPath: string | null;
+  tailscaleConnected: boolean;
+  nasReachable: boolean;
+  nasIp: string | null;
+  nasCandidates: string[];
+}
+
 export interface SyncStatusRequest {
   // Optional filters
   status?: 'uploaded' | 'analyzing' | 'completed' | 'failed' | 'ready_for_release';
@@ -280,8 +289,12 @@ export class BridgeClient {
   }
 
   /** Open macOS mount dialog for the NAS (Moon Prism) */
-  async mountNas(): Promise<BridgeResponse<{ message: string }>> {
-    return this.request<{ message: string }>('/nas/mount', { method: 'POST' });
+  async mountNas(): Promise<BridgeResponse<{ message: string; mounted: boolean; candidates: string[] }>> {
+    return this.request<{ message: string; mounted: boolean; candidates: string[] }>('/nas/mount', { method: 'POST' });
+  }
+
+  async getNasStatus(): Promise<BridgeResponse<NasStatusResponse>> {
+    return this.request<NasStatusResponse>('/nas/status');
   }
 }
 

@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import ThemeToggle from './ThemeToggle';
 import { LocalBridgePanel } from './LocalBridgePanel';
+import { useLocalBridge } from '@/lib/local-bridge';
 
 interface NavItem {
   to: string;
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
 
 const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick }) => {
   const { session } = useSession();
+  const { connected } = useLocalBridge();
   const location = useLocation();
 
   const handleLogout = async () => {
@@ -81,7 +83,10 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
             >
               <item.icon className={cn("h-[18px] w-[18px]", active && "text-primary")} strokeWidth={2.2} />
               <span>{item.label}</span>
-              {active && (
+              {item.to === '/local-bridge' && (
+                <span className={cn('ml-auto h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-red-500')} title={connected ? 'Bridge connected' : 'Bridge disconnected'} />
+              )}
+              {active && item.to !== '/local-bridge' && (
                 <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
               )}
             </Link>
