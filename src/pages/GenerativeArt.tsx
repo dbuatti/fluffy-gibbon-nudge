@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders } from 'lucide-react';
+import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -32,6 +32,9 @@ const GenerativeArt: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [paletteName, setPaletteName] = useState('Midnight Indigo');
   const [generating, setGenerating] = useState(false);
+  const [mode, setMode] = useState<'procedural' | 'ai'>('procedural');
+  const [aiImage, setAiImage] = useState<string | null>(null);
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     document.title = 'Generative Art - AI Composer Hub';
@@ -76,6 +79,39 @@ const GenerativeArt: React.FC = () => {
     }, 50);
   }, [params, paletteName, prompt, seedLocked]);
 
+  const generateAI = useCallback(async () => {
+    if (!prompt.trim()) {
+      showError('Enter a prompt first');
+      return;
+    }
+    setGenerating(true);
+    setAiImage(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-ai-artwork', {
+        body: { prompt: prompt.trim(), improvisationId: improvisationId || undefined },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        if (data.configured === false) {
+          showError('Cloudflare Workers AI not configured. Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in Supabase secrets.');
+          setAiConfigured(false);
+        } else {
+          showError(data.error);
+        }
+        return;
+      }
+      if (data?.image) {
+        setAiImage(data.image);
+        setAiConfigured(true);
+        showSuccess('AI artwork generated');
+      }
+    } catch (e: any) {
+      showError(e.message || 'AI generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  }, [prompt, improvisationId]);
+
   const randomize = useCallback(() => {
     const newParams = createParams({
       palette: PALETTES[paletteName],
@@ -97,20 +133,36 @@ const GenerativeArt: React.FC = () => {
   }, []);
 
   const handleDownload = () => {
+    if (mode === 'ai' && aiImage) {
+      const link = document.createElement('a');
+      link.download = `ai-art-${Date.now()}.png`;
+      link.href = `data:image/png;base64,${aiImage}`;
+      link.click();
+      return;
+    }
     if (canvasRef.current) {
       downloadCanvas(canvasRef.current, `generative-art-${params.seed}.png`);
     }
   };
 
   const handleSaveToImprovisation = async () => {
-    if (!canvasRef.current || !improvisationId) return;
+    if (!improvisationId) return;
     setGenerating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not logged in');
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvasRef.current!.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image'))), 'image/png');
-      });
+      let blob: Blob;
+      if (mode === 'ai' && aiImage) {
+        const binary = atob(aiImage);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        blob = new Blob([bytes], { type: 'image/png' });
+      } else {
+        if (!canvasRef.current) throw new Error('No canvas');
+        blob = await new Promise<Blob>((resolve, reject) => {
+          canvasRef.current!.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image'))), 'image/png');
+        });
+      }
       const path = `${user.id}/artwork/${improvisationId}.png`;
       const { error: uploadError } = await supabase.storage
         .from('piano_improvisations')
@@ -165,11 +217,19 @@ const GenerativeArt: React.FC = () => {
             <Card className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="relative bg-muted/30 flex items-center justify-center min-h-[400px]">
-                  <canvas
-                    ref={canvasRef}
-                    className="max-w-full max-h-[70vh] object-contain"
-                    style={{ imageRendering: 'auto' }}
-                  />
+                  {mode === 'ai' && aiImage ? (
+                    <img
+                      src={`data:image/png;base64,${aiImage}`}
+                      alt="AI generated artwork"
+                      className="max-w-full max-h-[70vh] object-contain"
+                    />
+                  ) : (
+                    <canvas
+                      ref={canvasRef}
+                      className="max-w-full max-h-[70vh] object-contain"
+                      style={{ imageRendering: 'auto' }}
+                    />
+                  )}
                   {generating && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50">
                       <RefreshCw className="h-6 w-6 animate-spin text-primary" />
@@ -180,12 +240,38 @@ const GenerativeArt: React.FC = () => {
             </Card>
 
             <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <Button onClick={generate} disabled={generating} className="gap-2">
-                <Sparkles className="h-4 w-4" /> Generate
-              </Button>
-              <Button variant="outline" onClick={randomize} disabled={generating} className="gap-2">
-                <Shuffle className="h-4 w-4" /> Randomize
-              </Button>
+              <div className="flex items-center rounded-md border border-input bg-background p-0.5">
+                <Button
+                  variant={mode === 'procedural' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setMode('procedural')}
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <Cpu className="h-3 w-3" /> Procedural
+                </Button>
+                <Button
+                  variant={mode === 'ai' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setMode('ai')}
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <Cloud className="h-3 w-3" /> AI (Cloudflare)
+                </Button>
+              </div>
+              {mode === 'procedural' ? (
+                <>
+                  <Button onClick={generate} disabled={generating} className="gap-2">
+                    <Sparkles className="h-4 w-4" /> Generate
+                  </Button>
+                  <Button variant="outline" onClick={randomize} disabled={generating} className="gap-2">
+                    <Shuffle className="h-4 w-4" /> Randomize
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={generateAI} disabled={generating || !prompt.trim()} className="gap-2">
+                  <Sparkles className="h-4 w-4" /> Generate with AI
+                </Button>
+              )}
               <Button variant="outline" onClick={handleDownload} className="gap-2">
                 <Download className="h-4 w-4" /> Download PNG
               </Button>
@@ -195,17 +281,21 @@ const GenerativeArt: React.FC = () => {
                 </Button>
               )}
               <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Seed:</span>
-                <code className="bg-muted px-2 py-0.5 rounded">{params.seed}</code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => setSeedLocked(!seedLocked)}
-                  title={seedLocked ? 'Unlock seed' : 'Lock seed'}
-                >
-                  {seedLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
-                </Button>
+                {mode === 'procedural' && (
+                  <>
+                    <span>Seed:</span>
+                    <code className="bg-muted px-2 py-0.5 rounded">{params.seed}</code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setSeedLocked(!seedLocked)}
+                      title={seedLocked ? 'Unlock seed' : 'Lock seed'}
+                    >
+                      {seedLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -329,11 +419,11 @@ const GenerativeArt: React.FC = () => {
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe the mood, imagery, or feeling… (e.g. 'a single line of sunlight cutting through smoke')"
+                  placeholder={mode === 'ai' ? 'Describe the abstract artwork you want (e.g. "minimalist indigo and gold flow field, soft light, cinematic")' : 'Describe the mood, imagery, or feeling… (e.g. "a single line of sunlight cutting through smoke")'}
                   className="text-xs min-h-[80px] resize-none"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  The prompt influences the seed for reproducible variations.
+                  {mode === 'ai' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID in Supabase secrets.' : 'The prompt influences the seed for reproducible variations.'}
                 </p>
               </CardContent>
             </Card>

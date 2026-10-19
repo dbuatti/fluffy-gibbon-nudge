@@ -187,7 +187,7 @@ async function checkNasMounted() {
 }
 
 async function handleMountNas(req, res) {
-  const candidates = ['smb://Crystal-Tokyo.local', 'smb://192.168.1.102'];
+  const candidates = ['smb://Crystal-Tokyo.local', 'smb://100.124.90.53', 'smb://192.168.1.102'];
   try {
     execFile('open', [candidates[0]], (err) => {
       if (err) execFile('open', [candidates[1]], () => {});

@@ -16,7 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,6 +82,22 @@ function checkNasMounted() {
   }
 }
 
+function tryMountNas() {
+  const candidates = ['smb://100.124.90.53/Moon%20Prism', 'smb://Crystal-Tokyo.local/Moon%20Prism', 'smb://192.168.1.102/Moon%20Prism'];
+  for (const url of candidates) {
+    try {
+      execFileSync('open', [url], { stdio: 'ignore', timeout: 5000 });
+      const start = Date.now();
+      while (Date.now() - start < 3000) {
+        if (checkNasMounted()) return true;
+      }
+    } catch {
+      // Try next candidate
+    }
+  }
+  return checkNasMounted();
+}
+
 function getLocalCaptures() {
   if (!fs.existsSync(LOCAL_CAPTURES_DIR)) return [];
   return fs.readdirSync(LOCAL_CAPTURES_DIR, { withFileTypes: true })
@@ -133,9 +149,13 @@ async function main() {
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN (use --apply to copy)' : 'APPLY'}`);
   console.log('');
 
-  // Check NAS
-  const nasMounted = checkNasMounted();
-  console.log(`NAS mounted: ${nasMounted ? '✅' : '❌'} (${nasMounted ? 'OK' : 'Not mounted at /Volumes/Moon Prism'})`);
+  // Check NAS - try to mount if not mounted
+  let nasMounted = checkNasMounted();
+  if (!nasMounted) {
+    console.log('NAS not mounted. Attempting to mount via Tailscale...');
+    nasMounted = tryMountNas();
+  }
+  console.log(`NAS mounted: ${nasMounted ? '✅' : '❌'} (${nasMounted ? 'OK' : 'Not mounted — check Tailscale connection'})`);
   if (!nasMounted) {
     console.log('\n❌ NAS not mounted. Mount it first, then re-run.');
     process.exit(1);
