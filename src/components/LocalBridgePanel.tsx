@@ -167,6 +167,7 @@ export const LocalBridgePanel: React.FC = () => {
 
   if (!hasToken) {
     return (
+      <>
       <Card className="border-orange-500/30 bg-orange-50/30 dark:bg-orange-900/10">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
@@ -185,6 +186,8 @@ export const LocalBridgePanel: React.FC = () => {
           </Button>
         </CardContent>
       </Card>
+      <LocalBridgeTokenSetup open={showTokenSetup} onClose={() => setShowTokenSetup(false)} />
+      </>
     );
   }
 
