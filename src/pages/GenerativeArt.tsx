@@ -29,7 +29,7 @@ const GenerativeArt: React.FC = () => {
   const [improvisationTags, setImprovisationTags] = useState<string[]>([]);
   const [params, setParams] = useState<ArtParams>(() => createParams());
   const [seedLocked, setSeedLocked] = useState(false);
-  const [prompt, setPrompt] = useState('Soft flowing organic shapes, gentle gradients, muted earth tones, calming texture, dreamy atmosphere');
+  const [prompt, setPrompt] = useState('blue and gold abstract texture');
   const [paletteName, setPaletteName] = useState('Calming Earth');
   const [generating, setGenerating] = useState(false);
   const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
@@ -470,11 +470,11 @@ const GenerativeArt: React.FC = () => {
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={mode === 'procedural' ? 'Describe the mood, imagery, or feeling… (e.g. "a single line of sunlight cutting through smoke")' : 'Describe the abstract artwork you want (e.g. "minimalist indigo and gold flow field, soft light, cinematic")'}
+                  placeholder={mode === 'procedural' ? 'Describe the mood, imagery, or feeling… (e.g. "a single line of sunlight cutting through smoke")' : 'Describe the abstract artwork (e.g. "blue and gold abstract texture")'}
                   className="text-xs min-h-[80px] resize-none"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {mode === 'procedural' ? 'The prompt influences the seed for reproducible variations.' : mode === 'cloudflare' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID.' : 'Sent to Google Gemini 2.0 Flash. Requires GEMINI_API_KEY (already configured).'}
+                  {mode === 'procedural' ? 'The prompt influences the seed for reproducible variations.' : mode === 'cloudflare' ? 'Sent to Cloudflare Workers AI (FLUX.1 Schnell). Try simple prompts like "blue and gold abstract texture".' : 'Sent to Google Gemini 2.0 Flash. Requires GEMINI_API_KEY (already configured).'}
                 </p>
                 {!prompt.trim() && mode !== 'procedural' && (
                   <p className="text-[10px] text-amber-600 mt-1">⚠ Enter a prompt to enable AI generation.</p>

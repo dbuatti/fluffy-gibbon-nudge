@@ -73,9 +73,14 @@ serve(async (req) => {
     if (!cfResponse.ok) {
       const errBody = await cfResponse.json().catch(() => ({}));
       console.error('Cloudflare API Error:', errBody);
+      const errorMsg = errBody.errors?.[0]?.message || `Cloudflare API error: HTTP ${cfResponse.status}`;
+      const isNsfw = errorMsg.toLowerCase().includes('nsfw');
       return new Response(JSON.stringify({
-        error: errBody.errors?.[0]?.message || `Cloudflare API error: HTTP ${cfResponse.status}`,
+        error: isNsfw
+          ? 'Cloudflare content filter flagged this prompt. Try rephrasing with more abstract terms (e.g., "abstract painting, soft curves, muted tones").'
+          : errorMsg,
         configured: true,
+        nsfw: isNsfw,
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
