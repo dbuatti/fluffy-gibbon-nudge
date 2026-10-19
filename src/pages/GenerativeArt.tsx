@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu } from 'lucide-react';
+import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu, Trash2, Database, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,14 @@ import {
   downloadCanvas,
   type ArtParams,
 } from '@/lib/generative-art';
+import {
+  saveToRepository,
+  listRepository,
+  deleteFromRepository,
+  base64ToBlob,
+  canvasToBlob,
+  type ArtRepositoryItem,
+} from '@/lib/art-repository';
 
 const GenerativeArt: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,6 +74,33 @@ const GenerativeArt: React.FC = () => {
   const [aiImage, setAiImage] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [history, setHistory] = useState<{ type: 'procedural' | 'cloudflare' | 'gemini'; image: string; prompt: string; seed?: number }[]>([]);
+  // Persistent repository — every generation is saved to Supabase Storage so
+  // nothing is wasted when the page reloads.
+  const [repoItems, setRepoItems] = useState<ArtRepositoryItem[]>([]);
+  const [repoLoading, setRepoLoading] = useState(false);
+  const [autoSave, setAutoSave] = useState(() => localStorage.getItem('art_autosave') !== 'off');
+
+  const toggleAutoSave = () => {
+    setAutoSave((v) => {
+      localStorage.setItem('art_autosave', v ? 'off' : 'on');
+      return !v;
+    });
+  };
+
+  const refreshRepository = useCallback(async () => {
+    setRepoLoading(true);
+    try {
+      setRepoItems(await listRepository(60));
+    } catch {
+      // Not logged in / offline — gallery just stays empty
+    } finally {
+      setRepoLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshRepository();
+  }, [refreshRepository]);
   // Cloudflare usage tracking
   const [cfUsage, setCfUsage] = useState<{ count: number; date: string }>(() => {
     try {
@@ -106,6 +141,23 @@ const GenerativeArt: React.FC = () => {
     })();
   }, [improvisationId]);
 
+  // Silently persist a generation to the repository. Failures are non-fatal
+  // (the image is still on screen / downloadable) — just log a toast.
+  const persistGeneration = useCallback(async (
+    blob: Blob,
+    mode: 'procedural' | 'cloudflare' | 'gemini',
+    usedPrompt: string,
+    seed?: number,
+  ) => {
+    if (!autoSave) return;
+    try {
+      const item = await saveToRepository({ blob, prompt: usedPrompt, mode, seed, improvisationId: improvisationId || undefined });
+      setRepoItems((h) => [item, ...h].slice(0, 60));
+    } catch {
+      // Silent — auto-save is best-effort; manual Download still works
+    }
+  }, [autoSave, improvisationId]);
+
   const generate = useCallback(() => {
     if (!canvasRef.current) return;
     setGenerating(true);
@@ -123,9 +175,13 @@ const GenerativeArt: React.FC = () => {
       // Save to history
       const dataUrl = canvasRef.current!.toDataURL('image/png');
       setHistory((h) => [{ type: 'procedural', image: dataUrl, prompt: prompt || '', seed: p.seed }, ...h].slice(0, 12));
+      // Persist to repository
+      canvasToBlob(canvasRef.current!, 'procedural')
+        .then((blob) => persistGeneration(blob, 'procedural', prompt || '', p.seed))
+        .catch(() => {});
       setGenerating(false);
     }, 50);
-  }, [params, paletteName, prompt, seedLocked]);
+  }, [params, paletteName, prompt, seedLocked, persistGeneration]);
 
   const generateAI = useCallback(async () => {
     if (!prompt.trim()) {
@@ -153,6 +209,8 @@ const GenerativeArt: React.FC = () => {
         setAiConfigured(true);
         setHistory((h) => [{ type: 'cloudflare', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('AI artwork generated');
+        // Persist to repository (FLUX returns PNG)
+        persistGeneration(base64ToBlob(data.image), 'cloudflare', prompt.trim()).catch(() => {});
         // Track usage
         setCfUsage((prev) => {
           const today = new Date().toISOString().slice(0, 10);
@@ -167,7 +225,7 @@ const GenerativeArt: React.FC = () => {
     } finally {
       setGenerating(false);
     }
-  }, [prompt, improvisationId]);
+  }, [prompt, improvisationId, persistGeneration]);
 
   const generateGemini = useCallback(async () => {
     if (!prompt.trim()) {
@@ -195,13 +253,14 @@ const GenerativeArt: React.FC = () => {
         setAiConfigured(true);
         setHistory((h) => [{ type: 'gemini', image: `data:image/png;base64,${data.image}`, prompt: prompt.trim() }, ...h].slice(0, 12));
         showSuccess('Gemini artwork generated');
+        persistGeneration(base64ToBlob(data.image), 'gemini', prompt.trim()).catch(() => {});
       }
     } catch (e: any) {
       showError(e.message || 'Gemini generation failed');
     } finally {
       setGenerating(false);
     }
-  }, [prompt, improvisationId]);
+  }, [prompt, improvisationId, persistGeneration]);
 
   const randomize = useCallback(() => {
     const newParams = createParams({
@@ -271,6 +330,50 @@ const GenerativeArt: React.FC = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleRestoreRepoItem = (item: ArtRepositoryItem) => {
+    if (item.mode === 'procedural' && item.seed) {
+      const p = createParams({ ...params, seed: Number(item.seed), prompt: item.prompt || undefined });
+      setParams(p);
+      setPrompt(item.prompt || '');
+      if (canvasRef.current) renderArt(canvasRef.current, p);
+      setMode('procedural');
+      setAiImage(null);
+    } else {
+      // AI images: load the stored file back into the preview
+      fetch(item.public_url)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            setAiImage(dataUrl.split(',')[1]);
+            setMode(item.mode === 'gemini' ? 'gemini' : 'cloudflare');
+            setPrompt(item.prompt || '');
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => showError('Could not load image'));
+    }
+    showSuccess('Restored from repository');
+  };
+
+  const handleDeleteRepoItem = async (item: ArtRepositoryItem) => {
+    try {
+      await deleteFromRepository(item);
+      setRepoItems((h) => h.filter((x) => x.id !== item.id));
+      showSuccess('Deleted from repository');
+    } catch (e: any) {
+      showError(e.message || 'Delete failed');
+    }
+  };
+
+  const downloadRepoItem = (item: ArtRepositoryItem) => {
+    const link = document.createElement('a');
+    link.download = `art-${item.mode}-${item.id.slice(0, 8)}.png`;
+    link.href = item.public_url;
+    link.click();
   };
 
   return (
@@ -564,10 +667,76 @@ const GenerativeArt: React.FC = () => {
           </div>
         </div>
 
-        {/* Gallery */}
+        {/* Persistent Repository — every generation is auto-saved here */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Database className="h-4 w-4 text-primary" /> Art Repository
+              {repoItems.length > 0 && <span className="text-sm font-normal text-muted-foreground">({repoItems.length})</span>}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1.5 text-xs"
+                onClick={toggleAutoSave}
+                title="Automatically save every generation to the repository"
+              >
+                {autoSave ? <ToggleRight className="h-4 w-4 text-emerald-500" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
+                Auto-save {autoSave ? 'On' : 'Off'}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={refreshRepository} disabled={repoLoading} title="Refresh repository">
+                <RefreshCw className={cn('h-3.5 w-3.5', repoLoading && 'animate-spin')} />
+              </Button>
+            </div>
+          </div>
+          {repoItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
+              {repoLoading ? 'Loading repository…' : 'Nothing saved yet — every generation lands here automatically so it\'s never lost.'}
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {repoItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="group relative aspect-square rounded-lg overflow-hidden border border-border hover:border-primary transition-colors cursor-pointer"
+                  onClick={() => handleRestoreRepoItem(item)}
+                  title={item.prompt || 'Generated artwork'}
+                >
+                  <img src={item.public_url} alt={item.prompt || 'Artwork'} className="w-full h-full object-cover" loading="lazy" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1 py-0.5 truncate">
+                    {item.mode === 'procedural' ? 'Procedural' : item.mode === 'cloudflare' ? 'Cloudflare' : 'Gemini'} {item.prompt?.substring(0, 24) || ''}
+                  </div>
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-6 w-6 bg-black/60 hover:bg-black/80 text-white"
+                      onClick={(e) => { e.stopPropagation(); downloadRepoItem(item); }}
+                      title="Download"
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="h-6 w-6 bg-black/60 hover:bg-destructive text-white"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRepoItem(item); }}
+                      title="Delete from repository"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Session-only strip (only shows generations from this page load) */}
         {history.length > 0 && (
           <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-3">Recent Generations</h2>
+            <h2 className="text-sm font-semibold mb-3 text-muted-foreground">This Session</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {history.map((item, i) => (
                 <button

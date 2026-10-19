@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { saveToRepository, base64ToBlob } from '@/lib/art-repository';
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles, Copy, Cloud, Cpu, Palette } from 'lucide-react';
@@ -137,6 +138,18 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
       if (data?.image) {
         setGenImage(data.image);
         showSuccess('Artwork generated');
+        // Auto-save to the repository so the generation is never wasted,
+        // even if not applied to this improvisation.
+        try {
+          await saveToRepository({
+            blob: base64ToBlob(data.image),
+            prompt: genPrompt.trim(),
+            mode: genMode,
+            improvisationId: imp.id,
+          });
+        } catch {
+          // Best-effort — the image is still viewable/downloadable above
+        }
       }
     } catch (e: any) {
       showError(e.message || 'Generation failed');
