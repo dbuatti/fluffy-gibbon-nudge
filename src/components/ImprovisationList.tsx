@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FilePen, Folder } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,7 +16,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { showSuccess, showError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import type { Improvisation, NoteTab } from '@/types/improvisation';
+import type { Improvisation } from '@/types/improvisation';
 import FolderPathLine from '@/components/FolderPathLine';
 
 const STALLED_THRESHOLD_HOURS = 24;
@@ -64,14 +64,55 @@ const getStatusBadge = (imp: Improvisation) => {
   }
 };
 
-// Notes Status Badge - less prominent
-const getNotesStatusBadge = (notes: NoteTab[] | null) => {
-  const hasContent = notes?.some(n => n.content && n.content.trim().length > 0);
-
-  if (hasContent) {
-    return <Badge variant="secondary" className="text-neutral-foreground"><FilePen className="w-3 h-3 mr-1" /> Notes</Badge>;
+/**
+ * Compact pipeline progress indicator — 5 dots showing where an idea sits:
+ * captured → notes → artwork → ready → submitted. Replaces a stack of badges
+ * with something scannable across a whole list. Tooltip lists each stage.
+ */
+const StageDots: React.FC<{ imp: Improvisation; className?: string }> = ({ imp, className }) => {
+  if (imp.status === 'analyzing') {
+    return (
+      <span title="AI analyzing…" className={cn("flex items-center", className)}>
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-warning" />
+      </span>
+    );
   }
-  return null;
+  if (imp.status === 'failed') {
+    return (
+      <span title="Processing failed" className={cn("flex items-center", className)}>
+        <XCircle className="h-3.5 w-3.5 text-destructive" />
+      </span>
+    );
+  }
+
+  const hasNotes = !!imp.notes?.some(n => n.content && n.content.trim().length > 0);
+  const submitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
+  const stages: [string, boolean][] = [
+    ['Idea captured', true],
+    ['Notes added', hasNotes],
+    ['Artwork ready', !!imp.artwork_url],
+    ['Ready for release', !!imp.is_ready_for_release],
+    ['Submitted to platforms', submitted],
+  ];
+  const doneCount = stages.filter(([, done]) => done).length;
+
+  return (
+    <div
+      className={cn("flex items-center gap-1", className)}
+      title={`Progress: ${doneCount}/5 stages — ${stages.map(([l, d]) => `${d ? '✓' : '○'} ${l}`).join('  ')}`}
+      aria-label={`Progress ${doneCount} of 5 stages`}
+    >
+      {stages.map(([label, done]) => (
+        <span
+          key={label}
+          className={cn(
+            "h-1.5 w-1.5 rounded-full transition-colors",
+            done ? "bg-primary" : "bg-muted-foreground/25",
+          )}
+        />
+      ))}
+    </div>
+  );
 };
 
 const getStatusAccent = (imp: Improvisation, isStalled: boolean) => {
@@ -83,7 +124,12 @@ const getStatusAccent = (imp: Improvisation, isStalled: boolean) => {
   return 'border-l-primary/25';
 };
 
-const getNextAction = (imp: Improvisation) => {
+/**
+ * Computes the single most useful next step for an improvisation.
+ * `tab` deep-links into the detail page so the button actually starts
+ * the work instead of dumping you on the generic overview.
+ */
+const getNextAction = (imp: Improvisation): { label: string; icon: typeof CheckCircle; color: string; tab: string | null } => {
   const hasNotes = imp.notes?.some(n => n.content && n.content.trim().length > 0);
   const hasArtworkPrompt = !!imp.artwork_prompt;
   const hasArtworkUrl = !!imp.artwork_url;
@@ -91,30 +137,34 @@ const getNextAction = (imp: Improvisation) => {
   const isSubmitted = !!imp.is_submitted_to_distrokid && !!imp.is_submitted_to_insight_timer;
 
   if (isSubmitted) {
-    return { label: 'View Submissions', icon: CheckCircle, color: 'text-success', type: 'manual' };
+    return { label: 'View Submissions', icon: CheckCircle, color: 'text-success', tab: 'analysis-distro' };
   }
 
   if (imp.status === 'analyzing') {
-    return { label: 'AI Analyzing...', icon: Clock, color: 'text-warning', type: 'ai' };
+    return { label: 'AI Analyzing…', icon: Clock, color: 'text-warning', tab: null };
   }
   if (imp.status === 'completed') {
     if (!hasNotes) {
-      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary', type: 'manual' };
+      return { label: 'Add Creative Notes', icon: NotebookText, color: 'text-primary', tab: 'creative-hub' };
     }
     if (!hasArtworkPrompt) {
-      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary', type: 'ai' };
+      return { label: 'Generate Artwork Prompt', icon: Palette, color: 'text-primary', tab: 'assets-downloads' };
     }
     // If artwork_prompt exists but artwork_url is null, it means artwork needs manual upload
     if (hasArtworkPrompt && !hasArtworkUrl) {
-      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary', type: 'manual' };
+      return { label: 'Upload Artwork', icon: ImageIcon, color: 'text-primary', tab: 'assets-downloads' };
     }
     if (!isReady) {
-      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success', type: 'manual' };
+      return { label: 'Mark Ready for Release', icon: CheckCircle, color: 'text-success', tab: 'analysis-distro' };
     }
-    return { label: 'Submit to DistroKid', icon: Send, color: 'text-success', type: 'manual' };
+    return { label: 'Submit to DistroKid', icon: Send, color: 'text-success', tab: 'analysis-distro' };
   }
-  
-  return { label: 'View Details', icon: ArrowRight, color: 'text-muted-foreground', type: 'manual' };
+  if (imp.status === 'failed') {
+    return { label: 'Inspect Failure', icon: AlertTriangle, color: 'text-destructive', tab: 'analysis-distro' };
+  }
+
+  // status === 'uploaded' — idea captured; open notes / next prep
+  return { label: 'Open Workflow', icon: ArrowRight, color: 'text-muted-foreground', tab: 'creative-hub' };
 };
 
 interface ImprovisationListProps {
@@ -273,24 +323,20 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
     return (
       <Card>
         <CardHeader className="pb-3">
-          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-6 w-48" />
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-start space-x-4 p-4 border rounded-lg">
-                <Skeleton className="h-20 w-20 rounded-md flex-shrink-0" />
-                <div className="flex-grow space-y-2">
-                  <Skeleton className="h-5 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                  <div className="flex gap-2 mt-2">
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                  </div>
-                </div>
+        <CardContent className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-lg border px-3 py-2">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-9 w-9 rounded-md flex-shrink-0" />
+              <div className="flex-grow min-w-0 space-y-1.5">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-1/3" />
               </div>
-            ))}
-          </div>
+              <Skeleton className="h-6 w-24 rounded-md flex-shrink-0" />
+            </div>
+          ))}
         </CardContent>
       </Card>
     );
@@ -356,43 +402,72 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
   return (
     <Card className="w-full shadow-card-light dark:shadow-card-dark">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-2xl font-semibold flex items-center gap-3">
-          Active Improvisations
-          <span className="text-sm font-medium text-muted-foreground bg-muted rounded-full px-3 py-1">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-3 pb-3">
+        <CardTitle className="text-xl font-semibold flex items-center gap-2.5 min-w-0">
+          <span className="truncate">Active Improvisations</span>
+          <span className="text-xs font-medium text-muted-foreground bg-muted rounded-full px-2.5 py-0.5 flex-shrink-0">
             {totalCount} total
           </span>
         </CardTitle>
-        <Button variant="ghost" size="sm" onClick={() => refetch()} title="Refresh improvisations" aria-label="Refresh improvisations">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <label
+            htmlFor="select-all"
+            className="flex items-center gap-2 text-sm text-muted-foreground mr-2 cursor-pointer select-none hover:text-foreground transition-colors"
+            title="Select all visible improvisations"
+          >
+            <Checkbox
+              id="select-all"
+              checked={sortedImprovisations.length > 0 && selectedImprovisations.size === sortedImprovisations.length}
+              onCheckedChange={(checked) => handleSelectAll(!!checked)}
+              className="h-4 w-4"
+            />
+            <span className="hidden sm:inline">Select all</span>
+          </label>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => refetch()} title="Refresh improvisations" aria-label="Refresh improvisations">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         {sortedImprovisations && sortedImprovisations.length > 0 ? (
           <>
             {/* Bulk Action Toolbar */}
             {hasSelectedItems && (
-                <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 dark:bg-primary/20 border border-primary/30 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox 
-                            id="select-all-toolbar"
-                            checked={selectedImprovisations.size === sortedImprovisations.length}
-                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                            className="h-5 w-5"
-                            title="Select all visible improvisations"
-                        />
-                        <label htmlFor="select-all-toolbar" className="text-sm font-medium leading-none text-primary-foreground">
-                            {selectedImprovisations.size} selected
-                        </label>
-                    </div>
-                    <div className="flex space-x-2">
+                <div className="flex items-center justify-between gap-2 p-2 pl-3 mb-3 bg-primary/10 dark:bg-primary/20 border border-primary/30 rounded-lg">
+                    <span className="text-sm font-medium text-primary">
+                        {selectedImprovisations.size} selected
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-muted-foreground"
+                            onClick={() => setSelectedImprovisations(new Set())}
+                        >
+                            Clear
+                        </Button>
+                        <Separator orientation="vertical" className="h-5" />
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-7 px-2.5 text-xs"
+                            onClick={handleBulkExport} 
+                            disabled={isExportingBulk}
+                        >
+                            {isExportingBulk ? (
+                                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                            ) : (
+                                <Download className="h-3.5 w-3.5 mr-1.5" />
+                            )}
+                            Export
+                        </Button>
                         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" disabled={isDeletingBulk}>
+                                <Button variant="destructive" size="sm" className="h-7 px-2.5 text-xs" disabled={isDeletingBulk}>
                                     {isDeletingBulk ? (
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                                     ) : (
-                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                                     )}
                                     Delete
                                 </Button>
@@ -412,114 +487,154 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-                        <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            onClick={handleBulkExport} 
-                            disabled={isExportingBulk}
-                        >
-                            {isExportingBulk ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <Download className="h-4 w-4 mr-2" />
-                            )}
-                            Export
-                        </Button>
-                        <Button variant="secondary" size="sm" disabled>Move</Button>
-                        {/* Add more bulk actions here */}
                     </div>
                 </div>
             )}
 
-            {/* Main Select All Checkbox (only if no items selected for toolbar) */}
-            {!hasSelectedItems && (
-                <div className="flex items-center space-x-2 mb-4 px-2">
-                    <Checkbox 
-                        id="select-all"
-                        checked={selectedImprovisations.size === sortedImprovisations.length && sortedImprovisations.length > 0}
-                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                        className="h-5 w-5"
-                        title="Select all visible improvisations"
-                    />
-                    <label htmlFor="select-all" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Select All
-                    </label>
-                </div>
-            )}
-
             <div className={cn(
-                "grid gap-4",
-                viewMode === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+                viewMode === 'grid'
+                  ? "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                  : "flex flex-col gap-1.5"
             )}>
               {sortedImprovisations.map((imp) => {
                 const isStalled = imp.status === 'uploaded' && differenceInHours(new Date(), new Date(imp.created_at)) >= STALLED_THRESHOLD_HOURS;
                 const nextAction = getNextAction(imp);
                 const Icon = nextAction.icon;
                 const isSelected = selectedImprovisations.has(imp.id);
-                const notesBadge = getNotesStatusBadge(imp.notes);
+                const title = imp.generated_name || imp.file_name || 'Untitled Idea';
+                const dateLabel = format(new Date(imp.created_at), 'MMM d, yyyy');
+                const openDetail = () => navigate(`/improvisation/${imp.id}${nextAction.tab ? `?tab=${nextAction.tab}` : ''}`);
+                const openDefault = () => navigate(`/improvisation/${imp.id}`);
 
+                if (viewMode === 'grid') {
+                  return (
+                    <Card
+                      key={imp.id}
+                      className={cn(
+                        "group cursor-pointer transition-all duration-200 hover:shadow-lg dark:hover:shadow-none hover:-translate-y-0.5 overflow-hidden",
+                        getStatusAccent(imp, isStalled),
+                        isSelected && 'ring-2 ring-primary border-primary'
+                      )}
+                      onClick={openDefault}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDefault(); } }}
+                    >
+                      <CardContent className="p-3.5 flex flex-col gap-2.5">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
+                            <Checkbox
+                              id={`select-g-${imp.id}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectImprovisation(imp.id, !!checked)}
+                              className="h-4 w-4"
+                              title={`Select: ${title}`}
+                            />
+                          </div>
+                          <Avatar className="h-9 w-9 rounded-md overflow-hidden border border-border/60 flex-shrink-0">
+                            <AvatarImage src={imp.artwork_url || undefined} alt="" className="object-cover" />
+                            <AvatarFallback className="rounded-md bg-muted">
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-semibold leading-snug line-clamp-2 flex items-start gap-1.5">
+                              {isStalled && <AlertTriangle className="w-3.5 h-3.5 mt-0.5 text-destructive flex-shrink-0" title="Stalled — captured but untouched" />}
+                              <span className="min-w-0 break-words">{title}</span>
+                            </h3>
+                            <FolderPathLine imp={imp} className="mt-1" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pl-8">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-muted-foreground border-border/60">
+                            {dateLabel}
+                          </Badge>
+                          <StageDots imp={imp} />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); nextAction.tab ? openDetail() : openDefault(); }}
+                          disabled={!nextAction.tab}
+                          className={cn(
+                            "ml-8 flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 -mx-2 transition-colors",
+                            nextAction.tab
+                              ? "hover:bg-accent cursor-pointer"
+                              : "opacity-60 cursor-default"
+                          )}
+                        >
+                          <Icon className={cn("h-3.5 w-3.5", nextAction.color)} />
+                          <span className={nextAction.color}>{nextAction.label}</span>
+                          {nextAction.tab && <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />}
+                        </button>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                // List view — dense single-row layout
                 return (
-                  <Card
+                  <div
                     key={imp.id}
                     className={cn(
-                      "relative group cursor-pointer transition-all duration-200 hover:shadow-xl dark:hover:shadow-none hover:-translate-y-0.5",
-                      "border-l-4",
+                      "group flex items-center gap-3 rounded-lg border px-3 py-2 cursor-pointer transition-colors",
                       getStatusAccent(imp, isStalled),
-                      isStalled && 'border-l-destructive',
-                      isSelected && 'border-2 border-primary ring-2 ring-primary/50',
-                      viewMode === 'list' && 'flex items-center p-4'
+                      isSelected && 'ring-1 ring-primary border-primary bg-primary/5'
                     )}
-                    onClick={() => navigate(`/improvisation/${imp.id}`)}
+                    style={{ borderLeftWidth: 3 }}
+                    onClick={openDefault}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDefault(); } }}
                   >
-                    <CardContent className={cn(
-                        "p-4 flex items-center space-x-4",
-                        viewMode === 'list' && 'w-full'
-                    )}>
-                      <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                            id={`select-${imp.id}`}
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectImprovisation(imp.id, !!checked)}
-                            className="h-5 w-5"
-                            title={`Select improvisation: ${imp.generated_name || imp.file_name || 'Untitled Idea'}`}
-                        />
-                      </div>
+                    <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                      <Checkbox
+                        id={`select-${imp.id}`}
+                        checked={isSelected}
+                        onCheckedChange={(checked) => handleSelectImprovisation(imp.id, !!checked)}
+                        className="h-4 w-4"
+                        title={`Select: ${title}`}
+                      />
+                    </div>
 
-                      <Avatar className="h-20 w-20 rounded-xl overflow-hidden border border-border/50 shadow-sm flex-shrink-0">
-                        <AvatarImage src={imp.artwork_url || undefined} alt={imp.generated_name || "Artwork"} className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary/10 to-violet-600/10">
-                          <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                        </AvatarFallback>
-                      </Avatar>
+                    <Avatar className="h-9 w-9 rounded-md overflow-hidden border border-border/60 flex-shrink-0">
+                      <AvatarImage src={imp.artwork_url || undefined} alt="" className="object-cover" />
+                      <AvatarFallback className="rounded-md bg-muted">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
 
-                      <div className="flex-grow space-y-1">
-                        <h3 className="font-semibold text-lg leading-tight flex items-center text-foreground">
-                            {isStalled && <AlertTriangle className="w-4 h-4 mr-2 text-destructive flex-shrink-0" />}
-                            {imp.generated_name || imp.file_name || 'Untitled Idea'}
-                        </h3>
-                        <FolderPathLine imp={imp} />
-                        <p className="text-sm text-muted-foreground">
-                            {format(new Date(imp.created_at), 'MMM dd, yyyy')}
-                        </p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {getStatusBadge(imp)}
-                            {notesBadge}
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="mt-3 h-8 px-3 text-sm justify-start w-fit hover:bg-accent"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/improvisation/${imp.id}`); }}
-                        >
-                            <Icon className={cn("w-4 h-4 mr-2", nextAction.color)} />
-                            <span className={cn("text-sm", nextAction.color)}>
-                                {nextAction.label}
-                            </span>
-                            <ArrowRight className="w-3 h-3 ml-2 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                        </Button>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold leading-tight flex items-center gap-1.5 min-w-0">
+                        {isStalled && <AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" title="Stalled — captured but untouched" />}
+                        <span className="truncate">{title}</span>
+                        {getStatusBadge(imp)}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                        <FolderPathLine imp={imp} className="min-w-0 flex-1" />
+                        <span className="text-[11px] text-muted-foreground/70 flex-shrink-0 whitespace-nowrap">{dateLabel}</span>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <StageDots imp={imp} className="hidden md:flex" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); nextAction.tab ? openDetail() : openDefault(); }}
+                        disabled={!nextAction.tab}
+                        title={nextAction.tab ? `Opens on: ${nextAction.label}` : nextAction.label}
+                        className={cn(
+                          "flex items-center gap-1.5 text-xs font-medium rounded-md px-2.5 py-1.5 max-w-[200px] transition-colors",
+                          nextAction.tab
+                            ? "hover:bg-accent cursor-pointer"
+                            : "opacity-60 cursor-default"
+                        )}
+                      >
+                        <Icon className={cn("h-3.5 w-3.5 flex-shrink-0", nextAction.color)} />
+                        <span className={cn("truncate hidden sm:inline", nextAction.color)}>{nextAction.label}</span>
+                        {nextAction.tab && <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:translate-x-0.5 transition-transform flex-shrink-0" />}
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
