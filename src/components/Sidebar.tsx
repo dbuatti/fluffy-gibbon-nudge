@@ -40,7 +40,7 @@ const SidebarContent: React.FC<{ onLinkClick?: () => void }> = ({ onLinkClick })
   const userInitial = email ? email.charAt(0).toUpperCase() : '?';
 
   return (
-    <div className="flex flex-col h-full p-4">
+    <div className="flex flex-col h-full p-4 overflow-y-auto">
       {/* Brand */}
       <div className="flex items-center justify-between mb-8">
         <Link to="/" onClick={onLinkClick} className="flex items-center space-x-2.5 group">
@@ -140,7 +140,7 @@ const Sidebar: React.FC = () => {
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-[280px] p-0 bg-sidebar dark:bg-sidebar">
+        <SheetContent side="left" className="w-[280px] p-0 bg-sidebar dark:bg-sidebar overflow-y-auto">
           <SidebarContent onLinkClick={() => setIsSheetOpen(false)} />
         </SheetContent>
       </Sheet>

@@ -36,7 +36,9 @@ export type WorkflowMode =
   | 'ig_story'
   | 'piano_improvisation'
   | 'deep_composition'
-  | 'finish_take';
+  | 'finish_take'
+  | 'upload_audio'
+  | 'sync_nas';
 
 export interface LaunchPickerRequest {
   mode: WorkflowMode;
@@ -259,13 +261,10 @@ export function useLocalBridge() {
 
   const checkConnection = useCallback(async () => {
     try {
-      console.log('[LocalBridge] Checking connection...');
       const res = await client.ping();
-      console.log('[LocalBridge] Ping result:', res);
       setConnected(res.success);
       if (res.success) {
         const statusRes = await client.getStatus();
-        console.log('[LocalBridge] Status result:', statusRes);
         if (statusRes.success && statusRes.data) {
           setStatus(statusRes.data);
         }
@@ -428,8 +427,6 @@ export function useRealtimeSyncStatus() {
           table: 'improvisations',
         },
         (payload) => {
-          console.log('[Realtime] Improvisation change:', payload.eventType, payload.new?.id);
-
           if (payload.eventType === 'INSERT' && payload.new) {
             setItems(prev => [payload.new as RealtimeSyncItem, ...prev.slice(0, 49)]);
           } else if (payload.eventType === 'UPDATE' && payload.new) {

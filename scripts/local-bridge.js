@@ -76,12 +76,19 @@ function loadConfig() {
 // Helpers
 // ============================================================================
 
-function sendJson(res, statusCode, data) {
+function getAllowedOrigin(req) {
+  const origin = req.headers.origin;
+  return origin && config.allowedOrigins.includes(origin) ? origin : config.allowedOrigins[0];
+}
+
+function sendJson(res, statusCode, data, req) {
+  const allowOrigin = getAllowedOrigin(req);
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': config.allowedOrigins.join(', '),
+    'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Vary': 'Origin',
   });
   res.end(JSON.stringify(data));
 }
@@ -168,7 +175,7 @@ async function checkNasMounted() {
 // ============================================================================
 
 async function handlePing(req, res) {
-  sendJson(res, 200, { success: true, data: { pong: true }, timestamp: new Date().toISOString() });
+  sendJson(res, 200, { success: true, data: { pong: true }, timestamp: new Date().toISOString() }, req);
 }
 
 async function handleStatus(req, res) {
@@ -190,7 +197,7 @@ async function handleStatus(req, res) {
       config: { port: config.port, allowedOrigins: config.allowedOrigins },
     },
     timestamp: new Date().toISOString(),
-  });
+  }, req);
 }
 
 async function handleLaunchPicker(req, res, body) {
@@ -285,7 +292,7 @@ async function handleLaunchPicker(req, res, body) {
       }
 
       default:
-        sendJson(res, 400, { success: false, error: `Unknown mode: ${mode}`, timestamp: new Date().toISOString() });
+        sendJson(res, 400, { success: false, error: `Unknown mode: ${mode}`, timestamp: new Date().toISOString() }, req);
         return;
     }
 
@@ -293,9 +300,9 @@ async function handleLaunchPicker(req, res, body) {
       success: true,
       data: { launched: true, mode, message: result.message, ...result },
       timestamp: new Date().toISOString(),
-    });
+    }, req);
   } catch (e) {
-    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() });
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
 
@@ -308,9 +315,9 @@ async function handleMeldScene(req, res, body) {
       success: true,
       data: { success: true, scene, message: `Meld scene switched to ${scene}` },
       timestamp: new Date().toISOString(),
-    });
+    }, req);
   } catch (e) {
-    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() });
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
 
@@ -323,9 +330,9 @@ async function handleOpenLogic(req, res, body) {
       success: true,
       data: { success: true, projectPath, message: `Opened Logic project: ${projectPath}` },
       timestamp: new Date().toISOString(),
-    });
+    }, req);
   } catch (e) {
-    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() });
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
 
@@ -340,16 +347,16 @@ async function handleSyncStatus(req, res, query) {
     };
     const result = await getSyncSummary(options);
     if (!result.success) {
-      sendJson(res, 500, { success: false, error: result.error, timestamp: new Date().toISOString() });
+      sendJson(res, 500, { success: false, error: result.error, timestamp: new Date().toISOString() }, req);
       return;
     }
     sendJson(res, 200, {
       success: true,
       data: result.data,
       timestamp: new Date().toISOString(),
-    });
+    }, req);
   } catch (e) {
-    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() });
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
   }
 }
 
@@ -361,13 +368,16 @@ async function startServer() {
   loadConfig();
 
   const server = http.createServer(async (req, res) => {
+    const allowedOrigin = getAllowedOrigin(req);
+
     // CORS preflight
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Origin': config.allowedOrigins.join(', '),
+        'Access-Control-Allow-Origin': allowedOrigin || config.allowedOrigins[0],
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Max-Age': '86400',
+        'Vary': 'Origin',
       });
       res.end();
       return;
@@ -402,10 +412,10 @@ async function startServer() {
         } else if (pathname === '/sync/status' && req.method === 'GET') {
           await handleSyncStatus(req, res, query);
         } else {
-          sendJson(res, 404, { success: false, error: 'Not found', timestamp: new Date().toISOString() });
+          sendJson(res, 404, { success: false, error: 'Not found', timestamp: new Date().toISOString() }, req);
         }
       } catch (e) {
-        sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() });
+        sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
       }
     });
   });

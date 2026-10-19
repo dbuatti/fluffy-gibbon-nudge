@@ -13,12 +13,12 @@ import {
   Settings,
   Upload,
   HardDrive,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useLocalBridge, useRealtimeSyncStatus } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 const WorkflowButton = ({
   icon: Icon,
   label,
-  description,
+  desc,
   mode,
   onClick,
   disabled,
@@ -36,7 +36,7 @@ const WorkflowButton = ({
 }: {
   icon: React.ElementType;
   label: string;
-  description: string;
+  desc: string;
   mode: string;
   onClick: () => void;
   disabled?: boolean;
@@ -46,7 +46,7 @@ const WorkflowButton = ({
   <Button
     variant="outline"
     className={cn(
-      'w-full justify-start gap-3 p-3 rounded-lg transition-colors',
+      'w-full justify-start gap-1.5 p-1.5 rounded-lg transition-colors',
       'hover:bg-primary/5 border-primary/20',
       'disabled:opacity-50 disabled:cursor-not-allowed'
     )}
@@ -54,14 +54,14 @@ const WorkflowButton = ({
     disabled={disabled || loading}
     style={{ borderColor: color }}
   >
-    <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0', `${color}/10`)}>
-      <Icon className="h-5 w-5" style={{ color }} />
+    <div className={cn('h-6 w-6 rounded-md flex items-center justify-center flex-shrink-0', `${color}/10`)}>
+      <Icon className="h-3 w-3" style={{ color }} />
     </div>
-    <div className="flex-1 min-w-0">
-      <div className="font-medium text-sm">{label}</div>
-      <div className="text-xs text-muted-foreground truncate">{description}</div>
+    <div className="flex-1 min-w-0 text-left">
+      <div className="font-medium text-xs truncate leading-tight">{label}</div>
+      <div className="text-[10px] text-muted-foreground truncate leading-tight">{desc}</div>
     </div>
-    {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+    {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground flex-shrink-0" />}
   </Button>
 );
 
@@ -82,6 +82,39 @@ const StatusIndicator = ({
   </div>
 );
 
+const CollapsibleSection = ({
+  title,
+  icon: Icon,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  title: string;
+  icon: React.ElementType;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) => (
+  <div className="border border-border/50 rounded-lg overflow-hidden">
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+      aria-expanded={isOpen}
+    >
+      <span className="flex items-center gap-2">
+        <Icon className="h-3 w-3 text-primary" />
+        {title}
+      </span>
+      <ChevronRight className={cn('h-3 w-3 text-muted-foreground transition-transform', isOpen && 'rotate-90')} />
+    </button>
+    {isOpen && (
+      <div className="px-3 pb-3 border-t border-border/50 animate-in slide-in-from-top-2 duration-150">
+        {children}
+      </div>
+    )}
+  </div>
+);
+
 const SyncStatusDisplay: React.FC = () => {
   const { items, counts, loading, error, refetch } = useRealtimeSyncStatus();
 
@@ -90,17 +123,17 @@ const SyncStatusDisplay: React.FC = () => {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-4 text-xs">
-        <Badge variant="outline" className="gap-1">
+      <div className="flex items-center gap-2 text-xs flex-wrap">
+        <Badge variant="outline" className="gap-1 text-[10px]">
           <CheckCircle className="h-3 w-3 text-green-600" />
           Ready: {counts.readyForRelease}
         </Badge>
-        <Badge variant="outline" className="gap-1">
+        <Badge variant="outline" className="gap-1 text-[10px]">
           <AlertTriangle className="h-3 w-3 text-amber-600" />
-          Stale (no audio): {counts.staleNoAudio}
+          Stale: {counts.staleNoAudio}
         </Badge>
-        <Badge variant="outline">Total: {counts.total}</Badge>
-        <Button variant="ghost" size="icon" onClick={refetch} disabled={loading} className="ml-auto">
+        <Badge variant="outline" className="text-[10px]">Total: {counts.total}</Badge>
+        <Button variant="ghost" size="icon" onClick={refetch} disabled={loading} className="h-6 w-6 ml-auto">
           <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
         </Button>
       </div>
@@ -155,8 +188,14 @@ export const LocalBridgePanel: React.FC = () => {
     else showError(description || title);
   };
 
+  // Collapsible sections
+  const [showSystem, setShowSystem] = useState(true);
+  const [showWorkflows, setShowWorkflows] = useState(true);
+  const [showAudio, setShowAudio] = useState(true);
+  const [showSync, setShowSync] = useState(true);
+  const [showConfig, setShowConfig] = useState(false);
+
   const handleUploadAudio = async () => {
-    setLoading(true);
     try {
       const res = await launchPicker({ mode: 'upload_audio' });
       if (res?.success) {
@@ -166,13 +205,10 @@ export const LocalBridgePanel: React.FC = () => {
       }
     } catch (e) {
       showToast(false, 'Error', String(e));
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleSyncNAS = async () => {
-    setLoading(true);
     try {
       const res = await launchPicker({ mode: 'sync_nas' });
       if (res?.success) {
@@ -182,8 +218,6 @@ export const LocalBridgePanel: React.FC = () => {
       }
     } catch (e) {
       showToast(false, 'Error', String(e));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -193,7 +227,7 @@ export const LocalBridgePanel: React.FC = () => {
       <Card className="border-orange-500/30 bg-orange-50/30 dark:bg-orange-900/10">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-            <AlertTriangle className="h-5 w-5" />
+            <AlertTriangle className="h-3 w-3" />
             Local Bridge Not Configured
           </CardTitle>
         </CardHeader>
@@ -203,7 +237,7 @@ export const LocalBridgePanel: React.FC = () => {
             recording sessions, opening Logic projects, and syncing status directly from here.
           </p>
           <Button variant="outline" className="w-full" onClick={() => setShowTokenSetup(true)}>
-            <Settings className="h-4 w-4 mr-2" />
+            <Settings className="h-3 w-3 mr-2" />
             Set Up Bridge Connection
           </Button>
         </CardContent>
@@ -219,14 +253,14 @@ export const LocalBridgePanel: React.FC = () => {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <TerminalSquare className="h-5 w-5 text-primary" />
+            <TerminalSquare className="h-3 w-3 text-primary" />
             Local Bridge
             <Badge variant={connected ? 'default' : 'destructive'} className="ml-2">
               {connected ? 'Connected' : 'Disconnected'}
             </Badge>
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={checkConnection} disabled={loading}>
-            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+            <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
           </Button>
         </div>
       </CardHeader>
@@ -251,7 +285,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={Video}
             label="TikTok / Shorts"
-            description="Streaming template + Meld TikTok scene + upload page"
+            desc="Streaming template + Meld TikTok scene + upload page"
             mode="tiktok"
             onClick={() => handleLaunch('tiktok')}
             color="text-pink-600"
@@ -262,7 +296,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={Video}
             label="IG Story (Quick Capture)"
-            description="Streaming template + Meld IG scene, no upload step"
+            desc="Streaming template + Meld IG scene, no upload step"
             mode="ig_story"
             onClick={() => handleLaunch('ig_story')}
             color="text-purple-600"
@@ -273,7 +307,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={Music}
             label="Piano Improvisation"
-            description="Felt/Piano template + daily prompt + Composer Hub entry"
+            desc="Felt/Piano template + daily prompt + Composer Hub entry"
             mode="piano_improvisation"
             onClick={() => handleLaunch('piano_improvisation', { sound: 'felt_piano', film: true })}
             color="text-blue-600"
@@ -284,7 +318,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={FolderOpen}
             label="Deep Composition"
-            description="Mount NAS + Logic/Sibelius templates + dated project folder"
+            desc="Mount NAS + Logic/Sibelius templates + dated project folder"
             mode="deep_composition"
             onClick={() => handleLaunch('deep_composition')}
             color="text-green-600"
@@ -295,7 +329,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={Zap}
             label="Finish Take"
-            description="Pair newest Logic capture with Meld video → Movies folder"
+            desc="Pair newest Logic capture with Meld video → Movies folder"
             mode="finish_take"
             onClick={() => handleLaunch('finish_take')}
             color="text-amber-600"
@@ -313,7 +347,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={Upload}
             label="Upload Latest Audio"
-            description="Find bounced audio in latest Logic project & upload to Composer Hub"
+            desc="Find bounced audio in latest Logic project & upload to Composer Hub"
             mode="upload_audio"
             onClick={handleUploadAudio}
             color="text-emerald-600"
@@ -324,7 +358,7 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={HardDrive}
             label="Sync to NAS"
-            description="Copy local captures to Moon Prism backup (run when home)"
+            desc="Copy local captures to Moon Prism backup (run when home)"
             mode="sync_nas"
             onClick={handleSyncNAS}
             color="text-cyan-600"
@@ -398,7 +432,7 @@ export const LocalBridgeTokenSetup: React.FC<{ open: boolean; onClose: () => voi
           <p className="text-sm text-muted-foreground">
             2. Copy the config below to <code className="bg-muted px-1 rounded">~/.config/composer-hub/bridge-config.json</code>
           </p>
-          <div className="p-3 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-auto max-h-40">
+          <div className="p-2 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-auto max-h-40">
             {JSON.stringify({
               token,
               port: 34567,
