@@ -51,48 +51,106 @@ serve(async (req) => {
       });
     }
 
-    // Try multiple model names (image generation support varies)
+    console.log(`Generating AI artwork with Gemini: "${prompt.substring(0, 80)}..."`);
+
+    // Try multiple models and methods for image generation
     const modelsToTry = [
-      'gemini-2.0-flash-exp',
-      'gemini-2.5-flash-preview-05-20',
-      'gemini-2.0-flash',
+      { model: 'gemini-2.0-flash-exp', method: 'generateContent' },
+      { model: 'gemini-2.5-flash-preview-05-20', method: 'generateContent' },
+      { model: 'imagen-3.0-generate-002', method: 'predict' },
     ];
 
-    let geminiResponse: Response | null = null;
+    let base64Image: string | null = null;
     let usedModel = '';
+    const errors: string[] = [];
 
-    for (const model of modelsToTry) {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-      console.log(`Trying Gemini model: ${model}`);
+    for (const { model, method } of modelsToTry) {
+      try {
+        let geminiUrl: string;
+        let requestBody: any;
 
-      const resp = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: {
-          'x-goog-api-key': geminiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseModalities: ['TEXT', 'IMAGE'],
+        if (method === 'predict') {
+          geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`;
+          requestBody = {
+            instances: [{ prompt: prompt }],
+            parameters: { sampleCount: 1 },
+          };
+        } else {
+          geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+          requestBody = {
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseModalities: ['TEXT', 'IMAGE'],
+            },
+          };
+        }
+
+        console.log(`Trying Gemini model: ${model} (${method})`);
+
+        const resp = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: {
+            'x-goog-api-key': geminiKey,
+            'Content-Type': 'application/json',
           },
-        }),
-      });
+          body: JSON.stringify(requestBody),
+        });
 
-      if (resp.ok) {
-        geminiResponse = resp;
-        usedModel = model;
-        break;
-      } else {
-        const errBody = await resp.json().catch(() => ({}));
-        console.log(`Model ${model} failed: ${resp.status} - ${errBody.error?.message || 'unknown'}`);
+        if (!resp.ok) {
+          const errBody = await resp.json().catch(() => ({}));
+          const errMsg = errBody.error?.message || `HTTP ${resp.status}`;
+          errors.push(`${model}: ${errMsg}`);
+          console.log(`Model ${model} failed: ${errMsg}`);
+          continue;
+        }
+
+        const data = await resp.json();
+
+        if (method === 'predict') {
+          const predictions = data.predictions || [];
+          if (predictions.length > 0 && predictions[0].bytesBase64Encoded) {
+            base64Image = predictions[0].bytesBase64Encoded;
+            usedModel = model;
+            break;
+          }
+        } else {
+          const parts = data.candidates?.[0]?.content?.parts || [];
+          for (const part of parts) {
+            if (part.inlineData?.data) {
+              base64Image = part.inlineData.data;
+              usedModel = model;
+              break;
+            }
+            if (part.inline_data?.data) {
+              base64Image = part.inline_data.data;
+              usedModel = model;
+              break;
+            }
+          }
+          if (base64Image) break;
+        }
+      } catch (e: any) {
+        errors.push(`${model}: ${e.message}`);
+        console.log(`Model ${model} exception: ${e.message}`);
       }
     }
 
-    if (!geminiResponse) {
+    if (!base64Image) {
+      console.error('Gemini no image. Errors:', errors);
+      const isLeaked = errors.some(e => e.includes('leaked'));
+      const isNotFound = errors.some(e => e.includes('not found') || e.includes('not supported'));
+      let errorMsg = 'No image returned from Gemini.';
+      if (isLeaked) {
+        errorMsg = 'Gemini API key was reported as leaked. Create a new API key at https://aistudio.google.com/apikey with image generation enabled.';
+      } else if (isNotFound) {
+        errorMsg = 'Gemini image generation models not available with this API key. Try Cloudflare mode instead, or create a new API key at https://aistudio.google.com/apikey.';
+      } else {
+        errorMsg += ' Errors: ' + errors.join('; ');
+      }
       return new Response(JSON.stringify({
-        error: 'No Gemini model available for image generation. Tried: ' + modelsToTry.join(', '),
+        error: errorMsg,
         configured: true,
+        debug: errors.join('; '),
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -101,35 +159,6 @@ serve(async (req) => {
 
     console.log(`Using Gemini model: ${usedModel}`);
 
-    const geminiData = await geminiResponse.json();
-
-    // Extract image from response parts
-    let base64Image: string | null = null;
-    const parts = geminiData.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData?.data) {
-        base64Image = part.inlineData.data;
-        break;
-      }
-      if (part.inline_data?.data) {
-        base64Image = part.inline_data.data;
-        break;
-      }
-    }
-
-    if (!base64Image) {
-      console.error('Gemini no image. Full response:', JSON.stringify(geminiData).substring(0, 1000));
-      return new Response(JSON.stringify({
-        error: 'No image returned from Gemini. The model may not support image generation for this prompt.',
-        configured: true,
-        debug: JSON.stringify(geminiData).substring(0, 500),
-      }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // If improvisationId provided, save artwork prompt
     if (improvisationId) {
       const { data: imp, error: fetchError } = await supabase
         .from('improvisations')
