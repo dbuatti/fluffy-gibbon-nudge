@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu, Trash2, Database, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu, Trash2, Database, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,14 @@ import {
   canvasToBlob,
   type ArtRepositoryItem,
 } from '@/lib/art-repository';
+import {
+  upscaleToMinSize,
+  toSquareExport,
+  downloadBlob,
+  getImageDimensions,
+  describeImage,
+  INSIGHT_TIMER_MIN_DIM,
+} from '@/lib/image-compliance';
 
 const GenerativeArt: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -143,6 +151,8 @@ const GenerativeArt: React.FC = () => {
 
   // Silently persist a generation to the repository. Failures are non-fatal
   // (the image is still on screen / downloadable) — just log a toast.
+  // AI images (FLUX caps at 1024) are upscaled to the Insight Timer minimum
+  // before storage, so everything in the repository is release-ready.
   const persistGeneration = useCallback(async (
     blob: Blob,
     mode: 'procedural' | 'cloudflare' | 'gemini',
@@ -151,7 +161,8 @@ const GenerativeArt: React.FC = () => {
   ) => {
     if (!autoSave) return;
     try {
-      const item = await saveToRepository({ blob, prompt: usedPrompt, mode, seed, improvisationId: improvisationId || undefined });
+      const ready = await upscaleToMinSize(blob, INSIGHT_TIMER_MIN_DIM);
+      const item = await saveToRepository({ blob: ready, prompt: usedPrompt, mode, seed, improvisationId: improvisationId || undefined });
       setRepoItems((h) => [item, ...h].slice(0, 60));
     } catch {
       // Silent — auto-save is best-effort; manual Download still works
@@ -295,6 +306,33 @@ const GenerativeArt: React.FC = () => {
     }
   };
 
+  // Export a 3000×3000 square JPEG — the format Insight Timer (and every
+  // other release platform) expects for cover art. Center-crops whatever is
+  // on screen (AI image or procedural canvas) so it survives the platform's
+  // three crop formats.
+  const [exporting, setExporting] = useState(false);
+  const handleExportRelease = async () => {
+    setExporting(true);
+    try {
+      let blob: Blob;
+      if ((mode === 'cloudflare' || mode === 'gemini') && aiImage) {
+        blob = base64ToBlob(aiImage);
+      } else if (canvasRef.current) {
+        blob = await canvasToBlob(canvasRef.current, 'procedural');
+      } else {
+        throw new Error('Nothing to export');
+      }
+      const square = await toSquareExport(blob);
+      downloadBlob(square, `cover-3000x3000-${Date.now()}.jpg`);
+      const dims = await getImageDimensions(square);
+      showSuccess(`Exported ${describeImage(square, dims)} — ready for Insight Timer`);
+    } catch (e: any) {
+      showError(e.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleSaveToImprovisation = async () => {
     if (!improvisationId) return;
     setGenerating(true);
@@ -313,10 +351,12 @@ const GenerativeArt: React.FC = () => {
           canvasRef.current!.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image'))), 'image/png');
         });
       }
-      const path = `${user.id}/artwork/${improvisationId}.png`;
+      // Guarantee release-platform minimums (Insight Timer: ≥1600×1600)
+      blob = await upscaleToMinSize(blob, INSIGHT_TIMER_MIN_DIM);
+      const path = `${user.id}/artwork/${improvisationId}.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('piano_improvisations')
-        .upload(path, blob, { upsert: true, contentType: 'image/png' });
+        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('piano_improvisations').getPublicUrl(path);
       const { error: updateError } = await supabase
@@ -480,6 +520,10 @@ const GenerativeArt: React.FC = () => {
               )}
               <Button variant="outline" onClick={handleDownload} className="gap-2">
                 <Download className="h-4 w-4" /> Download PNG
+              </Button>
+              <Button variant="outline" onClick={handleExportRelease} disabled={exporting} className="gap-2" title="3000×3000 square JPEG — meets Insight Timer's 1600×1600 minimum and crop formats">
+                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Export for Insight Timer
               </Button>
               {improvisationId && (
                 <Button variant="default" onClick={handleSaveToImprovisation} disabled={generating} className="gap-2">

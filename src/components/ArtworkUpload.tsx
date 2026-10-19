@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Upload, Loader2, Image as ImageIcon, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
+import { upscaleToMinSize } from '@/lib/image-compliance';
 import { useSession } from '@/integrations/supabase/session-context';
 
 interface ArtworkUploadProps {
@@ -12,8 +13,8 @@ interface ArtworkUploadProps {
   currentArtworkUrl: string | null;
 }
 
-// Max file size: 5 MB (5 * 1024 * 1024 bytes)
-const MAX_FILE_SIZE_BYTES = 5242880; 
+// Max file size: 20 MB — matches Insight Timer's artwork limit
+const MAX_FILE_SIZE_BYTES = 20971520; 
 
 const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUploadSuccess, currentArtworkUrl }) => {
   const { session } = useSession();
@@ -38,7 +39,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
 
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
         setFile(null);
-        showError('File size exceeds the 5MB limit. Please compress or use a smaller file.');
+        showError('File size exceeds the 20MB limit. Please compress or use a smaller file.');
         return;
     }
 
@@ -54,16 +55,32 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
     setIsUploading(true);
 
     const user = session.user;
-    const fileExtension = file.name.split('.').pop();
     // Path format: user_id/artwork/improvisation_id.ext
-    const filePath = `${user.id}/artwork/${improvisationId}.${fileExtension}`;
+    // (extension finalized after the upscale step below, since upscaling
+    //  re-encodes to JPEG)
+    const filePath = `${user.id}/artwork/${improvisationId}.${file.name.split('.').pop() || 'jpg'}`;
     const bucketName = 'piano_improvisations';
 
     try {
+      // 0. Guarantee release-platform minimums — Insight Timer rejects
+      //    anything under 1600×1600, so upscale small uploads automatically.
+      let blobToUpload: Blob = file;
+      let uploadPath = filePath;
+      try {
+        const upscaled = await upscaleToMinSize(file);
+        if (upscaled !== file) {
+          // Re-encoded to JPEG — make the extension match
+          blobToUpload = upscaled;
+          uploadPath = `${user.id}/artwork/${improvisationId}.jpg`;
+        }
+      } catch {
+        // If the image can't be decoded, upload as-is and let the server decide
+      }
+
       // 1. Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(filePath, file, {
+        .upload(uploadPath, blobToUpload, {
           cacheControl: '3600',
           upsert: true, // Use upsert to replace existing artwork for this improvisation
         });
@@ -71,7 +88,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
       if (uploadError) throw uploadError;
 
       // 2. Get the public URL of the uploaded file
-      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(uploadPath);
       const newArtworkUrl = publicUrlData.publicUrl;
 
       // 3. Update the existing improvisation record with the new artwork_url
@@ -82,7 +99,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
 
       if (dbError) {
         // If DB update fails, consider deleting the uploaded file to prevent orphaned files
-        await supabase.storage.from(bucketName).remove([filePath]);
+        await supabase.storage.from(bucketName).remove([uploadPath]);
         throw dbError;
       }
       
@@ -112,7 +129,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
         </h3>
         <p className="text-sm text-muted-foreground">
             If you have custom artwork, upload it here. This will override any AI-generated artwork.
-            (JPG/PNG, Max 5MB, 3000x3000 recommended)
+            (JPG/PNG, Max 20MB, min 1600×1600 — small images are auto-upscaled)
         </p>
         
         <Input 

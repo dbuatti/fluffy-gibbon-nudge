@@ -70,12 +70,15 @@ export function createParams(overrides: Partial<ArtParams> = {}): ArtParams {
 }
 
 function getDimensions(ar: ArtParams['aspectRatio']): [number, number] {
-  const base = 1024;
+  // The SHORT side must clear the 1600×1600 minimum that release platforms
+  // (Insight Timer etc.) require for cover art — so scale the base per ratio
+  // rather than assuming width is the short side.
+  const minShort = 1600;
   switch (ar) {
-    case '4:5': return [Math.round(base * 0.8), base];
-    case '16:9': return [Math.round(base * 1.778), base];
-    case '9:16': return [Math.round(base * 0.5625), base];
-    default: return [base, base];
+    case '4:5': { const w = minShort; return [w, Math.round(w * 1.25)]; }
+    case '16:9': { const h = minShort; return [Math.round(h * 1.778), h]; }
+    case '9:16': { const w = minShort; return [w, Math.round(w * 1.778)]; }
+    default: return [minShort * 1.28, minShort * 1.28]; // 2048×2048 square
   }
 }
 

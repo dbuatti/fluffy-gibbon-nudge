@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { saveToRepository, base64ToBlob } from '@/lib/art-repository';
+import { upscaleToMinSize, toSquareExport, downloadBlob, getImageDimensions, describeImage } from '@/lib/image-compliance';
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles, Copy, Cloud, Cpu, Palette } from 'lucide-react';
@@ -139,10 +140,12 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
         setGenImage(data.image);
         showSuccess('Artwork generated');
         // Auto-save to the repository so the generation is never wasted,
-        // even if not applied to this improvisation.
+        // even if not applied to this improvisation. Upscaled to the
+        // Insight Timer minimum before storage.
         try {
+          const ready = await upscaleToMinSize(base64ToBlob(data.image));
           await saveToRepository({
-            blob: base64ToBlob(data.image),
+            blob: ready,
             prompt: genPrompt.trim(),
             mode: genMode,
             improvisationId: imp.id,
@@ -167,11 +170,13 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
       const binary = atob(genImage);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'image/png' });
-      const path = `${user.id}/artwork/${imp.id}.png`;
+      let blob = new Blob([bytes], { type: 'image/png' });
+      // Guarantee release-platform minimums (Insight Timer: ≥1600×1600)
+      blob = await upscaleToMinSize(blob);
+      const path = `${user.id}/artwork/${imp.id}.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('piano_improvisations')
-        .upload(path, blob, { upsert: true, contentType: 'image/png' });
+        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('piano_improvisations').getPublicUrl(path);
       const { error: updateError } = await supabase
@@ -188,18 +193,24 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
     }
   };
 
-  const handleDownloadArtwork = () => {
-    if (imp.artwork_url) {
-      // The artwork_url is now the direct public URL
-      const link = document.createElement('a');
-      link.href = imp.artwork_url;
-      link.download = `${imp.generated_name || 'artwork'}_3000x3000.jpg`; 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showSuccess('Artwork downloaded!');
-    } else {
+  const handleDownloadArtwork = async () => {
+    if (!imp.artwork_url) {
       showError('No artwork available to download.');
+      return;
+    }
+    try {
+      // Fetch as blob so we can export a true 3000×3000 square JPEG —
+      // a cross-origin <a download> is ignored by browsers, and the stored
+      // file may be any size (AI generations are 1024 before upscaling).
+      const res = await fetch(imp.artwork_url);
+      if (!res.ok) throw new Error(`Could not fetch artwork (HTTP ${res.status})`);
+      const original = await res.blob();
+      const square = await toSquareExport(original);
+      downloadBlob(square, `${(imp.generated_name || 'artwork').replace(/[^\w\- ]+/g, '')}_3000x3000.jpg`);
+      const dims = await getImageDimensions(square);
+      showSuccess(`Downloaded ${describeImage(square, dims)} — Insight Timer ready`);
+    } catch (e: any) {
+      showError(e.message || 'Download failed');
     }
   };
   
