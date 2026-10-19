@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Upload, Loader2, Image as ImageIcon, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { showError, showSuccess } from '@/utils/toast';
-import { upscaleToMinSize } from '@/lib/image-compliance';
+import { upscaleToMinSize, toSquareExport, RELEASE_EXPORT_SIZE } from '@/lib/image-compliance';
 import { useSession } from '@/integrations/supabase/session-context';
 
 interface ArtworkUploadProps {
@@ -21,6 +22,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [prepareSquare, setPrepareSquare] = useState(true);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -63,15 +65,22 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
 
     try {
       // 0. Guarantee release-platform minimums — Insight Timer rejects
-      //    anything under 1600×1600, so upscale small uploads automatically.
+      //    anything under 1600×1600, so small uploads are upscaled
+      //    automatically. By default uploads also become a square
+      //    3000×3000 JPEG, the shape every release platform expects.
       let blobToUpload: Blob = file;
       let uploadPath = filePath;
       try {
-        const upscaled = await upscaleToMinSize(file);
-        if (upscaled !== file) {
-          // Re-encoded to JPEG — make the extension match
-          blobToUpload = upscaled;
+        if (prepareSquare) {
+          blobToUpload = await toSquareExport(file, RELEASE_EXPORT_SIZE);
           uploadPath = `${user.id}/artwork/${improvisationId}.jpg`;
+        } else {
+          const upscaled = await upscaleToMinSize(file);
+          if (upscaled !== file) {
+            // Re-encoded to JPEG — make the extension match
+            blobToUpload = upscaled;
+            uploadPath = `${user.id}/artwork/${improvisationId}.jpg`;
+          }
         }
       } catch {
         // If the image can't be decoded, upload as-is and let the server decide
@@ -103,7 +112,11 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
         throw dbError;
       }
       
-      showSuccess('Artwork uploaded and linked successfully!');
+      showSuccess(
+        blobToUpload !== file
+          ? `Artwork uploaded — release-ready ${prepareSquare ? `${RELEASE_EXPORT_SIZE}×${RELEASE_EXPORT_SIZE}` : 'upscaled'} JPEG`
+          : 'Artwork uploaded and linked successfully!',
+      );
       setFile(null); // Clear selected file
       onUploadSuccess(newArtworkUrl); // Notify parent component with the new URL
 
@@ -129,8 +142,24 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
         </h3>
         <p className="text-sm text-muted-foreground">
             If you have custom artwork, upload it here. This will override any AI-generated artwork.
-            (JPG/PNG, Max 20MB, min 1600×1600 — small images are auto-upscaled)
+            JPG/PNG, max 20 MB. Leave the release option on for a square 3000×3000 JPEG —
+            the format Insight Timer and streaming platforms expect. Small images are upscaled automatically.
         </p>
+
+        <label className="flex items-start gap-2 rounded-md border bg-background/60 p-2 text-sm cursor-pointer">
+            <Checkbox
+                checked={prepareSquare}
+                onCheckedChange={(checked) => setPrepareSquare(checked === true)}
+                disabled={isUploading}
+                className="mt-0.5"
+            />
+            <span>
+                <span className="font-medium">Prepare release art</span>
+                <span className="block text-xs text-muted-foreground">
+                    Centre-crop to a {RELEASE_EXPORT_SIZE}×{RELEASE_EXPORT_SIZE} square JPEG. Turn off to keep the original crop.
+                </span>
+            </span>
+        </label>
         
         <Input 
             id="artwork-file-attach" 
