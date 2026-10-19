@@ -65,7 +65,9 @@ const BUILD_PHASES = [
 ];
 
 const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
-  const { connected, client, getSocialKit, buildSocialKit } = useLocalBridge();
+  // Use the stable singleton client — the hook's wrapper functions are new
+  // identities on every render, which would re-trigger the load effect.
+  const { connected, client } = useLocalBridge();
   const [kit, setKit] = useState<SocialKit | null>(null);
   const [loadingKit, setLoadingKit] = useState(false);
   const [building, setBuilding] = useState(false);
@@ -86,7 +88,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     let cancelled = false;
     if (!connected || !imp.id) return;
     setLoadingKit(true);
-    getSocialKit(imp.id).then((res) => {
+    client.getSocialKit(imp.id).then((res) => {
       if (cancelled) return;
       if (res.success && res.data?.built) {
         setKit(res.data);
@@ -95,7 +97,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       setLoadingKit(false);
     });
     return () => { cancelled = true; };
-  }, [connected, imp.id, getSocialKit]);
+  }, [connected, imp.id, client]);
 
   // Advance the narrated phase while a build runs.
   useEffect(() => {
@@ -112,7 +114,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const handleBuild = useCallback(async () => {
     setBuilding(true);
     try {
-      const res = await buildSocialKit(imp.id);
+      const res = await client.buildSocialKit(imp.id);
       if (res.success && res.data) {
         setKit(res.data);
         setCaption(res.data.caption || '');
@@ -123,7 +125,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     } finally {
       setBuilding(false);
     }
-  }, [buildSocialKit, imp.id]);
+  }, [client, imp.id]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
