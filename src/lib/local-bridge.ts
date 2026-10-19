@@ -160,6 +160,36 @@ export interface SyncStatusResponse {
   };
 }
 
+// --- Social Kit ---
+
+export interface SocialKitFile {
+  name: string;
+  path: string;
+  kind: 'video' | 'image' | 'text';
+  /** Present on rendered videos: which platform cut this file is for. */
+  ratio?: 'reels' | 'feed' | 'youtube' | string;
+  ratioLabel?: string;
+  /** Trim window for long songs (seconds into the original). */
+  clipStartSec?: number;
+  clipSec?: number;
+  sizeMB?: number;
+}
+
+export interface SocialKit {
+  built: boolean;
+  folder: string | null;
+  title: string;
+  /** Full length of the source recording. */
+  durationSec?: number;
+  caption?: string;
+  artworkSource?: 'existing' | 'generated';
+  artworkUrl?: string | null;
+  files: SocialKitFile[];
+  /** How long the last build took (seconds). */
+  seconds?: number;
+  message?: string;
+}
+
 // ============================================================================
 // Client Helper (for web app)
 // ============================================================================
@@ -388,6 +418,42 @@ export class BridgeClient {
       body: JSON.stringify({ path: projectPath }),
     }, 120000);
   }
+
+  /** Get an existing social kit for a song (no rebuild). */
+  async getSocialKit(improvisationId: string): Promise<BridgeResponse<SocialKit>> {
+    return this.request<SocialKit>(`/social/kit?id=${encodeURIComponent(improvisationId)}`, {}, 30000);
+  }
+
+  /**
+   * Build a song's social kit: artwork + platform-ready videos, staged on the
+   * Mac's Desktop. Long-lead (art generation + up to three ffmpeg renders),
+   * so this call gets a very generous leash.
+   */
+  async buildSocialKit(improvisationId: string): Promise<BridgeResponse<SocialKit>> {
+    return this.request<SocialKit>('/social/build-kit', {
+      method: 'POST',
+      body: JSON.stringify({ improvisationId }),
+    }, 25 * 60 * 1000);
+  }
+
+  /**
+   * Fetch a staged kit file (video/image) as a Blob so it can be previewed
+   * in the browser. The bridge only serves files inside the Social folder.
+   */
+  async fetchSocialPreview(filePath: string): Promise<Blob | null> {
+    const headers: Record<string, string> = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    try {
+      const res = await this.fetchImpl(
+        `${this.baseUrl}/social/preview?p=${encodeURIComponent(filePath)}`,
+        { headers },
+      );
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  }
 }
 
 export interface LogicProject {
@@ -543,6 +609,14 @@ export function useLocalBridge() {
     return client.trashLocalLogicProject(projectPath);
   };
 
+  const getSocialKit = async (improvisationId: string) => {
+    return client.getSocialKit(improvisationId);
+  };
+
+  const buildSocialKit = async (improvisationId: string) => {
+    return client.buildSocialKit(improvisationId);
+  };
+
   return {
     client,
     connected,
@@ -562,6 +636,8 @@ export function useLocalBridge() {
     getLogicProjects,
     archiveLogicProject,
     trashLocalLogicProject,
+    getSocialKit,
+    buildSocialKit,
     setBridgeHost,
     host,
     latency,

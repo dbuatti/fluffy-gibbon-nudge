@@ -464,12 +464,13 @@ const ImprovisationDetails: React.FC = () => {
       
       {/* 2. TABS (MOVED HERE) */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full mb-6">
-        <TabsList className="flex w-full h-auto p-1 overflow-x-auto md:grid md:grid-cols-3">
+        <TabsList className="flex w-full h-auto p-1 overflow-x-auto md:grid md:grid-cols-4">
           <TabsTrigger value="creative-hub" className="text-base py-2">Creative Hub</TabsTrigger>
           <TabsTrigger id="assets-tab-trigger" value="assets-downloads" className="text-base py-2">Assets & Downloads</TabsTrigger>
           <TabsTrigger id="analysis-distro-tab" value="analysis-distro" className="text-base py-2">
             Distribution Prep {isAnalyzing && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
           </TabsTrigger>
+          <TabsTrigger id="social-tab-trigger" value="social" className="text-base py-2">Social</TabsTrigger>
         </TabsList>
         
         {/* 3. AUDIO PLAYER (MOVED BELOW TABS) */}

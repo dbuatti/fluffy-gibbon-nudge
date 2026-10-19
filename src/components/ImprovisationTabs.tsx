@@ -17,6 +17,7 @@ import AudioPlayer from './AudioPlayer';
 import PreFlightChecklist from './PreFlightChecklist';
 import DistroKidTab from './DistroKidTab';
 import InsightTimerTab from './InsightTimerTab';
+import SocialKitTab from './SocialKitTab';
 import { Input } from '@/components/ui/input';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
@@ -463,6 +464,14 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             primaryGenre={imp.primary_genre}
         />
         
+      </TabsContent>
+    );
+  }
+
+  if (currentTab === 'social') {
+    return (
+      <TabsContent value="social" className="space-y-8 mt-6">
+        <SocialKitTab imp={imp} />
       </TabsContent>
     );
   }

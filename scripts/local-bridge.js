@@ -881,6 +881,498 @@ async function handleTrashLocal(req, res, body) {
 }
 
 // ============================================================================
+// Social Kit — song → artwork + ratio-ready videos, staged for posting
+// ============================================================================
+
+// Where finished kits land. Desktop so drag-and-drop into an upload tab is
+// one motion — the whole point is "post with minimal thought".
+const SOCIAL_OUTPUT_DIR = '/Users/danielebuatti/Desktop/Social';
+// maxSec = the longest clip that platform accepts; 0 means "no limit, use the
+// whole song". Improvisations can run 20+ minutes, so the vertical/square
+// cuts are trimmed to a shareable excerpt (see pickExcerpt).
+const SOCIAL_RATIOS = [
+  { key: 'reels',   label: 'Reels / TikTok / Shorts (9:16)', w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 90 },
+  { key: 'feed',    label: 'Square feed (1:1)',              w: 1080, h: 1080, fileSuffix: '1x1',  maxSec: 90 },
+  { key: 'youtube', label: 'YouTube (16:9)',                 w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0 },
+];
+
+/** 95 → "1:35" */
+function formatTime(sec) {
+  const s = Math.max(0, Math.round(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Which slice of a long piece to use for a short-form clip. Improvisations
+ * usually settle after the opening minutes, so skip the first 15% and land
+ * inside the platform's limit. Returns { startSec, clipSec }.
+ */
+function pickExcerpt(durationSec, maxSec) {
+  if (!maxSec || durationSec <= maxSec) return { startSec: 0, clipSec: durationSec };
+  const startSec = Math.min(Math.round(durationSec * 0.15), Math.max(0, durationSec - maxSec));
+  return { startSec, clipSec: Math.min(maxSec, durationSec - startSec) };
+}
+
+/** Promisified execFile with a generous timeout — ffmpeg on a full song. */
+function runProcess(cmd, args, { timeoutMs = 10 * 60 * 1000 } = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        const detail = (stderr || err.message || '').split('\n').filter(Boolean).slice(-6).join(' | ');
+        reject(new Error(`${cmd} failed: ${detail}`));
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+}
+
+/** Media duration in seconds (0 if unreadable). */
+async function mediaDurationSec(file) {
+  try {
+    const { stdout } = await runProcess('ffprobe', [
+      '-v', 'error', '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1', file,
+    ], { timeoutMs: 30000 });
+    return Math.round(parseFloat(stdout.trim())) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** "20261017 Surviving The Storm" → "Surviving The Storm" for display/folders. */
+function stripDatePrefix(name) {
+  return (name || '').replace(/^\d{8}\s+/, '').trim() || (name || 'Untitled');
+}
+
+/** Filesystem-safe folder name. */
+function safeFolderName(name) {
+  return (name || 'Untitled').replace(/[/\\:\0]/g, '-').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Locate the MP3 for a song. Preference order:
+ *  1. The NAS Creation folder (nas_folder_path) — "(1.0)" wins, then newest.
+ *  2. The Supabase storage copy (storage_path), downloaded to a temp file.
+ */
+async function findSocialAudio(session, record) {
+  if (record.nas_folder_path && fs.existsSync(record.nas_folder_path)) {
+    const AUDIO_EXT = ['.mp3', '.m4a', '.wav', '.aac', '.aif', '.aiff'];
+    const clips = fs.readdirSync(record.nas_folder_path)
+      .filter((f) => AUDIO_EXT.includes(path.extname(f).toLowerCase()))
+      .map((f) => {
+        const full = path.join(record.nas_folder_path, f);
+        const ext = path.extname(f).toLowerCase();
+        return {
+          full,
+          mtime: fs.statSync(full).mtimeMs,
+          // A finished "(1.0)" take always beats raw DAW bounces and takes.
+          preferred: /\(1\.\d+\)/.test(f) ? 2 : ext === '.mp3' ? 1 : 0,
+        };
+      })
+      .sort((a, b) => (b.preferred - a.preferred) || (b.mtime - a.mtime));
+    if (clips.length) return { file: clips[0].full, source: 'nas' };
+  }
+
+  if (record.storage_path) {
+    const hub = await import('./composer-hub.js');
+    const url = `${hub.SUPABASE_URL}/storage/v1/object/public/piano_improvisations/${record.storage_path}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
+    if (res.ok) {
+      const tmp = path.join(os.tmpdir(), `social-audio-${Date.now()}.mp3`);
+      fs.writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+      return { file: tmp, source: 'storage' };
+    }
+  }
+
+  throw new Error(
+    record.nas_folder_path
+      ? `No MP3 found in ${record.nas_folder_path} — is the NAS mounted?`
+      : 'No audio found for this song (no NAS folder, no uploaded file).',
+  );
+}
+
+// Last-resort prompt. Deliberately bland: if the tailored prompt trips
+// Cloudflare's content filter, this one still produces a usable cover.
+const ART_PROMPT_SAFE =
+  'Abstract calming album artwork, soft organic flowing shapes, gentle diffused light, ' +
+  'muted dreamy palette, smooth gradients, painterly, no text, no logos, no geometric patterns, no people';
+
+/**
+ * Build a cover prompt from the song title — WITHOUT embedding the title.
+ * Cloudflare's filter is unpredictable on words like "storm", and a rejected
+ * prompt must never block a build. The title only seeds the choices, so the
+ * same song always gets the same art while different songs vary.
+ */
+function buildArtPrompt(title) {
+  const hash = [...(title || '')].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const shapes = [
+    'soft organic flowing shapes',
+    'slow rippling waves of colour',
+    'drifting mist and gentle light',
+    'tender overlapping brushstrokes',
+  ];
+  const palettes = [
+    'muted dusk palette of dusty rose and deep indigo',
+    'pale morning palette of soft cream and sage green',
+    'twilight palette of lavender, slate blue and warm amber',
+    'quiet palette of misty teal, blush and warm grey',
+  ];
+  return `Abstract calming album artwork for a piano improvisation, ` +
+    `${shapes[hash % shapes.length]}, ${palettes[hash % palettes.length]}, ` +
+    `painterly, soft focus, serene, no text, no logos, no geometric patterns, no people`;
+}
+
+/**
+ * Ensure there's artwork to render with:
+ *  - reuse improvisations.artwork_url when set (download it), else
+ *  - generate via the existing FLUX edge function, upload to Storage, and
+ *    write artwork_url back so the song page shows it too.
+ */
+async function ensureSocialArtwork(session, record, title) {
+  const hub = await import('./composer-hub.js');
+  const headers = {
+    apikey: hub.ANON_KEY,
+    Authorization: `Bearer ${session.access_token}`,
+  };
+
+  const downloadToFile = async (url, ext) => {
+    const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
+    if (!res.ok) throw new Error(`Could not download existing artwork (HTTP ${res.status})`);
+    const tmp = path.join(os.tmpdir(), `social-art-${Date.now()}.${ext}`);
+    fs.writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+    return tmp;
+  };
+
+  if (record.artwork_url) {
+    try {
+      const ext = record.artwork_url.toLowerCase().includes('.jpg') ? 'jpg' : 'png';
+      return { file: await downloadToFile(record.artwork_url, ext), source: 'existing' };
+    } catch (e) {
+      console.warn(`[social] existing artwork unusable (${e.message}) — generating fresh`);
+    }
+  }
+
+  const prompt = record.artwork_prompt || buildArtPrompt(title);
+
+  // Try the tailored prompt, then fall back to the bland one — a content
+  // filter rejection should degrade to "slightly generic cover", never to
+  // "build failed".
+  const attempts = [prompt, ART_PROMPT_SAFE].filter((p, i, a) => p && a.indexOf(p) === i);
+  let generated = null;
+  let lastError = null;
+  for (const attempt of attempts) {
+    console.log(`[social] generating artwork via FLUX: ${attempt.substring(0, 70)}…`);
+    const genRes = await fetch(`${hub.SUPABASE_URL}/functions/v1/generate-ai-artwork`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: attempt }),
+      signal: AbortSignal.timeout(120000),
+    });
+    const gen = await genRes.json().catch(() => ({}));
+    if (genRes.ok && gen.image) {
+      generated = { image: gen.image, prompt: attempt };
+      break;
+    }
+    lastError = gen.error || `Artwork generation failed (HTTP ${genRes.status})`;
+    console.warn(`[social] artwork attempt rejected: ${lastError}`);
+  }
+  if (!generated) throw new Error(lastError || 'Artwork generation failed');
+  const usedPrompt = generated.prompt;
+
+  const png = Buffer.from(generated.image, 'base64');
+  const tmp = path.join(os.tmpdir(), `social-art-${Date.now()}.png`);
+  fs.writeFileSync(tmp, png);
+
+  // Publish it (per-user storage folder, same bucket as the art repository)
+  // and link it to the improvisation. All best-effort — the local file is
+  // already safe, so a publish hiccup shouldn't fail the build.
+  let artworkUrl = null;
+  try {
+    const storagePath = `${session.user_id}/social/${Date.now()}-kit.png`;
+    const upRes = await fetch(`${hub.SUPABASE_URL}/storage/v1/object/piano_improvisations/${storagePath}`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'image/png' },
+      body: png,
+      signal: AbortSignal.timeout(60000),
+    });
+    if (upRes.ok) {
+      artworkUrl = `${hub.SUPABASE_URL}/storage/v1/object/public/piano_improvisations/${storagePath}`;
+      await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${record.id}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ artwork_url: artworkUrl, artwork_prompt: usedPrompt }),
+        signal: AbortSignal.timeout(15000),
+      });
+      // Mirror into the art repository so nothing is ever wasted (best-effort).
+      await fetch(`${hub.SUPABASE_URL}/rest/v1/art_repository`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          user_id: session.user_id,
+          storage_path: storagePath,
+          public_url: artworkUrl,
+          prompt: usedPrompt,
+          mode: 'cloudflare',
+          improvisation_id: record.id,
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+    }
+  } catch (e) {
+    console.warn(`[social] could not publish generated artwork: ${e.message}`);
+  }
+
+  return { file: tmp, source: 'generated', prompt: usedPrompt, artworkUrl };
+}
+
+/**
+ * Compose the still frame for one ratio: the artwork keeps its full shape in
+ * the centre, letterboxed with a blurred, zoomed copy of itself — the standard
+ * music-video look that works for any source aspect (square art → vertical).
+ *
+ * Done once per ratio as a single PNG. Encoding then reads a truly static
+ * image, so a 24-minute song costs seconds of CPU instead of minutes.
+ */
+async function composeSocialFrame(artFile, outFile, w, h) {
+  const filter =
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},boxblur=luma_radius=30:luma_power=2[bg];` +
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=decrease[fg];` +
+    `[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p,setsar=1[v]`;
+
+  await runProcess('ffmpeg', [
+    '-y', '-hide_banner', '-loglevel', 'error', '-nostdin',
+    '-i', artFile, '-filter_complex', filter, '-map', '[v]', '-frames:v', '1',
+    outFile,
+  ], { timeoutMs: 120000 });
+}
+
+/**
+ * Mux a composed still frame with the song. opts.startSec / opts.clipSec trim
+ * the audio (long improvisations → a shareable excerpt); trimmed clips get
+ * short fades so they don't start or stop mid-note.
+ */
+async function renderSocialVideo(audioFile, frameFile, outFile, opts = {}) {
+  const startSec = Math.max(0, opts.startSec || 0);
+  const clipSec = opts.clipSec || 0;
+  const trimmed = startSec > 0;
+
+  const fades = [];
+  if (trimmed) fades.push('afade=t=in:st=0:d=1.2');
+  if (clipSec > 4) fades.push(`afade=t=out:st=${(clipSec - 1.2).toFixed(2)}:d=1.2`);
+
+  const args = ['-y', '-hide_banner', '-loglevel', 'error', '-nostdin'];
+  // 1 fps input + -r 30 output: ffmpeg duplicates the still instead of
+  // re-decoding the PNG 30×/s, which is the difference between ~5 min and
+  // ~30 s on a 24-minute recording. Output is still proper 30 fps.
+  args.push('-loop', '1', '-framerate', '1', '-i', frameFile);
+  // Input-seek the audio only (fast, sample-accurate enough for music).
+  if (trimmed) args.push('-ss', String(startSec));
+  args.push('-i', audioFile);
+  args.push('-map', '0:v', '-map', '1:a');
+  args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-tune', 'stillimage', '-r', '30');
+  if (fades.length) args.push('-af', fades.join(','));
+  args.push('-c:a', 'aac', '-b:a', '192k');
+  if (clipSec > 0) args.push('-t', clipSec.toFixed(2));
+  args.push('-shortest', '-movflags', '+faststart', outFile);
+
+  await runProcess('ffmpeg', args, { timeoutMs: 20 * 60 * 1000 });
+}
+
+/** Caption template — title + a short line + hashtags, editable in the app. */
+function buildSocialCaption(title) {
+  const words = title.toLowerCase().split(/\s+/).filter((w) => w.length > 3 && !['with', 'that', 'this'].includes(w));
+  const derived = [...new Set(words.map((w) => `#${w.replace(/[^a-z0-9]/g, '')}`))].slice(0, 3);
+  const tags = ['#piano', '#improvisation', '#originalmusic', '#calmmusic', '#instrumental', ...derived].join(' ');
+  return `${title}\n\nA quiet piano improvisation.\n\n${tags}`;
+}
+
+async function handleSocialBuildKit(req, res, body) {
+  try {
+    const improvisationId = typeof body.improvisationId === 'string' ? body.improvisationId.trim() : '';
+    if (!/^[0-9a-f-]{36}$/i.test(improvisationId)) throw new Error('Missing or invalid improvisationId');
+
+    const hub = await import('./composer-hub.js');
+    const session = await hub.getSession();
+    if (!session) throw new Error('Not signed in on this Mac (run composer-hub-login)');
+
+    const headers = {
+      apikey: hub.ANON_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    };
+    const recRes = await fetch(
+      `${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}&select=id,generated_name,original_name,artwork_url,artwork_prompt,nas_folder_path,storage_path`,
+      { headers, signal: AbortSignal.timeout(15000) },
+    );
+    const [record] = recRes.ok ? await recRes.json() : [];
+    if (!record) throw new Error('Song not found');
+
+    const displayTitle = stripDatePrefix(record.original_name || record.generated_name || 'Untitled');
+    const startedAt = Date.now();
+    const step = (s) => console.log(`[social] ${displayTitle}: ${s}`);
+
+    step('finding audio…');
+    const audio = await findSocialAudio(session, record);
+    const durationSec = await mediaDurationSec(audio.file);
+    if (!durationSec) throw new Error('Could not read audio duration — is the file a valid MP3?');
+
+    step('preparing artwork…');
+    const art = await ensureSocialArtwork(session, record, displayTitle);
+
+    const folder = path.join(SOCIAL_OUTPUT_DIR, safeFolderName(displayTitle));
+    fs.mkdirSync(folder, { recursive: true });
+
+    const artCopy = path.join(folder, `${displayTitle} - artwork.png`);
+    fs.copyFileSync(art.file, artCopy);
+
+    const files = [];
+    const framesDir = path.join(os.tmpdir(), `social-frames-${Date.now()}`);
+    fs.mkdirSync(framesDir, { recursive: true });
+    for (const ratio of SOCIAL_RATIOS) {
+      const { startSec, clipSec } = pickExcerpt(durationSec, ratio.maxSec);
+      const where = startSec > 0
+        ? ` (excerpt ${formatTime(startSec)}–${formatTime(startSec + clipSec)})`
+        : '';
+      step(`rendering ${ratio.label}${where}…`);
+      const frameFile = path.join(framesDir, `${ratio.key}.png`);
+      await composeSocialFrame(art.file, frameFile, ratio.w, ratio.h);
+      const outFile = path.join(folder, `${displayTitle} - ${ratio.fileSuffix}.mp4`);
+      await renderSocialVideo(audio.file, frameFile, outFile, { startSec, clipSec });
+      files.push({
+        name: path.basename(outFile),
+        path: outFile,
+        kind: 'video',
+        ratio: ratio.key,
+        ratioLabel: ratio.label,
+        clipStartSec: startSec,
+        clipSec: Math.round(clipSec),
+        fullSec: durationSec,
+        sizeMB: Math.round((fs.statSync(outFile).size / (1024 * 1024)) * 10) / 10,
+      });
+    }
+    try { fs.rmSync(framesDir, { recursive: true, force: true }); } catch { /* temp dir */ }
+
+    const caption = buildSocialCaption(displayTitle);
+    const captionPath = path.join(folder, `${displayTitle} - caption.txt`);
+    fs.writeFileSync(captionPath, `${caption}\n`);
+    files.push({ name: path.basename(captionPath), path: captionPath, kind: 'text' });
+    files.push({ name: path.basename(artCopy), path: artCopy, kind: 'image' });
+
+    // Kit manifest so the app can restore state without rebuilding.
+    fs.writeFileSync(path.join(folder, 'kit.json'), JSON.stringify({
+      improvisationId, title: displayTitle, durationSec, caption,
+      artworkSource: art.source, builtAt: new Date().toISOString(),
+      files: files.map((f) => ({
+        name: f.name,
+        ratio: f.ratio || null,
+        ratioLabel: f.ratioLabel || null,
+        clipStartSec: f.clipStartSec ?? null,
+        clipSec: f.clipSec ?? null,
+        sizeMB: f.sizeMB ?? null,
+      })),
+    }, null, 2));
+
+    const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
+    step(`done in ${seconds}s`);
+
+    sendJson(res, 200, {
+      success: true,
+      data: {
+        title: displayTitle,
+        folder,
+        durationSec,
+        caption,
+        artworkSource: art.source,
+        artworkUrl: art.artworkUrl || record.artwork_url || null,
+        files,
+        seconds,
+        message: `Social kit ready: ${displayTitle} (${formatTime(durationSec)} song, ${files.filter((f) => f.kind === 'video').length} videos in ${seconds}s)`,
+      },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    console.error(`[social/build-kit] ${e.message}`);
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
+async function handleSocialKitStatus(req, res, query) {
+  try {
+    const improvisationId = query.get('id') || '';
+    if (!/^[0-9a-f-]{36}$/i.test(improvisationId)) throw new Error('Missing or invalid id');
+
+    const hub = await import('./composer-hub.js');
+    const session = await hub.getSession();
+    if (!session) throw new Error('Not signed in on this Mac (run composer-hub-login)');
+
+    const recRes = await fetch(
+      `${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}&select=id,generated_name,original_name`,
+      { headers: { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` }, signal: AbortSignal.timeout(15000) },
+    );
+    const [record] = recRes.ok ? await recRes.json() : [];
+    if (!record) throw new Error('Song not found');
+
+    const displayTitle = stripDatePrefix(record.original_name || record.generated_name || 'Untitled');
+    const folder = path.join(SOCIAL_OUTPUT_DIR, safeFolderName(displayTitle));
+    const kitJson = path.join(folder, 'kit.json');
+
+    if (!fs.existsSync(kitJson)) {
+      sendJson(res, 200, { success: true, data: { built: false, folder: null, title: displayTitle, files: [] }, timestamp: new Date().toISOString() }, req);
+      return;
+    }
+
+    const kit = JSON.parse(fs.readFileSync(kitJson, 'utf-8'));
+    const files = (kit.files || [])
+      .map((f) => {
+        const full = path.join(folder, f.name);
+        if (!fs.existsSync(full)) return null;
+        return {
+          name: f.name,
+          path: full,
+          kind: f.name.endsWith('.mp4') ? 'video' : f.name.endsWith('.png') ? 'image' : 'text',
+          ratio: f.ratio || undefined,
+          ratioLabel: f.ratioLabel || undefined,
+          clipStartSec: f.clipStartSec ?? undefined,
+          clipSec: f.clipSec ?? undefined,
+          sizeMB: f.sizeMB ?? Math.round((fs.statSync(full).size / (1024 * 1024)) * 10) / 10,
+        };
+      })
+      .filter(Boolean);
+
+    sendJson(res, 200, {
+      success: true,
+      data: { built: files.length > 0, folder, title: displayTitle, durationSec: kit.durationSec, caption: kit.caption, files },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
+/**
+ * Serve a staged kit file for in-app preview. The path must live inside the
+ * Social output dir — nothing else on this Mac is reachable.
+ */
+async function handleSocialPreview(req, res, query) {
+  try {
+    const raw = query.get('p') || '';
+    const resolved = path.resolve(raw);
+    if (!resolved.startsWith(`${SOCIAL_OUTPUT_DIR}/`) || resolved.includes('\u0000')) {
+      throw new Error('Invalid path');
+    }
+    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+      throw new Error('File not found');
+    }
+    const ext = path.extname(resolved).toLowerCase();
+    const contentType = ext === '.mp4' ? 'video/mp4' : ext === '.png' ? 'image/png' : ext === '.jpg' ? 'image/jpeg' : 'text/plain';
+    res.writeHead(200, { 'Content-Type': contentType, 'Content-Length': fs.statSync(resolved).size });
+    fs.createReadStream(resolved).pipe(res);
+  } catch (e) {
+    sendJson(res, 404, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
+// ============================================================================
 // HTTP Server
 // ============================================================================
 
@@ -959,6 +1451,12 @@ async function startServer() {
           await handleLogicArchive(req, res, parsedBody);
         } else if (pathname === '/logic/trash-local' && req.method === 'POST') {
           await handleTrashLocal(req, res, parsedBody);
+        } else if (pathname === '/social/build-kit' && req.method === 'POST') {
+          await handleSocialBuildKit(req, res, parsedBody);
+        } else if (pathname === '/social/kit' && req.method === 'GET') {
+          await handleSocialKitStatus(req, res, url.searchParams);
+        } else if (pathname === '/social/preview' && req.method === 'GET') {
+          await handleSocialPreview(req, res, url.searchParams);
         } else if (pathname === '/captures' && req.method === 'GET') {
           await handleListCaptures(req, res);
         } else if (pathname === '/captures/create-entry' && req.method === 'POST') {
@@ -993,6 +1491,9 @@ async function startServer() {
     console.log('  GET  /logic/projects          - List top-level Logic projects + archive status');
     console.log('  POST /logic/archive           - Archive a project to the NAS (copy + verify)');
     console.log('  POST /logic/trash-local       - Trash local copy after re-verifying the NAS copy');
+    console.log('  POST /social/build-kit        - Song → artwork + ratio-ready videos (staged on Desktop)');
+    console.log('  GET  /social/kit              - Existing kit status for a song');
+    console.log('  GET  /social/preview          - Stream a staged kit file for in-app preview');
     console.log('');
     console.log('Press Ctrl+C to stop');
   });
