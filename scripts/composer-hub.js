@@ -31,6 +31,16 @@ const SUPABASE_URL = 'https://rqesjpnhrjdjnrzdhzgw.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZXNqcG5ocmpkam5yemRoemd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzgwNzgsImV4cCI6MjA3NzYxNDA3OH0.NqFKBFI-l96hWOGNc8QxuQdaGKVmvzw6LDGO_MsIoQc';
 
 /**
+ * fetch with a timeout (default 30s) to prevent hung requests.
+ */
+function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+/**
  * Reads the cached refresh token and exchanges it for a fresh session.
  * Returns { access_token, user_id } or null if no valid session.
  */
@@ -46,7 +56,7 @@ async function getSession() {
 
   if (!auth.refresh_token) return null;
 
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
     headers: {
       'apikey': ANON_KEY,
@@ -103,7 +113,7 @@ async function captureIdea(title) {
   const datePrefix = localDatePrefix();
   const finalTitle = `${datePrefix} - ${title}`;
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/improvisations`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/improvisations`, {
     method: 'POST',
     headers: {
       'apikey': ANON_KEY,
@@ -145,7 +155,7 @@ async function getDailyPrompt() {
     return { success: false, error: 'Not logged in. Run: node composer-hub-login.js' };
   }
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-daily-prompt`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/functions/v1/generate-daily-prompt`, {
     method: 'POST',
     headers: {
       'apikey': ANON_KEY,
@@ -198,7 +208,7 @@ async function uploadAudio(improvisationId, filePath) {
   const fileBuffer = fs.readFileSync(filePath);
 
   // Upload to Supabase Storage
-  const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/piano_improvisations/${storagePath}`, {
+  const uploadRes = await fetchWithTimeout(`${SUPABASE_URL}/storage/v1/object/piano_improvisations/${storagePath}`, {
     method: 'POST',
     headers: {
       'apikey': ANON_KEY,
@@ -215,7 +225,7 @@ async function uploadAudio(improvisationId, filePath) {
   }
 
   // Update the improvisation record
-  const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}`, {
+  const updateRes = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}`, {
     method: 'PATCH',
     headers: {
       'apikey': ANON_KEY,
@@ -251,7 +261,7 @@ async function getPendingReleases() {
     return { success: false, error: 'Not logged in. Run: node composer-hub-login.js' };
   }
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${session.user_id}&status=eq.completed&is_ready_for_release=eq.true&order=created_at.desc`,
     {
       headers: {
@@ -282,7 +292,7 @@ async function getStaleIdeas(days = 7) {
 
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${session.user_id}&status=eq.uploaded&storage_path=is.null&created_at=lt.${cutoff}&order=created_at.desc`,
     {
       headers: {
@@ -311,7 +321,7 @@ async function getEntryStatus(id) {
     return { success: false, error: 'Not logged in. Run: node composer-hub-login.js' };
   }
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/improvisations?id=eq.${id}&user_id=eq.${session.user_id}`,
     {
       headers: {
@@ -341,12 +351,12 @@ async function getSyncSummary(options = {}) {
   }
 
   const { limit = 50, status, workflowMode } = options;
-  let query = `${SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${session.user_id}&select=id,generated_name,status,workflow_mode,file_name,storage_path,video_path,is_ready_for_release,created_at,nas_folder_path,logic_project_path&order=created_at.desc&limit=${limit}`;
+  let query = `${SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${encodeURIComponent(session.user_id)}&select=id,generated_name,status,workflow_mode,file_name,storage_path,video_path,is_ready_for_release,created_at,nas_folder_path,logic_project_path&order=created_at.desc&limit=${limit}`;
 
-  if (status) query += `&status=eq.${status}`;
-  if (workflowMode) query += `&workflow_mode=eq.${workflowMode}`;
+  if (status) query += `&status=eq.${encodeURIComponent(status)}`;
+  if (workflowMode) query += `&workflow_mode=eq.${encodeURIComponent(workflowMode)}`;
 
-  const res = await fetch(query, {
+  const res = await fetchWithTimeout(query, {
     headers: {
       'apikey': ANON_KEY,
       'Authorization': `Bearer ${session.access_token}`,

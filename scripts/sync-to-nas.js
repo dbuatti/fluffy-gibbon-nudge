@@ -34,13 +34,21 @@ const NAS_BASE = '/Volumes/Moon Prism/DBP/Backups/Logic';
 const DRY_RUN = process.argv.includes('--dry-run') || !process.argv.includes('--apply');
 const SHOW_STATUS = process.argv.includes('--status');
 
+
+function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
 async function getSession() {
   if (!fs.existsSync(AUTH_FILE)) return null;
   try {
     const auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
     if (!auth.refresh_token) return null;
 
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
       method: 'POST',
       headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: auth.refresh_token }),
@@ -95,8 +103,8 @@ function getNasSyncPath(captureName) {
 }
 
 async function getSupabaseSyncStatus(session) {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${session.user_id}&select=id,logic_project_path,nas_folder_path&logic_project_path=not.is.null`,
+  const res = await fetchWithTimeout(
+    `${SUPABASE_URL}/rest/v1/improvisations?user_id=eq.${encodeURIComponent(session.user_id)}&select=id,logic_project_path,nas_folder_path&logic_project_path=not.is.null`,
     { headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${session.access_token}` } }
   );
   if (!res.ok) throw new Error(`Supabase query failed: ${res.status}`);
@@ -104,7 +112,7 @@ async function getSupabaseSyncStatus(session) {
 }
 
 async function updateNasFolderPath(session, improvisationId, nasPath) {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}`,
     {
       method: 'PATCH',

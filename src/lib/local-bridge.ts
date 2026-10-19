@@ -178,17 +178,29 @@ export class BridgeClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const res = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      return { success: false, error: `HTTP ${res.status}: ${text}`, timestamp: new Date().toISOString() };
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        return { success: false, error: `HTTP ${res.status}: ${text}`, timestamp: new Date().toISOString() };
+      }
+
+      return res.json();
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        return { success: false, error: 'Request timed out', timestamp: new Date().toISOString() };
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
-
-    return res.json();
   }
 
   setToken(token: string) {
