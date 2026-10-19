@@ -67,8 +67,6 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         prompt: prompt,
-        // @ts-expect-error - Deno
-        num_steps: 4,
       }),
     });
 

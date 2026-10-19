@@ -19,7 +19,7 @@ export interface ArtParams {
   prompt?: string;          // optional text prompt (used as seed influence)
 }
 
-export const DEFAULT_PALETTE = ['#1a1a2e', '#16213e', '#0f3460', '#533483', '#e94560'];
+export const DEFAULT_PALETTE = ['#2c2416', '#4a3f2f', '#7a6b55', '#b8a88a', '#e8dcc8'];
 
 export const PALETTES: Record<string, string[]> = {
   'Midnight Indigo': ['#0a0a1a', '#1a1a3e', '#2d2d6b', '#533483', '#e94560'],
@@ -29,6 +29,9 @@ export const PALETTES: Record<string, string[]> = {
   'Blush & Slate': ['#1a1520', '#3d2e4a', '#6b4c7a', '#d4a5c9', '#f5e0f0'],
   'Forest Mist': ['#0a1a10', '#1a3d2e', '#2d6b4f', '#6bc9a0', '#d3f0e0'],
   'Monochrome': ['#000000', '#333333', '#666666', '#999999', '#ffffff'],
+  'Calming Earth': ['#2c2416', '#4a3f2f', '#7a6b55', '#b8a88a', '#e8dcc8'],
+  'Soft Dawn': ['#1a1520', '#3d2840', '#6b4060', '#c9a0b0', '#f0d8e0'],
+  'Gentle Ocean': ['#0a1520', '#1a2d40', '#3d5a7a', '#7a9ab8', '#c8dce8'],
 };
 
 // Seeded PRNG (mulberry32)
@@ -55,12 +58,12 @@ export function createParams(overrides: Partial<ArtParams> = {}): ArtParams {
   return {
     seed,
     palette: overrides.palette ?? DEFAULT_PALETTE,
-    complexity: overrides.complexity ?? 5,
-    flow: overrides.flow ?? 0.6,
-    texture: overrides.texture ?? 0.3,
-    contrast: overrides.contrast ?? 0.5,
-    organic: overrides.organic ?? 0.7,
-    density: overrides.density ?? 5,
+    complexity: overrides.complexity ?? 4,
+    flow: overrides.flow ?? 0.4,
+    texture: overrides.texture ?? 0.5,
+    contrast: overrides.contrast ?? 0.4,
+    organic: overrides.organic ?? 0.9,
+    density: overrides.density ?? 3,
     aspectRatio: overrides.aspectRatio ?? '1:1',
     prompt: overrides.prompt,
   };

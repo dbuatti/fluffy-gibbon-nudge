@@ -51,41 +51,57 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Generating AI artwork with Gemini 2.0 Flash: "${prompt.substring(0, 80)}..."`);
+    // Try multiple model names (image generation support varies)
+    const modelsToTry = [
+      'gemini-2.0-flash-exp',
+      'gemini-2.5-flash-preview-05-20',
+      'gemini-2.0-flash',
+    ];
 
-    // Gemini 2.0 Flash image generation
-    const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+    let geminiResponse: Response | null = null;
+    let usedModel = '';
 
-    const geminiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': geminiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
+    for (const model of modelsToTry) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      console.log(`Trying Gemini model: ${model}`);
+
+      const resp = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': geminiKey,
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
+          },
+        }),
+      });
 
-    if (!geminiResponse.ok) {
-      const errBody = await geminiResponse.json().catch(() => ({}));
-      console.error('Gemini API Error:', JSON.stringify(errBody));
+      if (resp.ok) {
+        geminiResponse = resp;
+        usedModel = model;
+        break;
+      } else {
+        const errBody = await resp.json().catch(() => ({}));
+        console.log(`Model ${model} failed: ${resp.status} - ${errBody.error?.message || 'unknown'}`);
+      }
+    }
+
+    if (!geminiResponse) {
       return new Response(JSON.stringify({
-        error: errBody.error?.message || `Gemini API error: HTTP ${geminiResponse.status}`,
+        error: 'No Gemini model available for image generation. Tried: ' + modelsToTry.join(', '),
         configured: true,
-        debug: errBody,
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log(`Using Gemini model: ${usedModel}`);
+
     const geminiData = await geminiResponse.json();
-    console.log('Gemini response keys:', Object.keys(geminiData));
-    console.log('Gemini candidates:', geminiData.candidates?.length);
 
     // Extract image from response parts
     let base64Image: string | null = null;

@@ -29,8 +29,8 @@ const GenerativeArt: React.FC = () => {
   const [improvisationTags, setImprovisationTags] = useState<string[]>([]);
   const [params, setParams] = useState<ArtParams>(() => createParams());
   const [seedLocked, setSeedLocked] = useState(false);
-  const [prompt, setPrompt] = useState('');
-  const [paletteName, setPaletteName] = useState('Midnight Indigo');
+  const [prompt, setPrompt] = useState('Soft flowing organic shapes, gentle gradients, muted earth tones, calming texture, dreamy atmosphere');
+  const [paletteName, setPaletteName] = useState('Calming Earth');
   const [generating, setGenerating] = useState(false);
   const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
   const [aiImage, setAiImage] = useState<string | null>(null);
