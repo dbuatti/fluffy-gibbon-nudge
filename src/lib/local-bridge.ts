@@ -241,6 +241,11 @@ export class BridgeClient {
   async ping(): Promise<BridgeResponse<{ pong: boolean }>> {
     return this.request<{ pong: boolean }>('/ping');
   }
+
+  /** Open macOS mount dialog for the NAS (Moon Prism) */
+  async mountNas(): Promise<BridgeResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/nas/mount', { method: 'POST' });
+  }
 }
 
 // Singleton instance for React hooks
@@ -325,6 +330,18 @@ export function useLocalBridge() {
     checkConnection();
   };
 
+  const mountNas = async () => {
+    const res = await client.mountNas();
+    if (res.success) {
+      showSuccess(res.data?.message || 'Mount dialog opened');
+      // Re-check connection after a delay to pick up new mount
+      setTimeout(checkConnection, 3000);
+    } else {
+      showError(res.error || 'Mount failed');
+    }
+    return res;
+  };
+
   return {
     client,
     connected,
@@ -336,6 +353,7 @@ export function useLocalBridge() {
     openLogic,
     getSyncStatus,
     configureToken,
+    mountNas,
     hasToken: client.hasToken(),
   };
 }

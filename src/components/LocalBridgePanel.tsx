@@ -153,6 +153,7 @@ const SyncStatusDisplay: React.FC = () => {
               )}
               {item.storage_path && <Music className="h-3 w-3 text-green-600" title="Has audio" />}
               {item.video_path && <Video className="h-3 w-3 text-blue-600" title="Has video" />}
+              {item.nas_folder_path && <HardDrive className="h-3 w-3 text-cyan-600" title="Backed up to NAS" />}
             </div>
           ))}
           {items.length > 8 && (
@@ -175,6 +176,7 @@ export const LocalBridgePanel: React.FC = () => {
     checkConnection,
     hasToken,
     configureToken,
+    mountNas,
   } = useLocalBridge();
   const [tokenInput, setTokenInput] = useState('');
   const [showTokenSetup, setShowTokenSetup] = useState(false);
@@ -276,6 +278,14 @@ export const LocalBridgePanel: React.FC = () => {
           </div>
         )}
 
+        {/* Disconnected help */}
+        {!connected && (
+          <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 space-y-1">
+            <p>Bridge not reachable. Restart it with:</p>
+            <code className="block bg-muted px-2 py-1 rounded text-[10px] font-mono">pm2 restart composer-hub-bridge</code>
+          </div>
+        )}
+
         <Separator />
 
         {/* Workflow Launcher Buttons */}
@@ -358,13 +368,30 @@ export const LocalBridgePanel: React.FC = () => {
           <WorkflowButton
             icon={HardDrive}
             label="Sync to NAS"
-            desc="Copy local captures to Moon Prism backup (run when home)"
+            desc={status?.nasMounted ? "Copy local captures to Moon Prism backup" : "NAS (Moon Prism) not mounted — connect to home network"}
             mode="sync_nas"
             onClick={handleSyncNAS}
             color="text-cyan-600"
-            disabled={!connected || loading}
+            disabled={!connected || loading || !status?.nasMounted}
             loading={loading}
           />
+
+          {!status?.nasMounted && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-1.5 text-xs"
+              onClick={async () => {
+                const res = await mountNas();
+                if (res?.success) showSuccess(res.data?.message || 'Mount dialog opened');
+                else showError(res?.error || 'Mount failed');
+              }}
+              disabled={!connected || loading}
+            >
+              <HardDrive className="h-3 w-3 text-cyan-600" />
+              Mount NAS (Moon Prism)
+            </Button>
+          )}
         </div>
 
         <Separator />

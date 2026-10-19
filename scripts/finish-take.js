@@ -249,10 +249,6 @@ function main() {
 async function uploadMatchingAudio(targetStem, logicxName) {
   try {
     // Find the improvisation in Supabase by logic_project_path
-    const { getEntryStatus } = await import('./composer-hub.js');
-    const statusResult = await getEntryStatus(''); // We'll search by logic_project_path instead
-
-    // For now, search for bounced audio in the Logic project folder
     const logicProjectDir = path.join(CAPTURES_DIR, logicxName);
     const bouncesDir = path.join(logicProjectDir, 'Bounces');
 

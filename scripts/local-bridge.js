@@ -170,6 +170,27 @@ async function checkNasMounted() {
   }
 }
 
+async function handleMountNas(req, res) {
+  // Try Bonjour name first (preferred), then fall back to IP.
+  const candidates = ['smb://Crystal-Tokyo.local', 'smb://192.168.1.102'];
+  try {
+    // Use `open` to trigger macOS mount dialog (handles credentials via Keychain).
+    execFile('open', [candidates[0]], (err) => {
+      if (err) {
+        // Fallback to IP
+        execFile('open', [candidates[1]], () => {});
+      }
+    });
+    sendJson(res, 200, {
+      success: true,
+      data: { message: 'Mount dialog opened in Finder. Complete authentication if prompted.', candidates },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
 // ============================================================================
 // Route Handlers
 // ============================================================================
@@ -411,6 +432,8 @@ async function startServer() {
           await handleOpenLogic(req, res, parsedBody);
         } else if (pathname === '/sync/status' && req.method === 'GET') {
           await handleSyncStatus(req, res, query);
+        } else if (pathname === '/nas/mount' && req.method === 'POST') {
+          await handleMountNas(req, res);
         } else {
           sendJson(res, 404, { success: false, error: 'Not found', timestamp: new Date().toISOString() }, req);
         }
