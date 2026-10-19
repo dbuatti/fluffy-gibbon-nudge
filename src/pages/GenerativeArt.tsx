@@ -29,7 +29,14 @@ const GenerativeArt: React.FC = () => {
   const [improvisationTags, setImprovisationTags] = useState<string[]>([]);
   const [params, setParams] = useState<ArtParams>(() => createParams());
   const [seedLocked, setSeedLocked] = useState(false);
-  const [prompt, setPrompt] = useState('Abstract atmospheric oil painting of a minimalist horizon, soft hazy fog, smooth gradient transition from deep stormy indigo blue on the left to warm glowing golden hour sunlight and blush pink on the right, calm reflective ocean surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, high resolution, 8k');
+  const PROMPT_PRESETS = [
+    { label: 'Indigo → Gold', prompt: 'Abstract atmospheric oil painting of a minimalist horizon, soft hazy fog, smooth gradient transition from deep stormy indigo blue on the left to warm glowing golden hour sunlight and blush pink on the right, calm reflective ocean surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, high resolution, 8k' },
+    { label: 'Forest → Dawn', prompt: 'Abstract atmospheric painting of a minimalist horizon, soft misty fog, smooth gradient transition from deep forest green on the left to warm peach sunrise and lavender on the right, calm reflective lake surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, high resolution, 8k' },
+    { label: 'Storm → Calm', prompt: 'Abstract atmospheric painting of a minimalist horizon, soft hazy fog, smooth gradient transition from dark charcoal storm clouds on the left to pale silver moonlight and soft rose on the right, calm reflective water surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, high resolution, 8k' },
+    { label: 'Generic', prompt: 'Abstract atmospheric painting of a minimalist horizon, soft hazy fog, smooth gradient transition between contrasting warm and cool tones, calm reflective surface below, ethereal light spill, subtle canvas texture, impressionistic tone, dreamlike serenity, unique composition, high resolution, 8k' },
+  ];
+
+  const [prompt, setPrompt] = useState(PROMPT_PRESETS[3].prompt);
   const [paletteName, setPaletteName] = useState('Calming Earth');
   const [generating, setGenerating] = useState(false);
   const [mode, setMode] = useState<'procedural' | 'cloudflare' | 'gemini'>('procedural');
@@ -493,6 +500,19 @@ const GenerativeArt: React.FC = () => {
                 <CardTitle className="text-sm">Prompt / Inspiration</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="flex gap-1.5 flex-wrap mb-2">
+                  {PROMPT_PRESETS.map((preset) => (
+                    <Button
+                      key={preset.label}
+                      variant="outline"
+                      size="sm"
+                      className="text-[10px] h-6 px-2"
+                      onClick={() => setPrompt(preset.prompt)}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
