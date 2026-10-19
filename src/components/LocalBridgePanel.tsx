@@ -189,6 +189,7 @@ export const LocalBridgePanel: React.FC = () => {
   }
 
   return (
+    <>
     <Card className={cn('transition-colors', connected ? 'border-green-500/30' : 'border-red-500/30')}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -318,6 +319,7 @@ export const LocalBridgePanel: React.FC = () => {
       </CardContent>
     </Card>
     <LocalBridgeTokenSetup open={showTokenSetup} onClose={() => setShowTokenSetup(false)} />
+  </>
   );
 };
 
