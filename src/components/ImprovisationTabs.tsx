@@ -315,6 +315,13 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             </p>
             <QuickLinkButton href={VISUALGPT_AI_IMAGE_EDITOR_URL} icon={ImageIcon} label="Open VisualGPT AI Image Editor" />
             <QuickLinkButton href={IMAGE_RESIZER_URL} icon={ImageIcon} label="Image Resizer Tool" />
+            <a href={`/generative-art?improvisationId=${imp.id}`} className="block">
+                <Button variant="outline" className="w-full justify-start text-sm h-8 px-3">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Open Generative Art Studio (procedural, FLUX, Gemini)
+                    <ExternalLink className="h-3 w-3 ml-auto" />
+                </Button>
+            </a>
             
             <Separator />
             
