@@ -148,7 +148,7 @@ const SyncStatusDisplay: React.FC = () => {
           Stale: {counts.staleNoAudio}
         </Badge>
         <Badge variant="outline" className="text-[10px]">Total: {counts.total}</Badge>
-        <Button variant="ghost" size="icon" onClick={refetch} disabled={loading} className="h-6 w-6 ml-auto">
+        <Button variant="ghost" size="icon" onClick={refetch} disabled={loading} className="h-6 w-6 ml-auto" aria-label="Refresh pipeline status">
           <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
         </Button>
       </div>
@@ -555,6 +555,7 @@ export const LocalBridgePanel: React.FC = () => {
                           }
                         }}
                         title="Create app entry linked to this folder"
+                        aria-label="Create app entry for this capture"
                       >
                         <Sparkles className="h-3 w-3" />
                       </Button>
@@ -812,7 +813,7 @@ export const LocalBridgePanel: React.FC = () => {
                 <code id="bridge-token" className="px-2 py-1 bg-muted rounded text-xs flex-1 truncate">
                   {tokenInput || '••••••••••••••••••••••••••••••••'}
                 </code>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { navigator.clipboard.writeText(tokenInput || ''); setCopiedToken(true); setTimeout(() => setCopiedToken(false), 1500); }}>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { navigator.clipboard.writeText(tokenInput || ''); setCopiedToken(true); setTimeout(() => setCopiedToken(false), 1500); }} aria-label={copiedToken ? 'Token copied' : 'Copy bridge token to clipboard'}>
                   {copiedToken ? <CheckCircle className="h-3 w-3 text-green-600" /> : <LinkIcon className="h-3 w-3" />}
                 </Button>
               </div>

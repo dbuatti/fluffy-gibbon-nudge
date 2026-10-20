@@ -639,8 +639,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">Start at</label>
+                    <Label htmlFor="social-start-at" className="text-xs font-medium text-muted-foreground">Start at</Label>
                     <Input
+                      id="social-start-at"
                       value={startAt}
                       onChange={(e) => setStartAt(e.target.value)}
                       placeholder="Automatic (m:ss)"
@@ -727,9 +728,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Mode</label>
+                          <Label htmlFor="social-visualizer-mode" className="text-xs font-medium text-muted-foreground">Mode</Label>
                           <Select value={visualizerMode} onValueChange={setVisualizerMode}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectTrigger id="social-visualizer-mode" className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {visualizerType === 'waveform' && (
                                 <>
@@ -764,8 +765,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           </Select>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Color</label>
+                          <Label htmlFor="social-visualizer-color" className="text-xs font-medium text-muted-foreground">Color</Label>
                           <Input
+                            id="social-visualizer-color"
                             type="color"
                             value={visualizerColor}
                             onChange={(e) => setVisualizerColor(e.target.value)}
@@ -773,8 +775,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Height (px)</label>
+                          <Label htmlFor="social-visualizer-height" className="text-xs font-medium text-muted-foreground">Height (px)</Label>
                           <Input
+                            id="social-visualizer-height"
                             type="number"
                             value={visualizerHeight}
                             onChange={(e) => setVisualizerHeight(Number(e.target.value) || 180)}
@@ -784,8 +787,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Width (px)</label>
+                          <Label htmlFor="social-visualizer-width" className="text-xs font-medium text-muted-foreground">Width (px)</Label>
                           <Input
+                            id="social-visualizer-width"
                             type="number"
                             value={visualizerWidth}
                             onChange={(e) => setVisualizerWidth(Number(e.target.value) || 1080)}
@@ -795,8 +799,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Background (hex, optional)</label>
+                          <Label htmlFor="social-visualizer-bg" className="text-xs font-medium text-muted-foreground">Background (hex, optional)</Label>
                           <Input
+                            id="social-visualizer-bg"
                             type="text"
                             value={visualizerBg}
                             onChange={(e) => setVisualizerBg(e.target.value)}
@@ -831,8 +836,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Color</label>
+                          <Label htmlFor="social-title-color" className="text-xs font-medium text-muted-foreground">Color</Label>
                           <Input
+                            id="social-title-color"
                             type="color"
                             value={titleOverlayColor}
                             onChange={(e) => setTitleOverlayColor(e.target.value)}
@@ -840,8 +846,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Font size (px)</label>
+                          <Label htmlFor="social-title-font-size" className="text-xs font-medium text-muted-foreground">Font size (px)</Label>
                           <Input
+                            id="social-title-font-size"
                             type="number"
                             value={titleOverlayFontSize}
                             onChange={(e) => setTitleOverlayFontSize(Number(e.target.value) || 56)}

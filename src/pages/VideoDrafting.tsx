@@ -325,24 +325,24 @@ const VideoDrafting: React.FC = () => {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Color</Label>
-                    <Input type="color" value={visualizerColor} onChange={e => setVisualizerColor(e.target.value)} className="h-8 w-12" />
+                    <Label htmlFor="visualizer-color" className="text-xs">Color</Label>
+                    <Input id="visualizer-color" type="color" value={visualizerColor} onChange={e => setVisualizerColor(e.target.value)} className="h-8 w-12" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Background (optional)</Label>
-                    <Input type="text" value={visualizerBg} onChange={e => setVisualizerBg(e.target.value)} placeholder="e.g. 0x00000080" className="h-8 text-xs" />
+                    <Label htmlFor="visualizer-bg" className="text-xs">Background (optional)</Label>
+                    <Input id="visualizer-bg" type="text" value={visualizerBg} onChange={e => setVisualizerBg(e.target.value)} placeholder="e.g. 0x00000080" className="h-8 text-xs" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Width (px)</Label>
-                    <Input type="number" value={visualizerWidth} onChange={e => setVisualizerWidth(Number(e.target.value) || 1080)} min={100} max={1920} className="h-8 text-xs w-20" />
+                    <Label htmlFor="visualizer-width" className="text-xs">Width (px)</Label>
+                    <Input id="visualizer-width" type="number" value={visualizerWidth} onChange={e => setVisualizerWidth(Number(e.target.value) || 1080)} min={100} max={1920} className="h-8 text-xs w-20" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Height (px)</Label>
-                    <Input type="number" value={visualizerHeight} onChange={e => setVisualizerHeight(Number(e.target.value) || 200)} min={50} max={500} className="h-8 text-xs w-20" />
+                    <Label htmlFor="visualizer-height" className="text-xs">Height (px)</Label>
+                    <Input id="visualizer-height" type="number" value={visualizerHeight} onChange={e => setVisualizerHeight(Number(e.target.value) || 200)} min={50} max={500} className="h-8 text-xs w-20" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Margin Bottom (px)</Label>
-                    <Input type="number" value={visualizerMarginBottom} onChange={e => setVisualizerMarginBottom(Number(e.target.value) || 40)} min={0} max={200} className="h-8 text-xs w-20" />
+                    <Label htmlFor="visualizer-margin-bottom" className="text-xs">Margin Bottom (px)</Label>
+                    <Input id="visualizer-margin-bottom" type="number" value={visualizerMarginBottom} onChange={e => setVisualizerMarginBottom(Number(e.target.value) || 40)} min={0} max={200} className="h-8 text-xs w-20" />
                   </div>
                 </div>
               </CardContent>
@@ -365,25 +365,25 @@ const VideoDrafting: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Text</Label>
-                  <Input value={titleOverlayText || title} onChange={e => setTitleOverlayText(e.target.value)} placeholder="Auto: song title" className="h-8 text-xs" />
+                  <Label htmlFor="title-overlay-text" className="text-xs">Text</Label>
+                  <Input id="title-overlay-text" value={titleOverlayText || title} onChange={e => setTitleOverlayText(e.target.value)} placeholder="Auto: song title" className="h-8 text-xs" />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Color</Label>
-                    <Input type="color" value={titleOverlayColor} onChange={e => setTitleOverlayColor(e.target.value)} className="h-8 w-12" />
+                    <Label htmlFor="title-overlay-color" className="text-xs">Color</Label>
+                    <Input id="title-overlay-color" type="color" value={titleOverlayColor} onChange={e => setTitleOverlayColor(e.target.value)} className="h-8 w-12" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Font Size (px)</Label>
-                    <Input type="number" value={titleOverlayFontSize} onChange={e => setTitleOverlayFontSize(Number(e.target.value) || 56)} min={24} max={120} className="h-8 text-xs w-20" />
+                    <Label htmlFor="title-overlay-font-size" className="text-xs">Font Size (px)</Label>
+                    <Input id="title-overlay-font-size" type="number" value={titleOverlayFontSize} onChange={e => setTitleOverlayFontSize(Number(e.target.value) || 56)} min={24} max={120} className="h-8 text-xs w-20" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Font</Label>
-                    <Input value={titleOverlayFont} onChange={e => setTitleOverlayFont(e.target.value)} className="h-8 text-xs" placeholder="Arial" />
+                    <Label htmlFor="title-overlay-font" className="text-xs">Font</Label>
+                    <Input id="title-overlay-font" value={titleOverlayFont} onChange={e => setTitleOverlayFont(e.target.value)} className="h-8 text-xs" placeholder="Arial" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Y Position</Label>
-                    <Input value={titleOverlayY} onChange={e => setTitleOverlayY(e.target.value)} className="h-8 text-xs" placeholder="h-th-60" />
+                    <Label htmlFor="title-overlay-y" className="text-xs">Y Position</Label>
+                    <Input id="title-overlay-y" value={titleOverlayY} onChange={e => setTitleOverlayY(e.target.value)} className="h-8 text-xs" placeholder="h-th-60" />
                   </div>
                 </div>
               </CardContent>

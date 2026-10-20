@@ -731,7 +731,7 @@ const GenerativeArt: React.FC = () => {
                 {autoSave ? <ToggleRight className="h-4 w-4 text-emerald-500" /> : <ToggleLeft className="h-4 w-4 text-muted-foreground" />}
                 Auto-save {autoSave ? 'On' : 'Off'}
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={refreshRepository} disabled={repoLoading} title="Refresh repository">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={refreshRepository} disabled={repoLoading} title="Refresh repository" aria-label="Refresh repository">
                 <RefreshCw className={cn('h-3.5 w-3.5', repoLoading && 'animate-spin')} />
               </Button>
             </div>
