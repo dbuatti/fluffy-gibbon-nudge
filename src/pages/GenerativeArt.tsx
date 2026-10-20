@@ -73,7 +73,7 @@ const GenerativeArt: React.FC = () => {
       } else if (data?.error) {
         showError(data.error);
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Failed to generate prompt');
     } finally {
       setPromptLoading(false);
@@ -139,7 +139,7 @@ const GenerativeArt: React.FC = () => {
         .single();
       if (data) {
         setImprovisationTitle(data.generated_name);
-        const mood = (data.analysis_data as any)?.mood;
+        const mood = (data.analysis_data as { mood?: string })?.mood;
         if (mood) setImprovisationMood(mood);
         if (data.user_tags) setImprovisationTags(data.user_tags);
         // Pre-fill prompt from context
@@ -231,7 +231,7 @@ const GenerativeArt: React.FC = () => {
           return updated;
         });
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'AI generation failed');
     } finally {
       setGenerating(false);
@@ -266,7 +266,7 @@ const GenerativeArt: React.FC = () => {
         showSuccess('Gemini artwork generated');
         persistGeneration(base64ToBlob(data.image), 'gemini', prompt.trim()).catch(() => {});
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Gemini generation failed');
     } finally {
       setGenerating(false);
@@ -326,7 +326,7 @@ const GenerativeArt: React.FC = () => {
       downloadBlob(square, `cover-3000x3000-${Date.now()}.jpg`);
       const dims = await getImageDimensions(square);
       showSuccess(`Exported ${describeImage(square, dims)} — ready for Insight Timer`);
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Export failed');
     } finally {
       setExporting(false);
@@ -365,7 +365,7 @@ const GenerativeArt: React.FC = () => {
         .eq('id', improvisationId);
       if (updateError) throw updateError;
       showSuccess('Artwork saved to improvisation');
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Failed to save artwork');
     } finally {
       setGenerating(false);
@@ -404,7 +404,7 @@ const GenerativeArt: React.FC = () => {
       await deleteFromRepository(item);
       setRepoItems((h) => h.filter((x) => x.id !== item.id));
       showSuccess('Deleted from repository');
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Delete failed');
     }
   };

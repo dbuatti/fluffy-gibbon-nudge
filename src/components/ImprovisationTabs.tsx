@@ -1,4 +1,4 @@
-import { toSquareExport, downloadBlob, getImageDimensions, describeImage, INSIGHT_TIMER_MIN_DIM, INSIGHT_TIMER_MAX_BYTES } from '@/lib/image-compliance';
+import { toSquareExport, downloadBlob } from '@/lib/image-compliance';
 import React, { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles } from 'lucide-react';
@@ -23,6 +23,7 @@ import ArtPromptStudio from './ArtPromptStudio';
 import DistributionTogglesCard from './DistributionTogglesCard';
 import type { Improvisation } from '@/types/improvisation';
 import type { ReleaseReadiness } from '@/lib/release-readiness';
+import { useArtworkInfo } from '@/hooks/useArtworkInfo';
 import { DISTROKID_URL, INSIGHT_TIMER_URL, IMAGE_RESIZER_URL, VISUALGPT_AI_IMAGE_EDITOR_URL } from '@/lib/constants';
 
 interface ImprovisationTabsProps {
@@ -114,39 +115,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
   const hasAudioFile = !!imp.storage_path;
   const isCompleted = imp.status === 'completed';
   const hasArtwork = !!imp.artwork_url;
-  const [artworkInfo, setArtworkInfo] = useState<string | null>(null);
-  const [artworkReady, setArtworkReady] = useState<boolean | null>(null);
-
-  // Show the stored file's real dimensions/size so "is this release-ready?"
-  // is answered on the page rather than guessed.
-  useEffect(() => {
-    let cancelled = false;
-    if (!imp.artwork_url) {
-      setArtworkInfo(null);
-      setArtworkReady(null);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await fetch(imp.artwork_url!);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const dims = await getImageDimensions(blob);
-        if (cancelled) return;
-        setArtworkInfo(describeImage(blob, dims));
-        setArtworkReady(
-          Math.min(dims.width, dims.height) >= INSIGHT_TIMER_MIN_DIM &&
-          blob.size <= INSIGHT_TIMER_MAX_BYTES,
-        );
-      } catch {
-        if (!cancelled) {
-          setArtworkInfo(null);
-          setArtworkReady(null);
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [imp.artwork_url]);
+  const { artworkInfo, artworkReady } = useArtworkInfo(imp.artwork_url);
 
   const handleDownloadArtwork = async () => {
     if (!imp.artwork_url) {

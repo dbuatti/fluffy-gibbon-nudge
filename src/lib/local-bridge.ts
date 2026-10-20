@@ -225,7 +225,7 @@ export interface SocialKitOptions {
   clipStartSec?: number;
   /** How many non-overlapping excerpts to render (1–3). */
   clipCount?: number;
-  /** Ratios to give that many cuts: any of 'reels' | 'feed' | 'youtube'. */
+  /** Ratios to give that many cuts: 'reels' | 'feed' | 'youtube'. */
   clipRatios?: string[];
 }
 
@@ -319,11 +319,12 @@ export class BridgeClient {
       }
 
       return res.json();
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Never throw — every caller just shows res.error, so resolve to a
       // friendly failure instead. (This also stops unhandled rejections from
       // fire-and-forget callers like setMeldScene/openLogic/mountNas.)
-      if (e?.name === 'AbortError' || e?.name === 'TimeoutError') {
+      const err = e as Error | null;
+      if (err?.name === 'AbortError' || err?.name === 'TimeoutError') {
         return { success: false, error: `Bridge request timed out after ${Math.round(timeoutMs / 1000)}s`, timestamp: new Date().toISOString() };
       }
       return {
@@ -926,7 +927,7 @@ export function useRealtimeSyncStatus() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchInitial]);
 
   const counts = {
     total: items.length,

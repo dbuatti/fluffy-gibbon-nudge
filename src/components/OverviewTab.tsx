@@ -9,9 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { getImageDimensions, describeImage, INSIGHT_TIMER_MIN_DIM, INSIGHT_TIMER_MAX_BYTES } from '@/lib/image-compliance';
 import type { ReleaseReadiness } from '@/lib/release-readiness';
 import type { Improvisation } from '@/types/improvisation';
+import { useArtworkInfo } from '@/hooks/useArtworkInfo';
 
 interface OverviewTabProps {
   imp: Improvisation;
@@ -48,39 +48,8 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   onMarkReady,
   isMarkingReady,
 }) => {
-  const [artworkInfo, setArtworkInfo] = useState<string | null>(null);
-  const [artworkReady, setArtworkReady] = useState<boolean | null>(null);
   const [audioSeconds, setAudioSeconds] = useState<number | null>(null);
-
-  // Verify the stored cover's real dimensions rather than assuming.
-  useEffect(() => {
-    let cancelled = false;
-    if (!imp.artwork_url) {
-      setArtworkInfo(null);
-      setArtworkReady(null);
-      return;
-    }
-    (async () => {
-      try {
-        const res = await fetch(imp.artwork_url!);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const dims = await getImageDimensions(blob);
-        if (cancelled) return;
-        setArtworkInfo(describeImage(blob, dims));
-        setArtworkReady(
-          Math.min(dims.width, dims.height) >= INSIGHT_TIMER_MIN_DIM
-          && blob.size <= INSIGHT_TIMER_MAX_BYTES,
-        );
-      } catch {
-        if (!cancelled) {
-          setArtworkInfo(null);
-          setArtworkReady(null);
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [imp.artwork_url]);
+  const { artworkInfo, artworkReady } = useArtworkInfo(imp.artwork_url);
 
   // Read the real duration from the file instead of guessing from the title.
   useEffect(() => {

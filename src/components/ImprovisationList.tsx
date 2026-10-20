@@ -554,7 +554,14 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                         </div>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); nextAction.tab ? openDetail() : openDefault(); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (nextAction.tab) {
+                              openDetail();
+                            } else {
+                              openDefault();
+                            }
+                          }}
                           disabled={!nextAction.tab}
                           className={cn(
                             "ml-8 flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1.5 -mx-2 transition-colors",
@@ -620,7 +627,14 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                       <StageDots imp={imp} className="hidden md:flex" />
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); nextAction.tab ? openDetail() : openDefault(); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (nextAction.tab) {
+                            openDetail();
+                          } else {
+                            openDefault();
+                          }
+                        }}
                         disabled={!nextAction.tab}
                         title={nextAction.tab ? `Opens on: ${nextAction.label}` : nextAction.label}
                         className={cn(

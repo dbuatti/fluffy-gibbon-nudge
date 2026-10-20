@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, openFoldersInFinder, LOGIC_PROJECTS_DIR, NAS_CREATION_DIR } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, openFoldersInFinder, LOGIC_PROJECTS_DIR, NAS_CREATION_DIR, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -222,7 +222,7 @@ export const LocalBridgePanel: React.FC = () => {
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
   const handleLaunch = async (mode: string, extras: Record<string, unknown> = {}) => {
-    const res = await launchPicker({ mode: mode as any, ...extras });
+    const res = await launchPicker({ mode, ...extras });
     if (res) setLastResult({ success: true, message: res.message || 'Launched' });
     else setLastResult({ success: false, message: 'Launch failed' });
   };
@@ -239,10 +239,10 @@ export const LocalBridgePanel: React.FC = () => {
   const [showSync, setShowSync] = useState(() => localStorage.getItem('lb_showSync') !== 'false');
   const [showConfig, setShowConfig] = useState(() => localStorage.getItem('lb_showConfig') === 'true');
   const [showCaptures, setShowCaptures] = useState(() => localStorage.getItem('lb_showCaptures') !== 'false');
-  const [captures, setCaptures] = useState<any[]>([]);
+  const [captures, setCaptures] = useState<LocalCapture[]>([]);
   const [capturesLoading, setCapturesLoading] = useState(false);
   const [showArchive, setShowArchive] = useState(() => localStorage.getItem('lb_showArchive') === 'true');
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<LogicProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [nasListed, setNasListed] = useState(true);
   const [showEmptyUntitled, setShowEmptyUntitled] = useState(false);
@@ -298,7 +298,7 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         setLastResult({ success: false, message: res?.error || 'Scan failed' });
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       setLastResult({ success: false, message: e.message || 'Scan failed' });
     } finally {
       setCapturesLoading(false);
@@ -315,14 +315,14 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         showError(res?.error || 'Could not list Logic projects');
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Could not list Logic projects');
     } finally {
       setProjectsLoading(false);
     }
   };
 
-  const handleArchiveProject = async (p: any) => {
+  const handleArchiveProject = async (p: LogicProject) => {
     setArchivingPath(p.path);
     try {
       const res = await archiveLogicProject(p.path, { datePrefix });
@@ -332,14 +332,14 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         showError(res?.error || 'Archive failed');
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Archive failed');
     } finally {
       setArchivingPath(null);
     }
   };
 
-  const handleTrashLocal = async (p: any) => {
+  const handleTrashLocal = async (p: LogicProject) => {
     const where = p.nasFolder ? `\n\nIts verified copy stays on the NAS at:\n${p.nasFolder}` : '\n\nIts verified copy stays on the NAS.';
     const ok = window.confirm(
       `Move "${p.name}" to the Trash?${where}\n\nThe Trash copy stays recoverable from Finder until you empty the Trash.`,
@@ -354,7 +354,7 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         showError(res?.error || 'Could not move to Trash');
       }
-    } catch (e: any) {
+    } catch (e: Error) {
       showError(e.message || 'Could not move to Trash');
     } finally {
       setTrashingPath(null);
@@ -502,7 +502,7 @@ export const LocalBridgePanel: React.FC = () => {
             </Button>
             {captures.length > 0 && (
               <div className="max-h-40 overflow-y-auto space-y-1">
-                {captures.slice(0, 10).map((c: any) => (
+                {captures.slice(0, 10).map((c: LocalCapture) => (
                   <div key={c.name} className="flex items-center gap-2 p-1.5 bg-muted/50 rounded text-[10px]" title={c.fullPath}>
                     <Music className="h-3 w-3 text-primary flex-shrink-0" />
                     <span className="flex-1 truncate">{c.stem}</span>
