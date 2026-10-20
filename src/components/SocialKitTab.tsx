@@ -20,109 +20,23 @@ import {
 } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import type { Improvisation } from '@/types/improvisation';
+import {
+  CLIP_TARGETS,
+  PLATFORMS,
+  CAPTION_TABS,
+  BUILD_PHASES,
+  fmt,
+  parseTime,
+  timeAgo,
+  splitYouTube,
+  emptyCaptions,
+} from './social-kit-helpers';
 
 type ImprovisationData = Pick<Improvisation, 'id' | 'generated_name' | 'original_name' | 'artwork_url'>;
 
 interface SocialKitTabProps {
   imp: ImprovisationData;
 }
-
-/** Ratios that can be given several cuts, with the label shown in the UI. */
-const CLIP_TARGETS = [
-  { key: 'reels', label: 'Vertical (9:16)', short: '9:16' },
-  { key: 'feed', label: 'Square (1:1)', short: '1:1' },
-  { key: 'youtube', label: 'YouTube (16:9)', short: '16:9' },
-] as const;
-
-/** 95 → "1:35" */
-function fmt(sec?: number): string {
-  if (!sec && sec !== 0) return '';
-  const s = Math.max(0, Math.round(sec));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
-/** Accepts "95", "1:35", "1.35" → seconds, or null when blank/invalid. */
-function parseTime(input: string): number | null {
-  const t = input.trim();
-  if (!t) return null;
-  if (/^\d+:\d{1,2}$/.test(t)) {
-    const [m, s] = t.split(':').map(Number);
-    return m * 60 + s;
-  }
-  const n = Number(t);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
-}
-
-/**
- * Upload pages open in a new tab — no API keys, no review process. Clicking one
- * copies its caption and reveals the matching file in Finder, so the flow is
- * drag → paste → post.
- */
-const PLATFORMS = [
-  {
-    key: 'reels',
-    label: 'Instagram Reels',
-    url: 'https://www.instagram.com/reels/',
-    icon: Instagram,
-    ratio: 'reels',
-    captionPlatform: 'instagram' as SocialCaptionPlatform,
-    fileHint: 'Copies the caption + shows the 9:16 video',
-  },
-  {
-    key: 'tiktok',
-    label: 'TikTok',
-    url: 'https://www.tiktok.com/upload?lang=en',
-    icon: Music2,
-    ratio: 'reels',
-    captionPlatform: 'tiktok' as SocialCaptionPlatform,
-    fileHint: 'Copies the caption + shows the 9:16 video',
-  },
-  {
-    key: 'youtube',
-    label: 'YouTube',
-    url: 'https://studio.youtube.com/videos/upload',
-    icon: Youtube,
-    ratio: 'youtube',
-    captionPlatform: 'youtube' as SocialCaptionPlatform,
-    fileHint: 'Copies title/description + shows the 16:9 video',
-  },
-] as const;
-
-/** "2026-10-19T22:13:00Z" → "just now" / "12m ago" / "2d ago" */
-function timeAgo(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
-
-/** YouTube captions keep the title on the first line; split it for the two fields. */
-function splitYouTube(text: string): { title: string; body: string } {
-  const lines = text.split('\n');
-  return {
-    title: (lines[0] || '').trim(),
-    body: lines.slice(1).join('\n').replace(/^\n+/, ''),
-  };
-}
-
-const CAPTION_TABS: { key: SocialCaptionPlatform; label: string; hint: string }[] = [
-  { key: 'instagram', label: 'Instagram / Reels', hint: 'Hook, a line about the take, and hashtags.' },
-  { key: 'tiktok', label: 'TikTok', hint: 'Short and casual, with a few broad tags.' },
-  { key: 'youtube', label: 'YouTube', hint: 'Title on the first line, then the description.' },
-];
-
-/** Rough, honest progress narration — we only get a response at the end. */
-const BUILD_PHASES = [
-  'Finding the finished audio…',
-  'Preparing artwork…',
-  'Listening for the strongest passage…',
-  'Rendering the 9:16 video…',
-  'Rendering the 1:1 video…',
-  'Rendering the 16:9 video…',
-  'Writing captions & thumbnail…',
-];
 
 const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   // Use the stable singleton client — the hook's wrapper functions are new

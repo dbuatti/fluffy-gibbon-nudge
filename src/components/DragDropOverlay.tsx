@@ -3,7 +3,7 @@ import { UploadCloud, Loader2, Plus, X, FolderOpen, AlertTriangle } from 'lucide
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLocalBridge } from '@/lib/local-bridge';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
@@ -145,7 +145,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         }
       } catch (e) {
         // Don't fail the whole upload if local project creation fails
-        console.warn('Could not create local project folder:', e);
+        logError('DragDropOverlay.createLocalProject', e);
       }
 
       showSuccess(`Improvisation created and analysis started! Redirecting...`);
