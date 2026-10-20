@@ -478,7 +478,8 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                           imp.logic_project_path?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilterStatus = filterStatus === 'all' || 
-                                (filterStatus === 'uploaded' && imp.status === 'uploaded' && !imp.storage_path) ||
+                                (filterStatus === 'uploaded' && imp.status === 'uploaded') ||
+                                (filterStatus === 'needs-audio' && imp.status === 'uploaded' && !imp.storage_path) ||
                                 (filterStatus === 'analyzing' && imp.status === 'analyzing') ||
                                 (filterStatus === 'completed' && imp.status === 'completed') ||
                                 (filterStatus === 'failed' && imp.status === 'failed');

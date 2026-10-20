@@ -101,7 +101,15 @@ const Index = () => {
   }, []);
 
   const sortLabel = sortOption.replace(/_/g, ' ').replace('created at', 'Date').replace('desc', '(Newest)').replace('asc', '(Oldest)').replace('name', 'Title');
-  const filterLabel = filterStatus === 'all' ? 'All' : filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1);
+  const filterLabel = (() => {
+    switch (filterStatus) {
+      case 'all': return 'All';
+      case 'needs-audio': return 'Needs Audio';
+      case 'analyzing': return 'Processing';
+      case 'completed': return 'Ready';
+      default: return filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1);
+    }
+  })();
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -173,6 +181,7 @@ const Index = () => {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setFilterStatus('all')} className="justify-between">All {filterStatus === 'all' && <ChevronRight className="h-3.5 w-3.5" />}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setFilterStatus('uploaded')} className="justify-between">Uploaded {filterStatus === 'uploaded' && <ChevronRight className="h-3.5 w-3.5" />}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterStatus('needs-audio')} className="justify-between">Needs Audio {filterStatus === 'needs-audio' && <ChevronRight className="h-3.5 w-3.5" />}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setFilterStatus('analyzing')} className="justify-between">Processing {filterStatus === 'analyzing' && <ChevronRight className="h-3.5 w-3.5" />}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setFilterStatus('completed')} className="justify-between">Ready {filterStatus === 'completed' && <ChevronRight className="h-3.5 w-3.5" />}</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setFilterStatus('failed')} className="justify-between">Failed {filterStatus === 'failed' && <ChevronRight className="h-3.5 w-3.5" />}</DropdownMenuItem>
