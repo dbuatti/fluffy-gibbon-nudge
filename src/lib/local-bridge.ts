@@ -523,6 +523,14 @@ export class BridgeClient {
     }, 120000);
   }
 
+  /** Delete a local folder directly (move to Trash). No NAS verification. */
+  async deleteLocalFolder(folderPath: string): Promise<BridgeResponse<{ name: string; freedMB: number; message: string }>> {
+    return this.request<{ name: string; freedMB: number; message: string }>('/logic/delete-folder', {
+      method: 'POST',
+      body: JSON.stringify({ folderPath }),
+    }, 60000);
+  }
+
   /** Get an existing social kit for a song (no rebuild). */
   async getSocialKit(improvisationId: string): Promise<BridgeResponse<SocialKit>> {
     return this.request<SocialKit>(`/social/kit?id=${encodeURIComponent(improvisationId)}`, {}, 30000);
@@ -755,6 +763,10 @@ export function useLocalBridge() {
     return client.trashLocalLogicProject(projectPath, nasFolder);
   };
 
+  const deleteLocalFolder = async (folderPath: string) => {
+    return client.deleteLocalFolder(folderPath);
+  };
+
   const getSocialKit = async (improvisationId: string) => {
     return client.getSocialKit(improvisationId);
   };
@@ -782,6 +794,7 @@ export function useLocalBridge() {
     getLogicProjects,
     archiveLogicProject,
     trashLocalLogicProject,
+    deleteLocalFolder,
     getSocialKit,
     buildSocialKit,
     setBridgeHost,

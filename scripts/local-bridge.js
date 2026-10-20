@@ -1156,6 +1156,47 @@ async function handleTrashLocal(req, res, body) {
   }
 }
 
+/**
+ * POST /logic/delete-folder — delete a local folder (move to Trash) directly.
+ * Body: { folderPath: string }
+ * Used for deleting a Logic project folder by its direct path.
+ */
+async function handleDeleteFolder(req, res, body) {
+  try {
+    const folderPath = typeof body.folderPath === 'string' ? body.folderPath.trim() : '';
+    if (!folderPath || !folderPath.startsWith('/')) {
+      throw new Error('Missing or invalid folderPath (must be absolute)');
+    }
+    if (!fs.existsSync(folderPath)) {
+      throw new Error(`Folder not found: ${folderPath}`);
+    }
+    const stat = fs.statSync(folderPath);
+    if (!stat.isDirectory()) {
+      throw new Error(`Not a folder: ${folderPath}`);
+    }
+
+    // Move to Trash via Finder
+    const escaped = folderPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    await runAppleScript(`tell application "Finder" to delete (POSIX file "${escaped}" as alias)`);
+
+    const sizeMB = Math.round((stat.size / (1024 * 1024)) * 10) / 10;
+    const name = path.basename(folderPath);
+    console.log(`[logic/delete-folder] ${name}: moved to Trash (${sizeMB} MB)`);
+    sendJson(res, 200, {
+      success: true,
+      data: {
+        name,
+        freedMB: sizeMB,
+        message: `Moved "${name}" to the Trash — ${sizeMB} MB freed. Recoverable from Finder until you empty the Trash.`,
+      },
+      timestamp: new Date().toISOString(),
+    }, req);
+  } catch (e) {
+    console.error(`[logic/delete-folder] ${e.message}`);
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
 // ============================================================================
 // Social Kit — song → artwork + ratio-ready videos, staged for posting
 // ============================================================================
@@ -2452,6 +2493,8 @@ async function startServer() {
           await handleLogicArchive(req, res, parsedBody);
         } else if (pathname === '/logic/trash-local' && req.method === 'POST') {
           await handleTrashLocal(req, res, parsedBody);
+        } else if (pathname === '/logic/delete-folder' && req.method === 'POST') {
+          await handleDeleteFolder(req, res, parsedBody);
         } else if (pathname === '/social/build-kit' && req.method === 'POST') {
           await handleSocialBuildKit(req, res, parsedBody);
         } else if (pathname === '/social/build-status' && req.method === 'GET') {

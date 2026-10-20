@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FolderOpen, ExternalLink } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,6 +19,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import type { Improvisation } from '@/types/improvisation';
 import { displayTitle } from '@/lib/display-title';
 import FolderPathLine from '@/components/FolderPathLine';
+import { openFolderInFinder, deleteLocalFolder } from '@/lib/local-bridge';
+import { useLocalBridge } from '@/lib/local-bridge';
 
 const STALLED_THRESHOLD_HOURS = 24;
 const PAGE_SIZE = 20;
@@ -241,6 +243,8 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
   };
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ imp: Improvisation; deleteLocal: boolean } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const handleBulkDelete = async () => {
     if (selectedImprovisations.size === 0) return;
@@ -280,6 +284,109 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       showError(`Failed to delete improvisations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDeletingBulk(false);
+    }
+  };
+
+  const { deleteLocalFolder } = useLocalBridge();
+
+  const handleDelete = async (imp: Improvisation) => {
+    const folderPath = imp.logic_project_path || imp.nas_folder_path;
+    const folderName = folderPath ? folderPath.split('/').filter(Boolean).pop() : null;
+    
+    // Custom dialog with three options: Cancel, Delete App Only, Delete App + Local Folder
+    const choice = window.confirm(
+      `Delete "${displayTitle(imp.generated_name || imp.file_name)}"?\n\n` +
+      `This will delete the app record and audio file from Supabase.\n\n` +
+      (folderPath
+        ? `Local Logic folder found:\n${folderPath}\n\n` +
+          `Click OK to ALSO delete the local Logic folder (moves to Trash, recoverable).\n` +
+          `Click Cancel to keep the local folder and only delete the app record.`
+        : `No local Logic folder linked. Only the app record will be deleted.`)
+    );
+    
+    if (!choice && folderPath) {
+      // User clicked Cancel but there's a folder - they want app-only delete
+      return handleDeleteAppOnly(imp);
+    }
+    
+    if (choice && folderPath) {
+      // User clicked OK - delete both app and local folder
+      return handleDeleteAppAndLocal(imp);
+    }
+    
+    // If no folder path, just delete app
+    if (!folderPath) {
+      return handleDeleteAppOnly(imp);
+    }
+  };
+
+  const handleDeleteAppOnly = async (imp: Improvisation) => {
+    if (!window.confirm(`Delete app record for "${displayTitle(imp.generated_name || imp.file_name)}"?\n\nThis removes the entry from Composer Hub and deletes the audio file from Supabase. The local Logic folder (if any) will NOT be touched.`)) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      // Delete audio file from Supabase Storage
+      if (imp.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('piano_improvisations')
+          .remove([imp.storage_path]);
+        if (storageError) console.error('Failed to delete audio file:', storageError);
+      }
+      // Delete record from database
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .delete()
+        .eq('id', imp.id);
+      if (dbError) throw dbError;
+      showSuccess('Improvisation deleted from app.');
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+      queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
+    } catch (error) {
+      console.error('Delete failed:', error);
+      showError(`Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAppAndLocal = async (imp: Improvisation) => {
+    const folderPath = imp.logic_project_path || imp.nas_folder_path;
+    if (!folderPath) return handleDeleteAppOnly(imp);
+    
+    setDeleting(true);
+    try {
+      // First, delete the local Logic folder via the bridge (moves to Trash)
+      const res = await deleteLocalFolder(folderPath);
+      if (!res.success) {
+        const proceed = window.confirm(
+          `Could not delete local folder via bridge: ${res.error}\n\n` +
+          `Delete the app record anyway?`
+        );
+        if (!proceed) return;
+      }
+      
+      // Delete audio file from Supabase Storage
+      if (imp.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('piano_improvisations')
+          .remove([imp.storage_path]);
+        if (storageError) console.error('Failed to delete audio file:', storageError);
+      }
+      // Delete record from database
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .delete()
+        .eq('id', imp.id);
+      if (dbError) throw dbError;
+      showSuccess('Improvisation deleted from app and local folder moved to Trash.');
+      queryClient.invalidateQueries({ queryKey: ['improvisations'] });
+      queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
+    } catch (error) {
+      console.error('Delete failed:', error);
+      showError(`Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -551,6 +658,20 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
                             {dateLabel}
                           </Badge>
                           <StageDots imp={imp} />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(imp);
+                            }}
+                            disabled={deleting}
+                            title="Delete this improvisation (option to also delete local folder)"
+                            aria-label="Delete improvisation"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                         <button
                           type="button"
@@ -625,6 +746,20 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <StageDots imp={imp} className="hidden md:flex" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(imp);
+                        }}
+                        disabled={deleting}
+                        title="Delete this improvisation (option to also delete local folder)"
+                        aria-label="Delete improvisation"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                       <button
                         type="button"
                         onClick={(e) => {
