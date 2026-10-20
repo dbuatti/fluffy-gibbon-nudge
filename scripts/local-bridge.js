@@ -2327,7 +2327,7 @@ async function handleSocialBuildKit(req, res, body) {
 
         step(`rendering ${ratio.label}${cuts.length > 1 ? `, ${isIdea ? 'idea' : 'clip'} ${i + 1}/${cuts.length}` : ''}${where}…`);
         planned.push({ startSec, clipSec, auto, isIdea, outFile, outName, i });
-        appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, {
+        appendSocialVideoArgs(args, audio.file, startSec, clipSec, outFile, {
           title: `${displayTitle}${cuts.length > 1 ? ` — ${isIdea ? 'Idea' : 'Clip'} ${i + 1}` : ''}`,
           subtitle: `${ratio.label} · ${formatTime(startSec)}–${formatTime(startSec + clipSec)}`,
         });
