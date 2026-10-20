@@ -143,27 +143,42 @@ describe('art direction engine', () => {
       expect(surfaced.some(Boolean)).toBe(true);
     });
 
-    it('only ever surfaces the softest mediums at full softness', () => {
+    it('keeps full softness inside the soft tier while still offering variety', () => {
       const clues = collectArtClues(song);
-      // wet-on-wet watercolour and misted long-exposure share the softest edge
-      // score, so either may lead — but nothing harder than the softest tier
-      // should appear at the top at full softness.
+      // At full softness nothing graphic may appear, and the mediums chosen must
+      // stay in the soft end. Variety *within* the soft band is intentional —
+      // pinning one medium made the spectrum control feel dead.
       const softestEdge = STYLE_EDGE[stylesBySoftness()[0]];
-      const softTier = stylesBySoftness().filter((s) => STYLE_EDGE[s] === softestEdge);
+      const softCeiling = softestEdge + 0.35;
+      const seen = new Set<string>();
       for (let salt = 0; salt < 15; salt++) {
         const s = suggestArtDirection(clues, salt, 1);
-        expect(softTier).toContain(s.styles[0]);
         expect(s.styles.some(isHardEdgeStyle)).toBe(false);
+        for (const style of s.styles) {
+          expect(STYLE_EDGE[style]).toBeLessThanOrEqual(softCeiling);
+          seen.add(style);
+        }
       }
+      // ...and it is not the same single medium every single time.
+      expect(seen.size).toBeGreaterThan(1);
     });
 
     it('ranks styles monotonically softer as the spectrum rises', () => {
       const clues = collectArtClues(song);
-      const averageEdge = (styles: string[]) =>
-        styles.reduce((sum, s) => sum + (isHardEdgeStyle(s) ? 1 : 0), 0);
-      const softPass = suggestArtDirection(clues, 2, 1).styles;
-      const loosePass = suggestArtDirection(clues, 2, 0).styles;
-      expect(averageEdge(softPass)).toBeLessThanOrEqual(averageEdge(loosePass));
+      // Average the style edges over many "Suggest again" presses, so the check
+      // reflects the spectrum rather than one lucky salt.
+      const meanEdge = (softness: number) => {
+        let sum = 0, n = 0;
+        for (let salt = 0; salt < 40; salt++) {
+          for (const s of suggestArtDirection(clues, salt, softness).styles) {
+            sum += STYLE_EDGE[s] ?? 0.5;
+            n++;
+          }
+        }
+        return sum / n;
+      };
+      expect(meanEdge(1)).toBeLessThan(meanEdge(0));
+      expect(meanEdge(0.85)).toBeLessThanOrEqual(meanEdge(0.5));
     });
 
     it('asks for softness positively rather than only forbidding hard edges', () => {
@@ -173,14 +188,16 @@ describe('art direction engine', () => {
       // Positive medium vocabulary (what actually makes FLUX render watercolour).
       expect(prompt).toMatch(/pigment pooling/i);
       expect(prompt).toMatch(/bleeding|feathered/i);
-      expect(prompt).toMatch(/no hard edges/i);
+      // And the "keep it soft" instruction is phrased positively, not as a ban.
+      expect(prompt).toMatch(/edges stay soft|soft feathered edges/i);
+      expect(prompt).not.toMatch(/\bno hard edges\b/i);
     });
 
     it('drops the softness clause for an explicitly hard-edge medium', () => {
       const clues = collectArtClues(song);
       const direction = { ...defaultDirection(suggestArtDirection(clues, 0)), style: 'vector-clean minimalism' };
       const prompt = buildArtPrompt(direction, clues, 'generic');
-      expect(prompt).not.toMatch(/no hard edges/i);
+      expect(prompt).not.toMatch(/soft feathered edges/i);
       expect(prompt).toMatch(/razor-sharp|graphic precision/i);
     });
 

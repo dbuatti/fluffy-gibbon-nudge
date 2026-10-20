@@ -140,10 +140,10 @@ const STYLE_EDGE: Record<string, number> = {
  */
 const SOFT_EDGE_CLAUSES = [
   'soft feathered edges throughout',
-  'every boundary dissolving rather than drawn',
-  'wet bleeding colour with no crisp outlines',
-  'forms melting into one another',
-  'no hard lines anywhere',
+  'pigment bleeding into damp paper, edges softening outward',
+  'wet bleeding colour with gentle diffused outlines',
+  'forms fading into one another through soft gradient',
+  'hand-brushed edges with the paper grain showing through',
 ];
 
 /**
@@ -373,7 +373,10 @@ function bump<T>(map: Map<T, number>, key: T, amount: number): void {
 function applyTraits(scores: Scores, traits: Traits, weight: number): void {
   traits.moods?.forEach((m) => bump(scores.moods, m, weight));
   traits.palettes?.forEach((p) => bump(scores.palettes, p, weight));
-  traits.styles?.forEach((s) => bump(scores.styles, s, weight));
+  // Style suggestions are deliberately damped: genre should *lean* the medium,
+  // not lock it. At full weight the genre pinned the same four mediums for a
+  // given song, which made the softness spectrum and "Suggest again" inert.
+  traits.styles?.forEach((s) => bump(scores.styles, s, weight * 0.4));
   traits.textures?.forEach((t) => bump(scores.textures, t, weight));
   traits.lighting?.forEach((l) => bump(scores.lighting, l, weight));
   if (traits.energy) bump(scores.energies, traits.energy, weight);
@@ -388,16 +391,18 @@ function ranked<T>(pool: T[], scores: Map<T, number>, rng: () => number, count: 
 }
 
 /**
- * Rank styles with a soft-edge bias. Hard-edge styles can still win, but they
- * have to beat a soft one on merit — they never win by accident, which is what
- * used to happen ("brutalist minimalism" tied with watercolour and the RNG
- * decided).
+ * Rank styles with a soft-edge bias.
  *
- * `softBias` (0 → 1) does two things at once:
- *  - rewards softness proportionally to the medium's own edge score, and
- *  - *shrinks the RNG jitter* as bias rises, so at full softness the softest
- *    medium reliably leads instead of being outraced by noise. At 0 the jitter
- *    is at its largest, which is what lets hard-edge styles surface.
+ * `softBias` (0 → 1) is a *ceiling*, and that is the whole point: it defines
+ * which mediums are eligible at all, then the song's own scores and the RNG
+ * decide among them. That is what makes the control behave like a spectrum —
+ * at 0 the full range (including hard-edge and vector) is in play, and as it
+ * rises the graphic mediums fall out of contention entirely.
+ *
+ * An earlier version *rewarded* softness instead of gating it. Because genre
+ * traits already pinned a few mediums for a given song, the reward could never
+ * out-vote them, so every softness setting returned the same four styles and
+ * the control looked broken.
  */
 function rankStyles(
   scores: Map<string, number>,
@@ -406,13 +411,14 @@ function rankStyles(
   softBias: number,
 ): string[] {
   const bias = clamp01(softBias);
-  const jitter = 0.6 * (1 - bias * 0.85);
-  return STYLES
-    .map((style) => {
-      const edge = STYLE_EDGE[style] ?? 0.5;
-      const reward = bias * 3 * (1 - edge);
-      return { style, score: (scores.get(style) || 0) + reward + rng() * jitter };
-    })
+  // Edge score past which a medium is excluded. bias 0 → ~everything eligible
+  // (full range, graphic mediums included); bias 1 → only the genuinely soft
+  // mediums survive. The ceiling must *fall* as softness rises.
+  const ceiling = 1.05 - bias * 0.75;
+  const eligible = STYLES.filter((s) => (STYLE_EDGE[s] ?? 0.5) <= ceiling);
+  const pool = eligible.length >= count ? eligible : STYLES;
+  return pool
+    .map((style) => ({ style, score: (scores.get(style) || 0) + rng() * 1.5 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, count)
     .map((entry) => entry.style);
@@ -604,7 +610,7 @@ export function buildArtPrompt(
     `Surface: ${direction.texture}.`,
     `Light: ${direction.lighting}.`,
     metadata,
-    soft ? `Absolutely no hard edges, no crisp lines, no geometric shapes, no vector flatness — ${SOFT_EDGE_CLAUSES[edge < 0.2 ? 0 : edge < 0.4 ? 1 : 2]}.` : '',
+    soft ? `Edges stay soft and indeterminate — ${SOFT_EDGE_CLAUSES[edge < 0.2 ? 0 : edge < 0.4 ? 1 : 2]}.` : '',
     'Strictly non-representational: no text, letters, numbers, logos, watermarks, signatures, borders, people, faces, hands, instruments, or recognizable objects.',
     soft
       ? 'Hand-painted feel, gallery-quality, ultra-detailed, high resolution, 3000×3000.'

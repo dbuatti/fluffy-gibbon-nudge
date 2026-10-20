@@ -163,7 +163,7 @@ function fallbackPrompt(
     `Surface: ${direction.texture}.`,
     `Light: ${direction.lighting}.`,
     atmosphere.trim(),
-    'Absolutely no hard edges, no crisp lines, no geometric shapes — every boundary dissolving rather than drawn, wet bleeding colour with no crisp outlines.',
+    'Edges stay soft and indeterminate — pigment pooling at the edges, wet bleeding colour, feathered hand-brushed boundaries.',
     'Strictly non-representational: no text, letters, numbers, logos, watermarks, signatures, borders, people, faces, hands, instruments, or recognizable objects.',
     'Hand-painted feel, gallery-quality, ultra-detailed, high resolution, 3000×3000.',
   ].filter(Boolean).join(' ')
@@ -188,12 +188,12 @@ The prompt should describe:
 - Lighting and atmosphere
 - Overall feeling (dreamlike, serene, melancholic, etc.)
 
-Style: painterly and impressionistic, hand-made, minimalist, ethereal. Square format (1:1). No hard edges, no crisp lines, no geometric shapes, no vector flatness. No text, no people, no instruments.
+Style: painterly and impressionistic, hand-made, minimalist, ethereal. Square format (1:1). Soft feathered edges throughout, wet bleeding pigment, hand-brushed boundaries — never crisp or vector-flat. No text, no people, no instruments.
 
 Respond ONLY with the prompt text, nothing else. Keep it under 100 words.`
 
   const text = await callGemini(key, prompt, 0.9)
-  return sanitize(text) || 'A soft, abstract field of muted watercolour, wet pigment bleeding into cold-pressed paper, gentle gradients and hazy light, no hard edges. Square 1:1, no text, no objects.'
+  return sanitize(text) || 'A soft, abstract field of muted watercolour, wet pigment bleeding into cold-pressed paper, gentle gradients and hazy light, feathered edges. Square 1:1, no text, no objects.'
 }
 
 async function callGemini(key: string, prompt: string, temperature: number): Promise<string> {

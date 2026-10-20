@@ -386,9 +386,11 @@ const ArtPromptStudio: React.FC<ArtPromptStudioProps> = ({ imp, onSaved }) => {
               aria-label="Softness spectrum"
             />
             <p className="text-[10px] text-muted-foreground">
-              These image models have no "negative prompt", so softness is asked for
-              directly (wet bleeding, feathered edges). Slide left only if you actually
-              want clean graphic shapes.
+              These models have no "negative prompt", so softness is asked for directly
+              (wet bleeding, feathered pigment). Sliding left widens the pool of eligible
+              mediums — at the far left clean graphic shapes become possible; sliding right
+              restricts it to hand-made, bleeding mediums. "Suggest again" reshuffles within
+              whatever range is open.
             </p>
           </div>
 
