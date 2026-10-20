@@ -424,6 +424,14 @@ export class BridgeClient {
     }, timeoutMs);
   }
 
+  /** Create a local Logic project folder */
+  async createLocalProject(title: string): Promise<BridgeResponse<{ name: string; folderName: string; path: string; message: string }>> {
+    return this.request<{ name: string; folderName: string; path: string; message: string }>('/workflow/launch', {
+      method: 'POST',
+      body: JSON.stringify({ mode: 'create_local_project', title }),
+    }, 30000);
+  }
+
   /** Switch Meld Studio scene */
   async setMeldScene(req: SetMeldSceneRequest): Promise<BridgeResponse<SetMeldSceneResponse>> {
     return this.request<SetMeldSceneResponse>('/meld/scene', {
@@ -696,6 +704,20 @@ export function useLocalBridge() {
     }
   };
 
+  const createLocalProject = async (title: string) => {
+    try {
+      const res = await client.createLocalProject(title);
+      if (res.success) {
+        showSuccess(res.data?.message || 'Local project created');
+        return res.data;
+      } else {
+        showError(res.error || 'Failed to create local project');
+      }
+    } catch (e) {
+      showError(String(e));
+    }
+  };
+
   const setMeldScene = async (scene: string) => {
     const res = await client.setMeldScene({ scene });
     if (!res.success) {
@@ -783,6 +805,7 @@ export function useLocalBridge() {
     loadingMode,
     checkConnection,
     launchPicker,
+    createLocalProject,
     setMeldScene,
     openLogic,
     openFinder,

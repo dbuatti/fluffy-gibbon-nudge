@@ -667,6 +667,82 @@ async function handleLaunchPicker(req, res, body) {
         break;
       }
 
+      case 'create_local_project': {
+        const projectTitle = typeof body.title === 'string' ? body.title.trim() : '';
+        if (!projectTitle) {
+          sendJson(res, 400, { success: false, error: 'Missing project title', timestamp: new Date().toISOString() }, req);
+          return;
+        }
+        
+        // Create the local Logic project folder
+        const sanitized = projectTitle.replace(/[:\/]/g, '-').replace(/\s+/g, ' ').trim();
+        const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const folderName = `${datePrefix} ${sanitized}`;
+        const projectDir = path.join(LOGIC_PROJECTS_DIR, `${folderName}.logicx`);
+        
+        if (fs.existsSync(projectDir)) {
+          sendJson(res, 409, { success: false, error: `Project already exists: ${projectDir}`, timestamp: new Date().toISOString() }, req);
+          return;
+        }
+        
+        // Create the .logicx package structure
+        fs.mkdirSync(projectDir, { recursive: true });
+        fs.mkdirSync(path.join(projectDir, 'Alternatives'), { recursive: true });
+        fs.mkdirSync(path.join(projectDir, 'Media'), { recursive: true });
+        fs.mkdirSync(path.join(projectDir, 'Resources'), { recursive: true });
+        
+        // Create a basic ProjectInformation.plist
+        const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>BundleVersion</key>
+    <integer>2</integer>
+    <key>HasProjectFolder</key>
+    <false/>
+    <key>LastSavedFrom</key>
+    <string>Logic Pro</string>
+    <key>projectAssetFlags</key>
+    <integer>8265</integer>
+    <key>VariantNames</key>
+    <dict>
+        <key>0</key>
+        <string>${sanitized}</string>
+    </dict>
+    <key>VariantNamesV2</key>
+    <dict>
+        <key>0</key>
+        <string>{PROJECT_NAME}</string>
+    </dict>
+    <key>WasOnceSavedFromLPX</key>
+    <true/>
+</dict>
+</plist>`;
+        
+        fs.writeFileSync(path.join(projectDir, 'Resources', 'ProjectInformation.plist'), plistContent);
+        
+        // Create a basic Alternatives/000 folder with empty files
+        const altDir = path.join(projectDir, 'Alternatives', '000');
+        fs.mkdirSync(altDir, { recursive: true });
+        fs.writeFileSync(path.join(altDir, 'ProjectData'), '');
+        fs.writeFileSync(path.join(altDir, 'DisplayState.plist'), '');
+        fs.writeFileSync(path.join(altDir, 'MetaData.plist'), '');
+        
+        console.log(`[logic/create-local-project] Created project: ${projectDir}`);
+        
+        result = {
+          success: true,
+          data: {
+            name: sanitized,
+            folderName: folderName,
+            path: projectDir,
+            message: `Created local Logic project: ${projectDir}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+        break;
+      }
+
       default:
         sendJson(res, 400, { success: false, error: `Unknown mode: ${mode}`, timestamp: new Date().toISOString() }, req);
         return;
