@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl } from '@/integrations/supabase/client';
-import { Loader2, Sparkles, Play, Pause, Download, Settings, X, ChevronDown, ChevronUp, Eye, EyeOff, Film, FolderOpen, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, Sparkles, Play, Pause, Download, Settings, X, ChevronDown, ChevronUp, Eye, EyeOff, Film, FolderOpen, AlertTriangle, CheckCircle, ArrowLeft, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
-import { useLocalBridge, openFolderInFinder } from '@/lib/local-bridge';
+import { useLocalBridge, openFolderInFinder, bridgeClient } from '@/lib/local-bridge';
 import type { Improvisation } from '@/types/improvisation';
 
 const VISUALIZER_TYPES = [
@@ -72,7 +72,7 @@ const VideoDrafting: React.FC = () => {
   const [titleOverlayFont, setTitleOverlayFont] = useState('Arial');
   const [titleOverlayY, setTitleOverlayY] = useState('h-th-60');
 
-  const [clipSec, setClipSec] = useState(90);
+  const [clipSec, setClipSec] = useState<string>('90');
   const [clipCount, setClipCount] = useState(1);
   const [clipTargets, setClipTargets] = useState<string[]>(['reels']);
   const [startAt, setStartAt] = useState('');
@@ -103,9 +103,9 @@ const VideoDrafting: React.FC = () => {
     if (!imp?.id || !audioUrl) return;
     setIsPreviewing(true);
     try {
-      const { client } = useLocalBridge.getState();
+      const client = bridgeClient;
       const res = await client.buildSocialKit(imp.id, {
-        clipSec: Number(clipSec) || 15, // Short preview
+        clipSec: clipSec === 'full' ? 999999 : Number(clipSec) || 15, // Short preview
         clipStartSec: clipStartSec ?? undefined,
         clipCount: 1,
         clipRatios: [selectedRatio],
@@ -150,9 +150,9 @@ const VideoDrafting: React.FC = () => {
     if (!imp?.id || !audioUrl) return;
     setExporting(true);
     try {
-      const { client } = useLocalBridge.getState();
+      const client = bridgeClient;
       const res = await client.buildSocialKit(imp.id, {
-        clipSec: Number(clipSec) || undefined,
+        clipSec: clipSec === 'full' ? 999999 : Number(clipSec) || undefined,
         clipStartSec: clipStartSec ?? undefined,
         clipCount: Number(clipCount) || 1,
         clipRatios: clipTargets.length ? clipTargets : ['reels'],
@@ -187,7 +187,7 @@ const VideoDrafting: React.FC = () => {
   const createLocalFolder = async () => {
     if (!imp?.generated_name) return;
     try {
-      const { client } = useLocalBridge.getState();
+      const client = bridgeClient;
       const res = await client.createLocalProject(imp.generated_name);
       if (res.success && res.data?.path) {
         setLocalFolderPath(res.data.path);
@@ -404,6 +404,7 @@ const VideoDrafting: React.FC = () => {
                       <SelectItem value="60">1:00</SelectItem>
                       <SelectItem value="90">1:30</SelectItem>
                       <SelectItem value="180">3:00</SelectItem>
+                      <SelectItem value="full">Full length</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

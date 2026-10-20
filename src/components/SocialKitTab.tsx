@@ -218,7 +218,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     setBuildStartedAt(Date.now());
     try {
       const res = await client.buildSocialKit(imp.id, {
-        clipSec: Number(clipSec) || undefined,
+        clipSec: clipSec === 'full' ? 999999 : Number(clipSec) || undefined,
         clipStartSec: parseTime(startAt) ?? undefined,
         clipCount: count,
         clipRatios: targets,
@@ -540,6 +540,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                         <SelectItem value="60">1:00</SelectItem>
                         <SelectItem value="90">1:30</SelectItem>
                         <SelectItem value="180">3:00</SelectItem>
+                        <SelectItem value="full">Full length</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
