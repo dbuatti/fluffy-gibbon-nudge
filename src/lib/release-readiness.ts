@@ -147,10 +147,9 @@ export function computeReleaseReadiness(imp: Improvisation): ReleaseReadiness {
   // used to be satisfiable without it, so the confirmation switch could be on
   // while the checklist still blocked.
   const missingInsight = missingInsightFields(imp).map((f) => INSIGHT_FIELD_LABELS[f]);
-  // Both the description and the explicit review are needed. "Reviewed and
-  // accurate" cannot be claimed for a description that doesn't exist yet.
+  // Insight Timer fields are recommended, not required — the song can be
+  // released without them. Only description + explicit review are required.
   const metadataMissing: string[] = [];
-  if (missingInsight.length) metadataMissing.push(...missingInsight);
   if (!description) metadataMissing.push('Description');
   if (!imp.is_metadata_confirmed) metadataMissing.push('Tick "Metadata Review Confirmation" once the fields above are correct');
   const metadataDone = metadataMissing.length === 0;
@@ -178,9 +177,9 @@ export function computeReleaseReadiness(imp: Improvisation): ReleaseReadiness {
       id: 'audio',
       label: 'Attach the finished audio',
       doneLabel: 'Audio attached',
-      why: 'Required by both distributors. The entry can live here without it in the meantime.',
+      why: 'Required for the portfolio. The entry can live here without it in the meantime.',
       done: hasAudio,
-      severity: 'recommended',
+      severity: 'required',
       tab: 'creative-hub',
     },
     {
@@ -223,9 +222,9 @@ export function computeReleaseReadiness(imp: Improvisation): ReleaseReadiness {
       id: 'metadata',
       label: 'Populate and review the metadata',
       doneLabel: 'Metadata populated and confirmed',
-      why: 'Insight Timer categorisation plus a description, then an explicit review.',
+      why: 'Insight Timer categorisation plus a description, then an explicit review. Recommended, not blocking.',
       done: metadataDone,
-      severity: 'required',
+      severity: 'recommended',
       tab: 'analysis-distro',
       missing: metadataDone ? undefined : metadataMissing,
     },

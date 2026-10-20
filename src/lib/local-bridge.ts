@@ -540,6 +540,14 @@ export class BridgeClient {
     });
   }
 
+  /** Create an app entry from any Logic project folder (local or NAS). */
+  async createLogicEntry(path: string, title?: string): Promise<BridgeResponse<{ id: string; title: string; originalName?: string; logicProjectPath?: string; message: string }>> {
+    return this.request<{ id: string; title: string; originalName?: string; logicProjectPath?: string; message: string }>('/logic/create-entry', {
+      method: 'POST',
+      body: JSON.stringify({ path, title }),
+    });
+  }
+
   /** List top-level Logic projects (Music/Logic) with size + NAS archive status */
   async getLogicProjects(): Promise<BridgeResponse<{ projects: LogicProject[]; nasListed: boolean; count: number }>> {
     // Sizes come from walking each bundle locally — usually fast, but give
@@ -657,6 +665,10 @@ export interface LogicProject {
   files: number;
   sizeMB: number;
   archived: boolean;
+  /** Whether this Logic project already has an app entry in Composer Hub. */
+  linked?: boolean;
+  /** The improvisation ID if linked. */
+  linkedId?: string | null;
   /** Absolute path of the archived folder on the NAS, when one exists. */
   nasFolder?: string | null;
   /** The date the archived folder carries (YYYY-MM-DD), when date-prefixed. */
@@ -823,6 +835,10 @@ export function useLocalBridge() {
     return client.createCaptureEntry(name, opts);
   };
 
+  const createLogicEntry = async (folderPath: string, title?: string) => {
+    return client.createLogicEntry(folderPath, title);
+  };
+
   const getLogicProjects = async () => {
     return client.getLogicProjects();
   };
@@ -865,6 +881,7 @@ export function useLocalBridge() {
     mountNas,
     getCaptures,
     createCaptureEntry,
+    createLogicEntry,
     getLogicProjects,
     archiveLogicProject,
     trashLocalLogicProject,

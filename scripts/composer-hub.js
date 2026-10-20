@@ -45,6 +45,34 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
  * Reads the cached refresh token and exchanges it for a fresh session.
  * Returns { access_token, user_id } or null if no valid session.
  */
+async function loginWithPassword(email, password) {
+  let res;
+  try {
+    res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'apikey': ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  const body = await res.json();
+  // Cache the refresh token + credentials for future auto-login
+  fs.writeFileSync(AUTH_FILE, JSON.stringify({
+    refresh_token: body.refresh_token,
+    user_id: body.user.id,
+    email: body.user.email,
+    email_cred: email,
+    password_cred: password,
+  }, null, 2));
+  fs.chmodSync(AUTH_FILE, 0o600);
+  return { access_token: body.access_token, user_id: body.user.id };
+}
+
 async function getSession() {
   if (!fs.existsSync(AUTH_FILE)) return null;
 
@@ -55,43 +83,54 @@ async function getSession() {
     return null;
   }
 
-  if (!auth.refresh_token) return null;
+  // Try refresh token first
+  if (auth.refresh_token) {
+    let res;
+    try {
+      res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          'apikey': ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: auth.refresh_token }),
+      });
+    } catch {
+      return null;
+    }
 
-  let res;
-  try {
-    res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: {
-        'apikey': ANON_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refresh_token: auth.refresh_token }),
-    });
-  } catch {
-    // Network trouble (offline, VPN flap, Supabase down) — keep the cached
-    // token, it may still be perfectly valid. Callers treat null as "no
-    // session for now".
+    if (res.ok) {
+      const body = await res.json();
+      fs.writeFileSync(AUTH_FILE, JSON.stringify({
+        refresh_token: body.refresh_token,
+        user_id: body.user.id,
+        email: body.user.email,
+        email_cred: auth.email_cred,
+        password_cred: auth.password_cred,
+      }, null, 2));
+      fs.chmodSync(AUTH_FILE, 0o600);
+      return { access_token: body.access_token, user_id: body.user.id };
+    }
+
+    // If refresh failed with auth error, try password login if we have credentials
+    if ([400, 401, 403, 404].includes(res.status) && auth.email_cred && auth.password_cred) {
+      const result = await loginWithPassword(auth.email_cred, auth.password_cred);
+      if (result) return result;
+    }
+
+    // Only discard on definitive auth failures if no credentials to fall back on
+    if ([400, 401, 403, 404].includes(res.status) && !auth.email_cred) {
+      fs.unlinkSync(AUTH_FILE);
+    }
     return null;
   }
 
-  if (!res.ok) {
-    // Only discard the token on definitive auth failures — a transient 5xx
-    // shouldn't log you out.
-    if ([400, 401, 403, 404].includes(res.status)) fs.unlinkSync(AUTH_FILE);
-    return null;
+  // No refresh token — try password login if we have credentials
+  if (auth.email_cred && auth.password_cred) {
+    return loginWithPassword(auth.email_cred, auth.password_cred);
   }
 
-  const body = await res.json();
-
-  // Cache the new refresh token with restricted permissions
-  fs.writeFileSync(AUTH_FILE, JSON.stringify({
-    refresh_token: body.refresh_token,
-    user_id: body.user.id,
-    email: body.user.email,
-  }, null, 2));
-  fs.chmodSync(AUTH_FILE, 0o600);
-
-  return { access_token: body.access_token, user_id: body.user.id };
+  return null;
 }
 
 /**

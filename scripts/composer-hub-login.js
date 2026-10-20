@@ -132,7 +132,7 @@ async function loginWithPassword() {
     return null;
   }
 
-  return { refresh_token: body.refresh_token, email: body.user.email };
+  return { refresh_token: body.refresh_token, email: body.user.email, password: password, email_cred: email };
 }
 
 /**
@@ -207,7 +207,7 @@ async function loginWithPastedToken() {
   return parseSessionObject(session);
 }
 
-async function validateAndSave(refresh_token, email) {
+async function validateAndSave(refresh_token, email, password = null) {
   // Validate the token by exchanging it
   const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: 'POST',
@@ -231,6 +231,8 @@ async function validateAndSave(refresh_token, email) {
     refresh_token: body.refresh_token,
     user_id: body.user.id,
     email: body.user.email || email,
+    email_cred: password ? email : null,
+    password_cred: password || null,
   }, null, 2));
   fs.chmodSync(AUTH_FILE, 0o600);
 
@@ -301,7 +303,7 @@ async function main() {
     process.exit(1);
   }
 
-  if (!(await validateAndSave(result.refresh_token, result.email))) {
+  if (!(await validateAndSave(result.refresh_token, result.email, result.password))) {
     console.error('Login failed.');
     process.exit(1);
   }

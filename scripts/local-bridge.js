@@ -499,6 +499,39 @@ async function handleBridgeConfigure(req, res, body) {
   }
 }
 
+async function handleCreateLogicEntry(req, res, body) {
+  const folderPath = typeof body?.path === 'string' ? body.path.trim() : '';
+  if (!folderPath) {
+    sendJson(res, 400, { success: false, error: 'Missing folder path', timestamp: new Date().toISOString() }, req);
+    return;
+  }
+  try {
+    const hub = await import('./composer-hub.js');
+    const derivedTitle = path.basename(folderPath).replace(/\.logicx$/, '').replace(/^\d{6,8}[-\s]*/, '').trim() || path.basename(folderPath);
+    const result = await hub.captureIdea(body?.title || derivedTitle, {
+      logicProjectPath: folderPath,
+      workflowMode: 'piano_improvisation',
+    });
+    if (result.success) {
+      sendJson(res, 200, {
+        success: true,
+        data: {
+          id: result.id,
+          title: body?.title || derivedTitle,
+          originalName: result.originalName,
+          logicProjectPath: folderPath,
+          message: 'Entry created with folder link',
+        },
+        timestamp: new Date().toISOString(),
+      }, req);
+    } else {
+      sendJson(res, 500, { success: false, error: result.error, timestamp: new Date().toISOString() }, req);
+    }
+  } catch (e) {
+    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+  }
+}
+
 async function handleListCaptures(req, res) {
   const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
   try {
@@ -1074,8 +1107,9 @@ async function handleLogicProjects(req, res) {
       nasListed = fs.existsSync(NAS_CREATION_DIR);
     } catch { /* NAS not mounted — archive status stays unknown */ }
 
-    // Fetch session_date from database for all projects in one query
+    // Fetch session_date + id from database for all projects in one query
     let sessionDates = new Map();
+    let linkedIds = new Map();
     try {
       const hub = await import('./composer-hub.js');
       const session = await hub.getSession();
@@ -1084,15 +1118,16 @@ async function handleLogicProjects(req, res) {
         const paths = projects.map(p => p.path);
         // Build OR query for all paths
         const orQuery = paths.map(p => `logic_project_path.eq.${encodeURIComponent(p)}`).join(',');
-        const findRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?or=(${orQuery})&select=logic_project_path,session_date`, {
+        const findRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?or=(${orQuery})&select=id,logic_project_path,session_date`, {
           headers,
           signal: AbortSignal.timeout(10000),
         });
         if (findRes.ok) {
           const matches = await findRes.json();
           for (const m of matches) {
-            if (m.logic_project_path && m.session_date) {
-              sessionDates.set(m.logic_project_path, m.session_date);
+            if (m.logic_project_path) {
+              linkedIds.set(m.logic_project_path, m.id);
+              if (m.session_date) sessionDates.set(m.logic_project_path, m.session_date);
             }
           }
         }
@@ -1103,6 +1138,8 @@ async function handleLogicProjects(req, res) {
       const nasFolder = nasListed ? findNasArchiveFolder(p.name) : null;
       p.archived = !!nasFolder;
       p.nasFolder = nasFolder;
+      p.linked = linkedIds.has(p.path);
+      p.linkedId = linkedIds.get(p.path) || null;
       // The date the folder carries: prefer database session_date, then folder name, then null
       if (sessionDates.has(p.path)) {
         p.archivedDate = sessionDates.get(p.path); // Already in YYYY-MM-DD format
@@ -2825,6 +2862,8 @@ async function startServer() {
           await handleListCaptures(req, res);
         } else if (pathname === '/captures/create-entry' && req.method === 'POST') {
           await handleCreateCaptureEntry(req, res, parsedBody);
+        } else if (pathname === '/logic/create-entry' && req.method === 'POST') {
+          await handleCreateLogicEntry(req, res, parsedBody);
         } else if (pathname === '/bridge/configure' && req.method === 'POST') {
           await handleBridgeConfigure(req, res, parsedBody);
         } else {

@@ -197,6 +197,7 @@ export const LocalBridgePanel: React.FC = () => {
     mountNas,
     getCaptures,
     createCaptureEntry,
+    createLogicEntry,
     getLogicProjects,
     archiveLogicProject,
     trashLocalLogicProject,
@@ -242,6 +243,9 @@ export const LocalBridgePanel: React.FC = () => {
   const [showCaptures, setShowCaptures] = useState(() => localStorage.getItem('lb_showCaptures') !== 'false');
   const [captures, setCaptures] = useState<LocalCapture[]>([]);
   const [capturesLoading, setCapturesLoading] = useState(false);
+  const [entryPath, setEntryPath] = useState('');
+  const [entryTitle, setEntryTitle] = useState('');
+  const [entryCreating, setEntryCreating] = useState(false);
   const [showArchive, setShowArchive] = useState(() => localStorage.getItem('lb_showArchive') === 'true');
   const [projects, setProjects] = useState<LogicProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
@@ -303,6 +307,29 @@ export const LocalBridgePanel: React.FC = () => {
       setLastResult({ success: false, message: e.message || 'Scan failed' });
     } finally {
       setCapturesLoading(false);
+    }
+  };
+
+  const handleCreateEntry = async () => {
+    if (!entryPath.trim()) {
+      showError('Paste a folder path first');
+      return;
+    }
+    setEntryCreating(true);
+    try {
+      const res = await createLogicEntry(entryPath.trim(), entryTitle.trim() || undefined);
+      if (res.success && res.data?.id) {
+        showSuccess(`Created entry: ${res.data.title}`);
+        setLastResult({ success: true, message: `Created app entry for ${res.data.title}` });
+        setEntryPath('');
+        setEntryTitle('');
+      } else {
+        showError(res.error || 'Failed to create entry');
+      }
+    } catch (e) {
+      showError(e instanceof Error ? e.message : 'Failed to create entry');
+    } finally {
+      setEntryCreating(false);
     }
   };
 
@@ -593,6 +620,36 @@ export const LocalBridgePanel: React.FC = () => {
                 Click "Scan" to list local captures from _Captures
               </p>
             )}
+          </div>
+        </CollapsibleSection>
+
+        {/* Create Entry from Folder */}
+        <CollapsibleSection title="Create Entry from Folder" icon={Plus} isOpen={true} onToggle={() => {}}>
+          <div className="space-y-2">
+            <p className="text-[10px] text-muted-foreground">
+              Paste a Logic project folder path (local or NAS) to create a new app entry linked to it.
+            </p>
+            <Input
+              value={entryPath}
+              onChange={(e) => setEntryPath(e.target.value)}
+              placeholder="/Volumes/Moon Prism/DBP/Creation/20261006 Felt Piano Experiment"
+              className="text-xs h-8"
+            />
+            <Input
+              value={entryTitle}
+              onChange={(e) => setEntryTitle(e.target.value)}
+              placeholder="Title (optional — derived from folder name)"
+              className="text-xs h-8"
+            />
+            <Button
+              size="sm"
+              onClick={handleCreateEntry}
+              disabled={!connected || entryCreating || !entryPath.trim()}
+              className="w-full gap-1.5"
+            >
+              {entryCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              {entryCreating ? 'Creating…' : 'Create App Entry'}
+            </Button>
           </div>
         </CollapsibleSection>
 

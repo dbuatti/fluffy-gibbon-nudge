@@ -425,6 +425,20 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
             copied to Moon Prism as a second copy.
           </p>
 
+          {kit?.built && imp.artwork_url && (
+            <div className="flex items-center gap-3">
+              <img
+                src={imp.artwork_url}
+                alt="Kit artwork"
+                className="h-16 w-16 rounded-lg object-cover border border-border"
+              />
+              <div className="text-xs text-muted-foreground">
+                <p className="font-medium text-foreground">Artwork used</p>
+                <p>{kit.artworkSource === 'generated' ? 'AI-generated' : 'Manual upload'}</p>
+              </div>
+            </div>
+          )}
+
           {kit?.nas && (
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {kit.nas.status === 'mirrored' ? (
@@ -969,6 +983,18 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                 <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => copyText(activeCaption, 'Caption')}>
                     <Copy className="w-4 h-4 mr-2" /> Copy
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const all = Object.entries(captions)
+                        .map(([platform, text]) => `=== ${platform.toUpperCase()} ===\n${text}`)
+                        .join('\n\n');
+                      copyText(all, 'All captions');
+                    }}
+                  >
+                    <Copy className="w-4 h-4 mr-2" /> Copy all
                   </Button>
                   {captionTab === 'youtube' && splitYouTube(activeCaption).title && (
                     <Button

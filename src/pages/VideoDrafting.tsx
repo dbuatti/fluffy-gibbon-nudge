@@ -177,7 +177,7 @@ const VideoDrafting: React.FC = () => {
             <div className="flex gap-3">
               <Button
                 onClick={handleGenerate}
-                disabled={exporting || isBuilding}
+                disabled={exporting}
                 className="flex-1 gap-2"
                 size="lg"
               >

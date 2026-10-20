@@ -147,8 +147,8 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
     ? missingInsight
     : [...missingInsight, 'Description'];
 
-  // If the content type is 'Music', we assume the other fields are required for full categorization.
-  const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
+  // Insight Timer fields are recommended, not required. Only description is needed.
+  const isCategorizationComplete = hasDescription;
 
   // --- Handlers for Categorization Fields ---
   
