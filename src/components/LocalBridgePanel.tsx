@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, openFoldersInFinder, LOGIC_PROJECTS_DIR, NAS_CREATION_DIR, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, LOGIC_PROJECTS_DIR, NAS_CREATION_DIR, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -623,21 +623,20 @@ export const LocalBridgePanel: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => openFoldersInFinder([LOGIC_PROJECTS_DIR, NAS_CREATION_DIR])}
+                onClick={() => openFolderInFinder(LOGIC_PROJECTS_DIR)}
                 className="text-xs gap-1.5 flex-1"
-                title="Open both Music/Logic and Moon Prism/DBP/Creation in Finder"
+                title={`Open ${LOGIC_PROJECTS_DIR} in Finder`}
               >
-                <FolderOpen className="h-3 w-3" /> Open Logic + Creation
+                <FolderOpen className="h-3 w-3" /> Open Logic
               </Button>
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 flex-shrink-0"
-                onClick={() => openFolderInFinder(LOGIC_PROJECTS_DIR)}
-                title={`Open ${LOGIC_PROJECTS_DIR} in Finder`}
-                aria-label="Open Music/Logic in Finder"
+                variant="outline"
+                size="sm"
+                onClick={() => openFolderInFinder(NAS_CREATION_DIR)}
+                className="text-xs gap-1.5 flex-1"
+                title={`Open ${NAS_CREATION_DIR} in Finder`}
               >
-                <FolderOpen className="h-3 w-3" />
+                <FolderOpen className="h-3 w-3" /> Open Creation
               </Button>
             </div>
             <Button
