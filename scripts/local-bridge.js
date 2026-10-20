@@ -569,6 +569,7 @@ async function handleStatus(req, res) {
       tailscaleConnected,
       nasPath: nasMounted ? '/Volumes/Moon Prism' : undefined,
       config: { port: config.port, bindHost: config.bindHost || '127.0.0.1', allowedOrigins: config.allowedOrigins },
+    paths: { logicProjectsDir: LOGIC_PROJECTS_DIR, nasCreationDir: NAS_CREATION_DIR },
     },
     timestamp: new Date().toISOString(),
   }, req);

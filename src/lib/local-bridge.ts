@@ -115,6 +115,9 @@ export interface BridgeStatusResponse {
   tailscaleConnected?: boolean;
   nasPath?: string;
   config: Pick<BridgeConfig, 'port' | 'allowedOrigins'> & { bindHost?: string };
+  /** Absolute paths on the bridge host — provided by the bridge so the client
+   *  doesn't need to hardcode them. */
+  paths?: { logicProjectsDir: string; nasCreationDir: string };
 }
 
 // --- Local Captures ---
@@ -879,10 +882,6 @@ export async function openFolderInFinder(folderPath: string): Promise<boolean> {
 }
 
 
-/** Local Logic projects directory (mirrors LOGIC_PROJECTS_DIR in the bridge). */
-export const LOGIC_PROJECTS_DIR = '/Users/danielebuatti/Music/Logic';
-/** NAS creation folder — deep-composition projects live here (mirrors NAS_CREATION_DIR). */
-export const NAS_CREATION_DIR = '/Volumes/Moon Prism/DBP/Creation';
 
 
 /**

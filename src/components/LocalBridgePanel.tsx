@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, LOGIC_PROJECTS_DIR, NAS_CREATION_DIR, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -624,18 +624,18 @@ export const LocalBridgePanel: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => openFolderInFinder(LOGIC_PROJECTS_DIR)}
+                onClick={() => openFolderInFinder(status?.paths?.logicProjectsDir || '/Users/danielebuatti/Music/Logic')}
                 className="text-xs gap-1.5 flex-1"
-                title={`Open ${LOGIC_PROJECTS_DIR} in Finder`}
+                title={`Open Logic projects folder in Finder`}
               >
                 <FolderOpen className="h-3 w-3" /> Open Logic
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => openFolderInFinder(NAS_CREATION_DIR)}
+                onClick={() => openFolderInFinder(status?.paths?.nasCreationDir || '/Volumes/Moon Prism/DBP/Creation')}
                 className="text-xs gap-1.5 flex-1"
-                title={`Open ${NAS_CREATION_DIR} in Finder`}
+                title={`Open NAS Creation folder in Finder`}
               >
                 <FolderOpen className="h-3 w-3" /> Open Creation
               </Button>
