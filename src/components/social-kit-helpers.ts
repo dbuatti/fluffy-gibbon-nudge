@@ -1,7 +1,6 @@
 import type { SocialCaptionPlatform, SocialCaptions } from '@/lib/local-bridge';
 import type { Improvisation } from '@/types/improvisation';
 import { Instagram, Music2, Youtube } from 'lucide-react';
-import { Instagram, Music2, Youtube } from 'lucide-react';
 
 /** Ratios that can be given several cuts, with the label shown in the UI. */
 export const CLIP_TARGETS = [
