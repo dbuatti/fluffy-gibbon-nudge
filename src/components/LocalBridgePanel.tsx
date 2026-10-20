@@ -193,6 +193,7 @@ export const LocalBridgePanel: React.FC = () => {
     checkConnection,
     hasToken,
     configureToken,
+    generateAndSaveToken,
     mountNas,
     getCaptures,
     createCaptureEntry,
@@ -398,7 +399,12 @@ export const LocalBridgePanel: React.FC = () => {
           </Button>
         </CardContent>
       </Card>
-      <LocalBridgeTokenSetup open={showTokenSetup} onClose={() => setShowTokenSetup(false)} />
+      <LocalBridgeTokenSetup
+        open={showTokenSetup}
+        onClose={() => setShowTokenSetup(false)}
+        token={tokenInput}
+        onTokenChange={setTokenInput}
+      />
       </>
     );
   }
@@ -817,7 +823,7 @@ export const LocalBridgePanel: React.FC = () => {
                   {copiedToken ? <CheckCircle className="h-3 w-3 text-green-600" /> : <LinkIcon className="h-3 w-3" />}
                 </Button>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => { configureToken(''); setShowTokenSetup(true); }}>
+              <Button variant="ghost" size="sm" onClick={async () => { const token = await generateAndSaveToken(); setTokenInput(token); setShowTokenSetup(true); }}>
                 Regenerate Token
               </Button>
             </div>
@@ -825,14 +831,23 @@ export const LocalBridgePanel: React.FC = () => {
         </div>
       </CardContent>
     </Card>
-    <LocalBridgeTokenSetup open={showTokenSetup} onClose={() => setShowTokenSetup(false)} />
+    <LocalBridgeTokenSetup
+      open={showTokenSetup}
+      onClose={() => setShowTokenSetup(false)}
+      token={tokenInput}
+      onTokenChange={setTokenInput}
+    />
   </>
   );
 };
 
 // Token Setup Dialog (renders in portal or inline)
-export const LocalBridgeTokenSetup: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
-  const [token, setToken] = useState('');
+export const LocalBridgeTokenSetup: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  token: string;
+  onTokenChange: (token: string) => void;
+}> = ({ open, onClose, token, onTokenChange }) => {
   const [copied, setCopied] = useState(false);
 
   if (!open) return null;
