@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
-import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw, ImageIcon } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
@@ -44,6 +44,8 @@ const ImprovisationDetails: React.FC = () => {
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
+  const [isDraggingArtwork, setIsDraggingArtwork] = React.useState(false);
+  const [isUploadingArtwork, setIsUploadingArtwork] = React.useState(false);
 
   // --- Tab State Management using URL Query Params ---
   const query = new URLSearchParams(location.search);
@@ -146,6 +148,55 @@ const ImprovisationDetails: React.FC = () => {
       showError(`Failed to mark improvisation ready: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsMarkingReady(false);
+    }
+  };
+
+  // --- Drag-and-drop artwork upload ---
+  const handleArtworkDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingArtwork(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !session?.user || !imp?.id) return;
+    const accepted = ['image/jpeg', 'image/png'];
+    if (!accepted.includes(file.type)) {
+      showError('Drop a JPG or PNG image');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showError('Image must be under 20 MB');
+      return;
+    }
+    setIsUploadingArtwork(true);
+    try {
+      const { upscaleToMinSize, toSquareExport, RELEASE_EXPORT_SIZE } = await import('@/lib/image-compliance');
+      const bucketName = 'piano_improvisations';
+      const user = session.user;
+      let blobToUpload: Blob = file;
+      let uploadPath = `${user.id}/artwork/${imp.id}.${file.name.split('.').pop() || 'jpg'}`;
+      try {
+        blobToUpload = await toSquareExport(file, RELEASE_EXPORT_SIZE);
+        uploadPath = `${user.id}/artwork/${imp.id}.jpg`;
+      } catch {
+        // upload as-is
+      }
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(uploadPath, blobToUpload, { cacheControl: '3600', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(uploadPath);
+      const newUrl = publicUrlData.publicUrl;
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .update({ artwork_url: newUrl })
+        .eq('id', imp.id);
+      if (dbError) throw dbError;
+      showSuccess('Artwork uploaded');
+      handleRefetch();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploadingArtwork(false);
     }
   };
 
@@ -309,7 +360,29 @@ const ImprovisationDetails: React.FC = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+    <div
+      className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 relative"
+      onDragOver={(e) => { e.preventDefault(); setIsDraggingArtwork(true); }}
+      onDragLeave={(e) => { e.preventDefault(); setIsDraggingArtwork(false); }}
+      onDrop={handleArtworkDrop}
+    >
+      {isDraggingArtwork && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-4 border-dashed border-primary rounded-lg pointer-events-none">
+          <div className="text-center">
+            <ImageIcon className="h-16 w-16 mx-auto mb-2 text-primary" />
+            <p className="text-lg font-semibold text-primary">Drop artwork here</p>
+            <p className="text-sm text-muted-foreground">JPG or PNG, max 20 MB</p>
+          </div>
+        </div>
+      )}
+      {isUploadingArtwork && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-sm font-medium">Uploading artwork…</span>
+          </div>
+        </div>
+      )}
       
       {/* 1. HEADER (Title, Metadata Dialog, Settings Sheet) */}
       <ImprovisationHeader
