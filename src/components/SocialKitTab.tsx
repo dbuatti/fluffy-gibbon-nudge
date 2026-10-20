@@ -142,12 +142,22 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showExcerpt, setShowExcerpt] = useState(false);
+  const [showVideoStyle, setShowVideoStyle] = useState(false);
   const [clipSec, setClipSec] = useState('90');
   const [clipCount, setClipCount] = useState('1');
   const [clipTargets, setClipTargets] = useState<string[]>(['reels']);
   const [startAt, setStartAt] = useState('');
   const [posted, setPosted] = useState<Partial<Record<SocialCaptionPlatform, string>>>({});
   const [markingPosted, setMarkingPosted] = useState<SocialCaptionPlatform | null>(null);
+  // Video style options
+  const [waveformEnabled, setWaveformEnabled] = useState(true);
+  const [waveformMode, setWaveformMode] = useState<'cline' | 'p2p'>('cline');
+  const [waveformColor, setWaveformColor] = useState('#FFFFFF');
+  const [waveformHeight, setWaveformHeight] = useState(180);
+  const [titleOverlayEnabled, setTitleOverlayEnabled] = useState(true);
+  const [titleOverlayText, setTitleOverlayText] = useState('');
+  const [titleOverlayColor, setTitleOverlayColor] = useState('#FFFFFF');
+  const [titleOverlayFontSize, setTitleOverlayFontSize] = useState(56);
   const previewUrlRef = useRef<string | null>(null);
 
   const title = useMemo(
@@ -292,6 +302,18 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         clipStartSec: parseTime(startAt) ?? undefined,
         clipCount: count,
         clipRatios: targets,
+        waveform: waveformEnabled ? {
+          enabled: true,
+          mode: waveformMode,
+          color: waveformColor.replace('#', '0x'),
+          height: waveformHeight,
+        } : { enabled: false },
+        titleOverlay: titleOverlayEnabled ? {
+          enabled: true,
+          text: (titleOverlayText || title).toUpperCase(),
+          color: titleOverlayColor,
+          fontSize: titleOverlayFontSize,
+        } : { enabled: false },
       });
       if (res.success && res.data) {
         applyKit(res.data);
@@ -304,7 +326,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       setBuildStep(null);
       setBuildStartedAt(null);
     }
-  }, [client, imp.id, clipSec, clipCount, clipTargets, startAt, applyKit]);
+  }, [client, imp.id, clipSec, clipCount, clipTargets, startAt, applyKit, waveformEnabled, waveformMode, waveformColor, waveformHeight, titleOverlayEnabled, titleOverlayText, titleOverlayColor, titleOverlayFontSize, title]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
@@ -625,6 +647,120 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               </CollapsibleContent>
             </Collapsible>
           )}
+
+          {/* --- Video Style (waveform + title overlay) --- */}
+          {!building && (
+            <Collapsible open={showVideoStyle} onOpenChange={setShowVideoStyle}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="px-0 text-muted-foreground">
+                  <ChevronDown className={`w-4 h-4 mr-1 transition-transform ${showVideoStyle ? 'rotate-180' : ''}`} />
+                  Video style
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                <div className="space-y-4">
+                  {/* Waveform */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={waveformEnabled}
+                        onChange={(e) => setWaveformEnabled(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      Audio waveform overlay
+                    </label>
+                    {waveformEnabled && (
+                      <div className="grid gap-4 sm:grid-cols-2 pl-6">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Mode</label>
+                          <Select value={waveformMode} onValueChange={setWaveformMode}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cline">Centered lines</SelectItem>
+                              <SelectItem value="p2p">Peak-to-peak</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Color</label>
+                          <Input
+                            type="color"
+                            value={waveformColor}
+                            onChange={(e) => setWaveformColor(e.target.value)}
+                            className="h-8 w-12"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Height (px)</label>
+                          <Input
+                            type="number"
+                            value={waveformHeight}
+                            onChange={(e) => setWaveformHeight(Number(e.target.value) || 180)}
+                            min={50}
+                            max={500}
+                            className="h-8 text-xs w-20"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Title Overlay */}
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={titleOverlayEnabled}
+                        onChange={(e) => setTitleOverlayEnabled(e.target.checked)}
+                        className="accent-primary"
+                      />
+                      Song title overlay (bottom center)
+                    </label>
+                    {titleOverlayEnabled && (
+                      <div className="grid gap-4 sm:grid-cols-2 pl-6">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Text</label>
+                          <Input
+                            value={titleOverlayText || title}
+                            onChange={(e) => setTitleOverlayText(e.target.value)}
+                            placeholder="Auto: song title"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Color</label>
+                          <Input
+                            type="color"
+                            value={titleOverlayColor}
+                            onChange={(e) => setTitleOverlayColor(e.target.value)}
+                            className="h-8 w-12"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Font size (px)</label>
+                          <Input
+                            type="number"
+                            value={titleOverlayFontSize}
+                            onChange={(e) => setTitleOverlayFontSize(Number(e.target.value) || 56)}
+                            min={24}
+                            max={120}
+                            className="h-8 text-xs w-20"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Waveform renders as moving bars synced to the audio. Title uses a sans-serif font
+                    in ALL CAPS, centered at the bottom. Both are burned into the video at render time.
+                  </p>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+
         </CardContent>
       </Card>
 

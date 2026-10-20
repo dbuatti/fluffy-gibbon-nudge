@@ -233,6 +233,42 @@ export interface SocialKitOptions {
   clipCount?: number;
   /** Ratios to give that many cuts: 'reels' | 'feed' | 'youtube'. */
   clipRatios?: string[];
+  /** Waveform visualization overlay on the video. */
+  waveform?: {
+    /** Enable waveform overlay. */
+    enabled: boolean;
+    /** Waveform mode: 'cline' (centered lines) | 'p2p' (peak-to-peak). */
+    mode?: 'cline' | 'p2p';
+    /** Waveform color (hex string like '0xFFFFFF'). */
+    color?: string;
+    /** Background color for waveform area (hex, optional). */
+    background?: string;
+    /** Width of waveform area (px). */
+    width?: number;
+    /** Height of waveform area (px). */
+    height?: number;
+    /** Margin from bottom (px). */
+    marginBottom?: number;
+  };
+  /** Title text overlay at bottom center. */
+  titleOverlay?: {
+    /** Enable title overlay. */
+    enabled: boolean;
+    /** Text to display (defaults to song title). */
+    text?: string;
+    /** Font family (sans-serif recommended). */
+    font?: string;
+    /** Font size in pixels. */
+    fontSize?: number;
+    /** Text color (hex string like 'white' or '#FFFFFF'). */
+    color?: string;
+    /** Background box color (hex with alpha like '0x000000AA'). */
+    boxColor?: string;
+    /** Padding around text (px). */
+    boxBorderW?: number;
+    /** Y position (ffmpeg expression, default: 'h-th-60'). */
+    y?: string;
+  };
 }
 
 /** Live progress for a kit build (in-memory on the bridge). */

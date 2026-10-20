@@ -1635,6 +1635,10 @@ async function composeSocialFrame(artFile, outFile, w, h) {
  * mid-note or snaps on mid-frame. The picture fade needs real frames, so the
  * still always enters at output frame rate — a 1 fps input can't fade, it just
  * cuts (ffmpeg's fade interpolates between frames).
+ *
+ * Optional enhancements:
+ *  - Waveform overlay (showwaves) synced to the audio
+ *  - Title text overlay (drawtext) at bottom center
  */
 function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts = {}) {
   const start = Math.max(0, startSec || 0);
@@ -1661,7 +1665,49 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
   args.push('-i', audioFile);
   args.push('-map', '0:v', '-map', `1:a`);
   args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-tune', 'stillimage', '-r', '30');
-  if (videoFades.length) args.push('-vf', `${videoFades.join(',')},format=yuv420p`);
+
+  // Build the video filter chain: fades + optional waveform + optional title
+  const vfParts = [...videoFades];
+
+  // Waveform overlay (showwaves) - renders audio as moving bars on the video
+  if (opts.waveform?.enabled) {
+    const w = opts.waveform;
+    const mode = w.mode || 'cline'; // cline = centered lines, p2p = peak-to-peak
+    const colors = w.color || '0xFFFFFF';
+    const bg = w.background ? `@${w.background}` : '';
+    const split = `[1:a]showwaves=s=${w.width || 1080}x${w.height || 200}:mode=${mode}:colors=${colors}${bg}:rate=30[wf]`;
+    const overlay = `[0:v][wf]overlay=(W-w)/2:H-h-${w.marginBottom || 40}[v]`;
+    args.push('-filter_complex', split + ';' + overlay);
+    args.push('-map', '[v]', '-map', '1:a');
+  } else if (videoFades.length) {
+    // No waveform, just fades
+    args.push('-vf', `${videoFades.join(',')},format=yuv420p`);
+    args.push('-map', '0:v', '-map', '1:a');
+  } else {
+    // No fades, no waveform
+    args.push('-map', '0:v', '-map', '1:a');
+  }
+
+  // Title overlay (drawtext) - rendered on top of everything
+  if (opts.titleOverlay?.enabled) {
+    const t = opts.titleOverlay;
+    const text = (t.text || '').replace(/:/g, '\\:').replace(/'/g, "\\'").replace(/%/g, '\\%');
+    const font = t.font || 'Arial';
+    const fontSize = t.fontSize || 48;
+    const color = t.color || 'white';
+    const boxColor = t.boxColor || '0x000000AA';
+    const boxBorderW = t.boxBorderW || 12;
+    const y = t.y || 'h-th-60'; // 60px from bottom
+    const drawtext = `drawtext=text='${text}':fontfile=${font}:fontsize=${fontSize}:fontcolor=${color}:box=1:boxcolor=${boxColor}:boxborderw=${boxBorderW}:x=(w-text_w)/2:y=${y}`;
+    if (args.find((a) => a === '-filter_complex')) {
+      // Append to existing filter chain
+      const idx = args.indexOf('-filter_complex');
+      args[idx + 1] = args[idx + 1] + ',' + drawtext;
+    } else {
+      args.push('-vf', drawtext + (videoFades.length ? `,${videoFades.join(',')}` : ''));
+    }
+  }
+
   if (audioFades.length) args.push('-af', audioFades.join(','));
   args.push('-c:a', 'aac', '-b:a', '192k');
   if (opts.title) {
