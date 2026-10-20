@@ -1,5 +1,7 @@
 import type { SocialCaptionPlatform, SocialCaptions } from '@/lib/local-bridge';
 import type { Improvisation } from '@/types/improvisation';
+import { Instagram, Music2, Youtube } from 'lucide-react';
+import { Instagram, Music2, Youtube } from 'lucide-react';
 
 /** Ratios that can be given several cuts, with the label shown in the UI. */
 export const CLIP_TARGETS = [
@@ -17,7 +19,7 @@ export const PLATFORMS = [
     key: 'reels',
     label: 'Instagram Reels',
     url: 'https://www.instagram.com/reels/',
-    icon: 'instagram',
+    icon: Instagram,
     ratio: 'reels',
     captionPlatform: 'instagram' as SocialCaptionPlatform,
     fileHint: 'Copies the caption + shows the 9:16 video',
@@ -26,7 +28,7 @@ export const PLATFORMS = [
     key: 'tiktok',
     label: 'TikTok',
     url: 'https://www.tiktok.com/upload?lang=en',
-    icon: 'music2',
+    icon: Music2,
     ratio: 'reels',
     captionPlatform: 'tiktok' as SocialCaptionPlatform,
     fileHint: 'Copies the caption + shows the 9:16 video',
@@ -35,7 +37,7 @@ export const PLATFORMS = [
     key: 'shorts',
     label: 'YouTube Shorts',
     url: 'https://www.youtube.com/upload?filter=shorts',
-    icon: 'youtube',
+    icon: Youtube,
     ratio: 'reels',
     captionPlatform: 'youtube' as SocialCaptionPlatform,
     fileHint: 'Copies the caption + shows the 9:16 video',
@@ -44,7 +46,7 @@ export const PLATFORMS = [
     key: 'feed',
     label: 'Instagram Feed',
     url: 'https://www.instagram.com/create/',
-    icon: 'instagram',
+    icon: Instagram,
     ratio: 'feed',
     captionPlatform: 'instagram' as SocialCaptionPlatform,
     fileHint: 'Copies the caption + shows the square video',
@@ -53,7 +55,7 @@ export const PLATFORMS = [
     key: 'youtube',
     label: 'YouTube (Full Length)',
     url: 'https://www.youtube.com/upload',
-    icon: 'youtube',
+    icon: Youtube,
     ratio: 'youtube',
     captionPlatform: 'youtube' as SocialCaptionPlatform,
     fileHint: 'Copies the caption + shows the full 16:9 video',

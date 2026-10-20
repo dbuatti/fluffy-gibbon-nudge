@@ -72,7 +72,7 @@ const VideoDrafting: React.FC = () => {
   const [titleOverlayFont, setTitleOverlayFont] = useState('Arial');
   const [titleOverlayY, setTitleOverlayY] = useState('h-th-60');
 
-  const [clipSec, setClipSec] = useState<string>('90');
+  const [clipSec, setClipSec] = useState<string>('full');
   const [clipCount, setClipCount] = useState(1);
   const [clipTargets, setClipTargets] = useState<string[]>(['reels']);
   const [startAt, setStartAt] = useState('');
@@ -264,9 +264,17 @@ const VideoDrafting: React.FC = () => {
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="flex items-center gap-4 flex-wrap">
-              <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center">
-                <Sparkles className="h-8 w-8 text-white" />
-              </div>
+              {imp?.artwork_url ? (
+                <img
+                  src={imp.artwork_url}
+                  alt="Artwork"
+                  className="h-16 w-16 rounded-lg object-cover border border-border"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-white" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg font-semibold truncate text-foreground">{title}</h2>
                 <p className="text-sm text-muted-foreground">

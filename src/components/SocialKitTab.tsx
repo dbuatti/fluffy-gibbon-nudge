@@ -60,7 +60,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showExcerpt, setShowExcerpt] = useState(false);
   const [showVideoStyle, setShowVideoStyle] = useState(false);
-  const [clipSec, setClipSec] = useState('90');
+  const [clipSec, setClipSec] = useState('full');
   const [clipCount, setClipCount] = useState('1');
   const [clipTargets, setClipTargets] = useState<string[]>(['reels']);
   const [startAt, setStartAt] = useState('');
