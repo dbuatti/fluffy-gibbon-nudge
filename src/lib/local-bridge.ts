@@ -360,8 +360,12 @@ export class BridgeClient {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    // Re-read from localStorage each request so a token set after page load
+    // (e.g. via the console or the "Regenerate Token" button) is picked up
+    // without a full page reload.
+    const token = this.token || (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : '');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const controller = new AbortController();
