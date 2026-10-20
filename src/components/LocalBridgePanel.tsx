@@ -18,6 +18,7 @@ import {
   Sparkles,
   Archive,
   Trash2,
+  Plus,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
