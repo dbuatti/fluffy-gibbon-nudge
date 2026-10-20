@@ -150,12 +150,15 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [posted, setPosted] = useState<Partial<Record<SocialCaptionPlatform, string>>>({});
   const [markingPosted, setMarkingPosted] = useState<SocialCaptionPlatform | null>(null);
   // Video style options
-  const [waveformEnabled, setWaveformEnabled] = useState(true);
-  const [waveformMode, setWaveformMode] = useState<'cline' | 'p2p'>('cline');
-  const [waveformColor, setWaveformColor] = useState('#FFFFFF');
-  const [waveformHeight, setWaveformHeight] = useState(180);
+  // Video style options
+  const [visualizerEnabled, setVisualizerEnabled] = useState(true);
+  const [visualizerType, setVisualizerType] = useState<'waveform' | 'spectrum' | 'spectrogram' | 'vectorscope' | 'volume'>('waveform');
+  const [visualizerMode, setVisualizerMode] = useState('cline');
+  const [visualizerColor, setVisualizerColor] = useState('#FFFFFF');
+  const [visualizerWidth, setVisualizerWidth] = useState(1080);
+  const [visualizerHeight, setVisualizerHeight] = useState(180);
+  const [visualizerBg, setVisualizerBg] = useState('');
   const [titleOverlayEnabled, setTitleOverlayEnabled] = useState(true);
-  const [titleOverlayText, setTitleOverlayText] = useState('');
   const [titleOverlayColor, setTitleOverlayColor] = useState('#FFFFFF');
   const [titleOverlayFontSize, setTitleOverlayFontSize] = useState(56);
   const previewUrlRef = useRef<string | null>(null);
@@ -302,11 +305,14 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         clipStartSec: parseTime(startAt) ?? undefined,
         clipCount: count,
         clipRatios: targets,
-        waveform: waveformEnabled ? {
+        visualizer: visualizerEnabled ? {
           enabled: true,
-          mode: waveformMode,
-          color: waveformColor.replace('#', '0x'),
-          height: waveformHeight,
+          type: visualizerType,
+          mode: visualizerMode,
+          color: visualizerColor.replace('#', '0x'),
+          width: visualizerWidth,
+          height: visualizerHeight,
+          background: visualizerBg || undefined,
         } : { enabled: false },
         titleOverlay: titleOverlayEnabled ? {
           enabled: true,
@@ -326,7 +332,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       setBuildStep(null);
       setBuildStartedAt(null);
     }
-  }, [client, imp.id, clipSec, clipCount, clipTargets, startAt, applyKit, waveformEnabled, waveformMode, waveformColor, waveformHeight, titleOverlayEnabled, titleOverlayText, titleOverlayColor, titleOverlayFontSize, title]);
+  }, [client, imp.id, clipSec, clipCount, clipTargets, startAt, applyKit, visualizerEnabled, visualizerType, visualizerMode, visualizerColor, visualizerWidth, visualizerHeight, visualizerBg, titleOverlayEnabled, titleOverlayText, titleOverlayColor, titleOverlayFontSize, title]);
 
   const handleReveal = () => {
     if (kit?.folder) openFolderInFinder(kit.folder);
@@ -664,21 +670,61 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                     <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                       <input
                         type="checkbox"
-                        checked={waveformEnabled}
-                        onChange={(e) => setWaveformEnabled(e.target.checked)}
+                        checked={visualizerEnabled}
+                        onChange={(e) => setVisualizerEnabled(e.target.checked)}
                         className="accent-primary"
                       />
-                      Audio waveform overlay
+                      Audio visualizer overlay
                     </label>
-                    {waveformEnabled && (
+                    {visualizerEnabled && (
                       <div className="grid gap-4 sm:grid-cols-2 pl-6">
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Mode</label>
-                          <Select value={waveformMode} onValueChange={setWaveformMode}>
+                          <label className="text-xs font-medium text-muted-foreground">Type</label>
+                          <Select value={visualizerType} onValueChange={setVisualizerType}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="cline">Centered lines</SelectItem>
-                              <SelectItem value="p2p">Peak-to-peak</SelectItem>
+                              <SelectItem value="waveform">Waveform (bars)</SelectItem>
+                              <SelectItem value="spectrum">Spectrum (frequency bars)</SelectItem>
+                              <SelectItem value="spectrogram">Spectrogram (waterfall)</SelectItem>
+                              <SelectItem value="vectorscope">Vectorscope (stereo)</SelectItem>
+                              <SelectItem value="volume">Volume meter</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Mode</label>
+                          <Select value={visualizerMode} onValueChange={setVisualizerMode}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {visualizerType === 'waveform' && (
+                                <>
+                                  <SelectItem value="cline">Centered lines</SelectItem>
+                                  <SelectItem value="p2p">Peak-to-peak</SelectItem>
+                                </>
+                              )}
+                              {visualizerType === 'spectrum' && (
+                                <>
+                                  <SelectItem value="bar">Bars</SelectItem>
+                                  <SelectItem value="line">Line</SelectItem>
+                                  <SelectItem value="dot">Dots</SelectItem>
+                                </>
+                              )}
+                              {visualizerType === 'spectrogram' && (
+                                <>
+                                  <SelectItem value="combined">Combined</SelectItem>
+                                  <SelectItem value="separate">Separate channels</SelectItem>
+                                </>
+                              )}
+                              {visualizerType === 'vectorscope' && (
+                                <>
+                                  <SelectItem value="lissajous">Lissajous</SelectItem>
+                                  <SelectItem value="lissajous_xy">Lissajous XY</SelectItem>
+                                  <SelectItem value="polar">Polar</SelectItem>
+                                </>
+                              )}
+                              {visualizerType === 'volume' && (
+                                <SelectItem value="bar">Bar meter</SelectItem>
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -686,8 +732,8 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           <label className="text-xs font-medium text-muted-foreground">Color</label>
                           <Input
                             type="color"
-                            value={waveformColor}
-                            onChange={(e) => setWaveformColor(e.target.value)}
+                            value={visualizerColor}
+                            onChange={(e) => setVisualizerColor(e.target.value)}
                             className="h-8 w-12"
                           />
                         </div>
@@ -695,11 +741,32 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                           <label className="text-xs font-medium text-muted-foreground">Height (px)</label>
                           <Input
                             type="number"
-                            value={waveformHeight}
-                            onChange={(e) => setWaveformHeight(Number(e.target.value) || 180)}
+                            value={visualizerHeight}
+                            onChange={(e) => setVisualizerHeight(Number(e.target.value) || 180)}
                             min={50}
                             max={500}
                             className="h-8 text-xs w-20"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Width (px)</label>
+                          <Input
+                            type="number"
+                            value={visualizerWidth}
+                            onChange={(e) => setVisualizerWidth(Number(e.target.value) || 1080)}
+                            min={100}
+                            max={1920}
+                            className="h-8 text-xs w-20"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-muted-foreground">Background (hex, optional)</label>
+                          <Input
+                            type="text"
+                            value={visualizerBg}
+                            onChange={(e) => setVisualizerBg(e.target.value)}
+                            placeholder="e.g. 0x00000080"
+                            className="h-8 text-xs w-40"
                           />
                         </div>
                       </div>

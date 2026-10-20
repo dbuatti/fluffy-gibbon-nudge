@@ -233,22 +233,30 @@ export interface SocialKitOptions {
   clipCount?: number;
   /** Ratios to give that many cuts: 'reels' | 'feed' | 'youtube'. */
   clipRatios?: string[];
-  /** Waveform visualization overlay on the video. */
-  waveform?: {
-    /** Enable waveform overlay. */
+  /** Visualizer overlay on the video (replaces waveform). */
+  visualizer?: {
+    /** Enable visualizer overlay. */
     enabled: boolean;
-    /** Waveform mode: 'cline' (centered lines) | 'p2p' (peak-to-peak). */
-    mode?: 'cline' | 'p2p';
-    /** Waveform color (hex string like '0xFFFFFF'). */
+    /** Visualizer type: 'waveform' | 'spectrum' | 'spectrogram' | 'vectorscope' | 'volume'. */
+    type?: 'waveform' | 'spectrum' | 'spectrogram' | 'vectorscope' | 'volume';
+    /** Mode depends on type: waveform: 'cline'|'p2p', spectrum: 'bar'|'line'|'dot', spectrogram: 'combined'|'separate', vectorscope: 'lissajous'|'lissajous_xy'|'polar'. */
+    mode?: string;
+    /** Color (hex string like '0xFFFFFF'). */
     color?: string;
-    /** Background color for waveform area (hex, optional). */
+    /** Background color for visualizer area (hex, optional). */
     background?: string;
-    /** Width of waveform area (px). */
+    /** Width of visualizer area (px). */
     width?: number;
-    /** Height of waveform area (px). */
+    /** Height of visualizer area (px). */
     height?: number;
     /** Margin from bottom (px). */
     marginBottom?: number;
+    /** Spectrum: frequency scale 'lin'|'log'. Spectrogram: 'lin'|'log'|'bark'|'mel'. */
+    fscale?: string;
+    /** Spectrogram window size: 'w16'..'w8192'. */
+    winSize?: string;
+    /** Vectorscope zoom factor. */
+    zoom?: number;
   };
   /** Title text overlay at bottom center. */
   titleOverlay?: {

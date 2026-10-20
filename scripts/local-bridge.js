@@ -1754,9 +1754,14 @@ async function composeSocialFrame(artFile, outFile, w, h) {
  * cuts (ffmpeg's fade interpolates between frames).
  *
  * Optional enhancements:
- *  - Waveform overlay (showwaves) synced to the audio
- *  - Title text overlay (drawtext) at bottom center
- */
+  *  - Visualizer overlay: multiple types synced to the audio
+  *    - 'waveform' (showwaves): moving bars, centered lines or peak-to-peak
+  *    - 'spectrum' (showfreqs): frequency spectrum bars
+  *    - 'spectrogram' (showspectrumpic): scrolling frequency waterfall
+  *    - 'vectorscope' (avectorscope): stereo Lissajous
+  *    - 'volume' (ebur128): loudness meter bar
+  *  - Title text overlay (drawtext) at bottom center
+*/
 function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts = {}) {
   const start = Math.max(0, startSec || 0);
   const length = clipSec || 0;
@@ -1783,25 +1788,76 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
   args.push('-map', '0:v', '-map', `1:a`);
   args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-tune', 'stillimage', '-r', '30');
 
-  // Build the video filter chain: fades + optional waveform + optional title
+  // Build the video filter chain: fades + optional visualizer + optional title
   const vfParts = [...videoFades];
 
-  // Waveform overlay (showwaves) - renders audio as moving bars on the video
-  if (opts.waveform?.enabled) {
-    const w = opts.waveform;
-    const mode = w.mode || 'cline'; // cline = centered lines, p2p = peak-to-peak
-    const colors = w.color || '0xFFFFFF';
-    const bg = w.background ? `@${w.background}` : '';
-    const split = `[1:a]showwaves=s=${w.width || 1080}x${w.height || 200}:mode=${mode}:colors=${colors}${bg}:rate=30[wf]`;
-    const overlay = `[0:v][wf]overlay=(W-w)/2:H-h-${w.marginBottom || 40}[v]`;
+  // Visualizer overlay - supports multiple types synced to the audio
+  const viz = opts.visualizer || opts.waveform; // backward compat: waveform -> visualizer
+  if (viz?.enabled) {
+    const v = viz;
+    const type = v.type || 'waveform'; // waveform, spectrum, spectrogram, vectorscope, volume
+    const width = v.width || 1080;
+    const height = v.height || 200;
+    const colors = v.color || '0xFFFFFF';
+    const bg = v.background ? `@${v.background}` : '';
+    const marginBottom = v.marginBottom || 40;
+
+    let filter = '';
+    let overlayPos = `(W-w)/2:H-h-${marginBottom}`;
+
+    switch (type) {
+      case 'waveform': {
+        // showwaves: moving bars, centered lines or peak-to-peak
+        const mode = v.mode || 'cline'; // cline, p2p
+        filter = `[1:a]showwaves=s=${width}x${height}:mode=${mode}:colors=${colors}${bg}:rate=30[wf]`;
+        break;
+      }
+      case 'spectrum': {
+        // showfreqs: frequency spectrum bars
+        const mode = v.mode || 'bar'; // bar, line, dot
+        const fscale = v.fscale || 'lin'; // lin, log
+        filter = `[1:a]showfreqs=s=${width}x${height}:mode=${mode}:fscale=${fscale}:colors=${colors}${bg}:rate=30[wf]`;
+        break;
+      }
+      case 'spectrogram': {
+        // showspectrumpic: scrolling frequency waterfall (vertical)
+        // Use a tall thin strip that scrolls
+        const mode = v.mode || 'combined'; // combined, separate
+        const fscale = v.fscale || 'lin'; // lin, log, bark, mel
+        const winSize = v.winSize || 'w1024';
+        filter = `[1:a]showspectrumpic=s=${width}x${height}:mode=${mode}:fscale=${fscale}:win_size=${winSize}:colors=${colors}${bg}:rate=30[wf]`;
+        overlayPos = `(W-w)/2:H-h-${marginBottom}`; // bottom
+        break;
+      }
+      case 'vectorscope': {
+        // avectorscope: stereo Lissajous figure
+        const mode = v.mode || 'lissajous'; // lissajous, lissajous_xy, polar
+        const zoom = v.zoom || 1.0;
+        filter = `[1:a]avectorscope=s=${width}x${height}:mode=${mode}:zoom=${zoom}:rate=30[wf]`;
+        break;
+      }
+      case 'volume': {
+        // ebur128 + drawgraph: loudness meter bar
+        // This is more complex - we'll draw a simple volume meter using showvolume
+        filter = `[1:a]showvolume=s=${width}x${height}:rate=30[wf]`;
+        break;
+      }
+      default: {
+        // fallback to waveform
+        filter = `[1:a]showwaves=s=${width}x${height}:mode=cline:colors=${colors}${bg}:rate=30[wf]`;
+      }
+    }
+
+    const split = filter;
+    const overlay = `[0:v][wf]overlay=${overlayPos}[v]`;
     args.push('-filter_complex', split + ';' + overlay);
     args.push('-map', '[v]', '-map', '1:a');
   } else if (videoFades.length) {
-    // No waveform, just fades
+    // No visualizer, just fades
     args.push('-vf', `${videoFades.join(',')},format=yuv420p`);
     args.push('-map', '0:v', '-map', '1:a');
   } else {
-    // No fades, no waveform
+    // No fades, no visualizer
     args.push('-map', '0:v', '-map', '1:a');
   }
 
