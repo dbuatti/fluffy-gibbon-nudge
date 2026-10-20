@@ -63,7 +63,7 @@ function loadConfig() {
       token,
       port: 34567,
       bindHost: '127.0.0.1',
-      allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'],
+      allowedOrigins: ['https://composerhub.vercel.app', 'https://music.danielebuatti.com', 'http://localhost:5173', 'http://localhost:8080'],
     };
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
     fs.chmodSync(CONFIG_FILE, 0o600);
