@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Loader2, Sparkles, Film, FolderOpen, Copy, Instagram, Youtube, Music2,
   Play, RefreshCw, Check, Info, Clock, ExternalLink, Palette, ChevronDown,
