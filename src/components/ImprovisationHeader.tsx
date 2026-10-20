@@ -8,6 +8,7 @@ import ImprovisationSettingsSheet from './ImprovisationSettingsSheet';
 import { useTitleGenerator } from '@/hooks/useTitleGenerator';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { format } from 'date-fns';
+import { displaySessionDate } from '@/lib/display-title';
 import TitleBar from './TitleBar';
 import FolderPathLine, { getSongFolderPath } from './FolderPathLine';
 import { openFolderInFinder } from '@/lib/local-bridge';
@@ -57,7 +58,7 @@ const ImprovisationHeader: React.FC<ImprovisationHeaderProps> = ({
         />
       </div>
       <p className="text-sm text-muted-foreground mt-1">
-        Created: {imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+        {imp.session_date ? `Session: ${imp.session_date}` : `Created: ${imp.created_at ? format(new Date(imp.created_at), 'MMM dd, yyyy HH:mm') : 'N/A'}`}
       </p>
       {/* Immutable link back to the local folder — always visible, even after renames */}
       <FolderPathLine imp={imp} full className="mt-0.5" />

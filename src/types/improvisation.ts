@@ -55,4 +55,6 @@ export interface Improvisation {
   logic_project_path: string | null;
   /** Immutable link to the local folder/file basename at creation time (e.g. "20260722-124215 Felt Piano"). Never changes on rename. */
   original_name: string | null;
+  /** Composition/recording date (YYYY-MM-DD). Used for folder naming, sorting, and display. Separate from generated_name so the title can be freely edited without losing the date. */
+  session_date: string | null;
 }

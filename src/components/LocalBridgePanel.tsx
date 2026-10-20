@@ -703,17 +703,24 @@ export const LocalBridgePanel: React.FC = () => {
                       </button>
 
                       {p.archived && p.nasFolder ? (
-                        <button
-                          onClick={() => openFolderInFinder(p.nasFolder)}
-                          className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 transition-colors"
-                          title={`Open the archived copy on Moon Prism:\n${p.nasFolder}`}
-                        >
-                          <HardDrive className="h-3 w-3" />
-                          <span className="font-medium">NAS</span>
-                          <span className="truncate max-w-[9rem]">
-                            {p.nasFolder.split('/').pop()}
-                          </span>
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => openFolderInFinder(p.nasFolder)}
+                            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 transition-colors"
+                            title={`Open the archived copy on Moon Prism:\n${p.nasFolder}`}
+                          >
+                            <HardDrive className="h-3 w-3" />
+                            <span className="font-medium">NAS</span>
+                            <span className="truncate max-w-[9rem]">
+                              {p.nasFolder.split('/').pop()}
+                            </span>
+                          </button>
+                          {p.archivedDate && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono whitespace-nowrap">
+                              {p.archivedDate}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <Button
                           variant="outline"

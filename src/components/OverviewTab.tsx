@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { displaySessionDate } from '@/lib/display-title';
 import type { ReleaseReadiness } from '@/lib/release-readiness';
 import type { Improvisation } from '@/types/improvisation';
 import { useArtworkInfo } from '@/hooks/useArtworkInfo';

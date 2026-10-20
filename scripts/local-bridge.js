@@ -1042,13 +1042,40 @@ async function handleLogicProjects(req, res) {
     try {
       nasListed = fs.existsSync(NAS_CREATION_DIR);
     } catch { /* NAS not mounted — archive status stays unknown */ }
+
+    // Fetch session_date from database for all projects in one query
+    let sessionDates = new Map();
+    try {
+      const hub = await import('./composer-hub.js');
+      const session = await hub.getSession();
+      if (session) {
+        const headers = { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` };
+        const paths = projects.map(p => p.path);
+        // Build OR query for all paths
+        const orQuery = paths.map(p => `logic_project_path.eq.${encodeURIComponent(p)}`).join(',');
+        const findRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?or=(${orQuery})&select=logic_project_path,session_date`, {
+          headers,
+          signal: AbortSignal.timeout(10000),
+        });
+        if (findRes.ok) {
+          const matches = await findRes.json();
+          for (const m of matches) {
+            if (m.logic_project_path && m.session_date) {
+              sessionDates.set(m.logic_project_path, m.session_date);
+            }
+          }
+        }
+      } catch { /* non-fatal */ }
+    } catch { /* non-fatal */ }
+
     for (const p of projects) {
       const nasFolder = nasListed ? findNasArchiveFolder(p.name) : null;
       p.archived = !!nasFolder;
       p.nasFolder = nasFolder;
-      // The date the folder carries, when it is date-prefixed, so the row can
-      // show it without re-parsing names in the UI.
-      if (nasFolder) {
+      // The date the folder carries: prefer database session_date, then folder name, then null
+      if (sessionDates.has(p.path)) {
+        p.archivedDate = sessionDates.get(p.path); // Already in YYYY-MM-DD format
+      } else if (nasFolder) {
         const base = path.basename(nasFolder);
         const m = /^(\d{4})(\d{2})(\d{2}) /.exec(base);
         p.archivedDate = m ? `${m[1]}-${m[2]}-${m[3]}` : null;
@@ -1077,6 +1104,17 @@ async function handleLogicProjects(req, res) {
  * Returns { name, folderName, targetFolder, files, bytes, date, seconds }.
  */
 function copyProjectToNas(source, { datePrefix = true } = {}) {
+  /**
+ * Copy a Logic project into DBP/Creation, preserving it as a real .logicx
+ * bundle (date-prefixed by default) and verifying it file-by-file.
+ *
+ * The date used for the folder prefix comes from the database's session_date
+ * (YYYY-MM-DD), converted to YYYYMMDD format. Falls back to filesystem birth
+ * time if not provided.
+ *
+ * Returns { name, folderName, targetFolder, files, bytes, date, seconds }.
+ */
+function copyProjectToNas(source, { datePrefix = true, sessionDate = null } = {}) {
   const name = path.basename(source, '.logicx');
   if (!fs.existsSync(NAS_CREATION_DIR)) {
     throw new Error('NAS not mounted (Moon Prism). Use "Mount NAS" first, then retry.');
@@ -1084,7 +1122,21 @@ function copyProjectToNas(source, { datePrefix = true } = {}) {
 
   // Date-prefixed by default so the Creation folder reads chronologically.
   // Format matches the existing convention there: "20261007 COSMIC DRONE".
-  const date = datePrefix ? resolveProjectDate(source) : null;
+  let date = null;
+  if (datePrefix) {
+    if (sessionDate) {
+      // Use the database's session_date (YYYY-MM-DD -> YYYYMMDD)
+      date = sessionDate.replace(/-/g, '');
+    } else {
+      // Fallback to filesystem birth time
+      try {
+        const stat = fs.statSync(source);
+        const ms = stat.birthtimeMs && stat.birthtimeMs > 0 ? stat.birthtimeMs : stat.mtimeMs;
+        if (ms && ms > 0) date = new Date(ms).toISOString().slice(0, 10).replace(/-/g, '');
+      } catch { /* fall through to today */ }
+      if (!date) date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    }
+  }
   const folderName = datePrefix ? `${date} ${name}` : name;
 
   const existing = findNasArchiveFolder(name);
@@ -1157,7 +1209,26 @@ async function handleLogicArchive(req, res, body) {
     const source = resolveArchivePath(typeof body.path === 'string' ? body.path.trim() : '');
     // Date prefix is on by default; the UI can switch it off per archive.
     const datePrefix = body.datePrefix !== false;
-    const result = copyProjectToNas(source, { datePrefix });
+
+    // Fetch session_date from the database for this project
+    let sessionDate = null;
+    try {
+      const hub = await import('./composer-hub.js');
+      const session = await hub.getSession();
+      if (session) {
+        const headers = { apikey: hub.ANON_KEY, Authorization: `Bearer ${session.access_token}` };
+        const findRes = await fetch(`${hub.SUPABASE_URL}/rest/v1/improvisations?logic_project_path=eq.${encodeURIComponent(source)}&select=session_date`, {
+          headers,
+          signal: AbortSignal.timeout(10000),
+        });
+        if (findRes.ok) {
+          const [match] = await findRes.json();
+          if (match?.session_date) sessionDate = match.session_date;
+        }
+      } catch { /* non-fatal */ }
+    } catch { /* non-fatal */ }
+
+    const result = copyProjectToNas(source, { datePrefix, sessionDate });
 
     const sizeMB = Math.round((result.bytes / (1024 * 1024)) * 10) / 10;
     console.log(`[logic/archive] ${result.name}: verified — ${result.files} files, ${sizeMB} MB in ${result.seconds}s → ${result.folderName}`);

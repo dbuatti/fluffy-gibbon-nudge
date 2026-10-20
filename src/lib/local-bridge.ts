@@ -521,7 +521,9 @@ export class BridgeClient {
     return this.request<{ projects: LogicProject[]; nasListed: boolean; count: number }>('/logic/projects', {}, 60000);
   }
 
-  /** Archive a Logic project to the NAS Creation folder (copy + verify; local untouched) */
+  /** Archive a Logic project to the NAS Creation folder (copy + verify; local untouched)
+ *  The folder name uses the project's session_date (YYYYMMDD) from the database,
+ *  falling back to filesystem birth time if not set. */
   async archiveLogicProject(projectPath: string, opts: { datePrefix?: boolean } = {}): Promise<BridgeResponse<{ name: string; folderName: string; archivedTo: string; date: string | null; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>> {
     // rsync of a possibly multi-hundred-MB bundle over SMB — long leash.
     return this.request<{ name: string; folderName: string; archivedTo: string; date: string | null; files: number; sizeMB: number; seconds: number; linkedRecord: string | null; message: string }>('/logic/archive', {
