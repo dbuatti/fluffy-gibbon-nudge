@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
-import { Loader2, AlertTriangle, RefreshCw, ImageIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw, ImageIcon, Music } from 'lucide-react';
 import { showSuccess, showError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
@@ -46,6 +46,8 @@ const ImprovisationDetails: React.FC = () => {
   const [isMarkingReady, setIsMarkingReady] = React.useState(false);
   const [isDraggingArtwork, setIsDraggingArtwork] = React.useState(false);
   const [isUploadingArtwork, setIsUploadingArtwork] = React.useState(false);
+  const [isDraggingAudio, setIsDraggingAudio] = React.useState(false);
+  const [isUploadingAudio, setIsUploadingAudio] = React.useState(false);
 
   // --- Tab State Management using URL Query Params ---
   const query = new URLSearchParams(location.search);
@@ -197,6 +199,72 @@ const ImprovisationDetails: React.FC = () => {
       showError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploadingArtwork(false);
+    }
+  };
+
+  // --- Drag-and-drop audio upload ---
+  const handleAudioDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingAudio(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !session?.user || !imp?.id) return;
+    const acceptedExtensions = ['.mp3', '.m4a'];
+    const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+    if (!acceptedExtensions.includes(ext)) {
+      showError('Drop an MP3 or M4A audio file');
+      return;
+    }
+    if (file.size > 250 * 1024 * 1024) {
+      showError('Audio must be under 250 MB');
+      return;
+    }
+    // Confirm overwrite if audio already exists
+    if (imp.storage_path) {
+      const ok = window.confirm('This song already has audio. Replace it?');
+      if (!ok) return;
+    }
+    setIsUploadingAudio(true);
+    try {
+      const user = session.user;
+      const fileExtension = file.name.split('.').pop();
+      const filePath = `${user.id}/${Date.now()}.${fileExtension}`;
+      const bucketName = 'piano_improvisations';
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { error: dbError } = await supabase
+        .from('improvisations')
+        .update({
+          file_name: file.name,
+          storage_path: filePath,
+          status: 'analyzing',
+        })
+        .eq('id', imp.id);
+      if (dbError) {
+        await supabase.storage.from(bucketName).remove([filePath]);
+        throw dbError;
+      }
+      const { error: functionError } = await supabase.functions.invoke('analyze-improvisation', {
+        body: {
+          improvisationId: imp.id,
+          storagePath: filePath,
+          fileName: file.name,
+          isImprovisation: imp.is_improvisation,
+        },
+      });
+      if (functionError) {
+        logError('AudioUpload.analyze', functionError);
+        showError('File uploaded, but failed to start background processing.');
+      } else {
+        showSuccess('Audio uploaded and processing started!');
+      }
+      handleRefetch();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setIsUploadingAudio(false);
     }
   };
 
@@ -362,9 +430,26 @@ const ImprovisationDetails: React.FC = () => {
   return (
     <div
       className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 relative"
-      onDragOver={(e) => { e.preventDefault(); setIsDraggingArtwork(true); }}
-      onDragLeave={(e) => { e.preventDefault(); setIsDraggingArtwork(false); }}
-      onDrop={handleArtworkDrop}
+      onDragOver={(e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (file?.type.startsWith('image/')) setIsDraggingArtwork(true);
+        else if (file?.type.startsWith('audio/') || file?.name.match(/\.(mp3|m4a)$/i)) setIsDraggingAudio(true);
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        setIsDraggingArtwork(false);
+        setIsDraggingAudio(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDraggingArtwork(false);
+        setIsDraggingAudio(false);
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+        if (file.type.startsWith('image/')) handleArtworkDrop(e);
+        else if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|m4a)$/i)) handleAudioDrop(e);
+      }}
     >
       {isDraggingArtwork && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm border-4 border-dashed border-primary rounded-lg pointer-events-none">
@@ -375,11 +460,28 @@ const ImprovisationDetails: React.FC = () => {
           </div>
         </div>
       )}
+      {isDraggingAudio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-500/10 backdrop-blur-sm border-4 border-dashed border-emerald-500 rounded-lg pointer-events-none">
+          <div className="text-center">
+            <Music className="h-16 w-16 mx-auto mb-2 text-emerald-500" />
+            <p className="text-lg font-semibold text-emerald-600">Drop audio here</p>
+            <p className="text-sm text-muted-foreground">MP3 or M4A, max 250 MB</p>
+          </div>
+        </div>
+      )}
       {isUploadingArtwork && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
             <span className="text-sm font-medium">Uploading artwork…</span>
+          </div>
+        </div>
+      )}
+      {isUploadingAudio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+            <span className="text-sm font-medium">Uploading audio…</span>
           </div>
         </div>
       )}
