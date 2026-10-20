@@ -23,15 +23,10 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [prepareSquare, setPrepareSquare] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
+  const processFile = (selectedFile: File) => {
     const acceptedMimeTypes = ['image/jpeg', 'image/png'];
-    
-    if (!selectedFile) {
-        setFile(null);
-        return;
-    }
 
     if (!acceptedMimeTypes.includes(selectedFile.type)) {
       setFile(null);
@@ -40,12 +35,41 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
     }
 
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-        setFile(null);
-        showError('File size exceeds the 20MB limit. Please compress or use a smaller file.');
-        return;
+      setFile(null);
+      showError('File size exceeds the 20MB limit. Please compress or use a smaller file.');
+      return;
     }
 
     setFile(selectedFile);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+    processFile(selectedFile);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) processFile(droppedFile);
   };
 
   const handleUpload = async () => {
@@ -172,14 +196,21 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
         />
         
         {!file ? (
-            <Button 
-                onClick={() => fileInputRef.current?.click()} 
-                variant="outline" 
-                className="w-full h-10 border-dashed border-2"
-                disabled={isUploading}
+            <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                    isDragging
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary'
+                }`}
             >
-                <ImageIcon className="mr-2 h-4 w-4" /> Choose JPG or PNG File
-            </Button>
+                <ImageIcon className="h-6 w-6 mb-1" />
+                <span className="text-sm font-medium">Drop image here or click to browse</span>
+                <span className="text-xs opacity-60">JPG or PNG, max 20 MB</span>
+            </div>
         ) : (
             <div className="flex items-center space-x-2">
                 <p className="text-sm text-muted-foreground flex-grow truncate">
