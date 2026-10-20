@@ -16,6 +16,7 @@ import { INSIGHT_BENEFITS, INSIGHT_PRACTICES, INSIGHT_THEMES, INSIGHT_CONTENT_TY
 import { cn } from '@/lib/utils';
 import SelectField from './SelectField';
 import { supabase } from '@/integrations/supabase/client';
+import { missingInsightFields, INSIGHT_FIELD_LABELS } from '@/lib/release-readiness';
 import type { Improvisation } from '@/types/improvisation';
 
 type ImprovisationData = Pick<Improvisation, 'id' | 'generated_name' | 'primary_genre' | 'is_improvisation' | 'is_metadata_confirmed' | 'description' | 'insight_content_type' | 'insight_language' | 'insight_primary_use' | 'insight_audience_level' | 'insight_audience_age' | 'insight_benefits' | 'insight_practices' | 'insight_themes' | 'insight_voice' | 'is_submitted_to_insight_timer'>;
@@ -138,7 +139,14 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
   const hasPractices = !!imp.insight_practices;
   const hasThemes = (imp.insight_themes?.length || 0) > 0;
   const hasDescription = description.trim().length > 0; // Use local state for current check
-  
+
+  // Same list the release checklist reads, so the two can never disagree.
+  // The description is checked here because it lives in local state while typing.
+  const missingInsight = missingInsightFields(imp).map((f) => INSIGHT_FIELD_LABELS[f]);
+  const missingCategorization = hasDescription
+    ? missingInsight
+    : [...missingInsight, 'Description'];
+
   // If the content type is 'Music', we assume the other fields are required for full categorization.
   const isCategorizationComplete = isContentTypeSet && isLanguageSet && isPrimaryUseSet && isAudienceLevelSet && hasBenefits && hasPractices && hasThemes && hasDescription;
 
@@ -462,9 +470,12 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
             />
         </div>
         {!isCategorizationComplete && (
-            <p className="text-xs text-destructive mt-2">
-                *Confirmation is disabled until all required categorization fields are set.
-            </p>
+            <div className="text-xs text-destructive mt-2 space-y-1">
+                <p className="font-medium">*Confirmation is disabled until these are set:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                    {missingCategorization.map((f) => <li key={f}>{f}</li>)}
+                </ul>
+            </div>
         )}
       </Card>
       

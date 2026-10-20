@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { computeReleaseReadiness, hasCoreMetadata, hasInsightCategorization } from './release-readiness';
+import {
+  computeReleaseReadiness, hasCoreMetadata, hasInsightCategorization, missingInsightFields,
+} from './release-readiness';
 import type { Improvisation } from '@/types/improvisation';
 
 /** Minimal complete record; override per test. */
@@ -57,6 +59,25 @@ describe('hasInsightCategorization', () => {
   });
 });
 
+describe('missingInsightFields', () => {
+  it('is empty for a fully categorised song', () => {
+    expect(missingInsightFields(makeImp())).toEqual([]);
+  });
+
+  it('names every field that still needs a value', () => {
+    const missing = missingInsightFields(makeImp({
+      insight_language: null,
+      insight_benefits: [],
+      insight_themes: [],
+    }));
+    expect(missing).toEqual(['insight_language', 'insight_benefits', 'insight_themes']);
+  });
+
+  it('reports voice, which the checklist previously ignored', () => {
+    expect(missingInsightFields(makeImp({ insight_voice: null }))).toEqual(['insight_voice']);
+  });
+});
+
 describe('computeReleaseReadiness', () => {
   it('reports a fully prepared song as ready to submit', () => {
     const r = computeReleaseReadiness(makeImp());
@@ -70,6 +91,34 @@ describe('computeReleaseReadiness', () => {
     const r = computeReleaseReadiness(makeImp({ artwork_url: null, is_metadata_confirmed: false }));
     expect(r.readyToSubmit).toBe(false);
     expect(r.blockers.map((t) => t.id).sort()).toEqual(['artwork', 'metadata']);
+  });
+
+  it('lists exactly what the metadata task is still missing', () => {
+    const r = computeReleaseReadiness(makeImp({
+      is_metadata_confirmed: false,
+      insight_voice: null,
+      description: '   ',
+    }));
+    const metadata = r.blockers.find((t) => t.id === 'metadata');
+    expect(metadata).toBeDefined();
+    // The two fields plus the confirmation the user has to tick themselves.
+    expect(metadata!.missing).toHaveLength(3);
+    expect(metadata!.missing!.join(' | ')).toMatch(/Voice/i);
+    expect(metadata!.missing!.join(' | ')).toMatch(/Description/i);
+    expect(metadata!.missing!.join(' | ')).toMatch(/Metadata Review Confirmation/i);
+  });
+
+  it('has nothing missing on the metadata task once it is done', () => {
+    const r = computeReleaseReadiness(makeImp());
+    const metadata = r.tasks.find((t) => t.id === 'metadata');
+    expect(metadata!.done).toBe(true);
+    expect(metadata!.missing).toBeUndefined();
+  });
+
+  it('does not accept a confirmed review over an empty description', () => {
+    // "Reviewed and accurate" is meaningless if there is nothing to review.
+    const r = computeReleaseReadiness(makeImp({ description: '', is_metadata_confirmed: true }));
+    expect(r.blockers.some((t) => t.id === 'metadata')).toBe(true);
   });
 
   it('never blocks on missing audio, because entries can exist as ideas', () => {

@@ -27,6 +27,11 @@ export interface ReleaseTask {
   done: boolean;
   severity: TaskSeverity;
   tab: TaskTab;
+  /**
+   * When a task can't be ticked off directly, the concrete things still
+   * missing. The UI lists these instead of disabling a control in silence.
+   */
+  missing?: string[];
 }
 
 export interface ReleaseReadiness {
@@ -67,6 +72,50 @@ export function hasInsightCategorization(imp: Pick<
   );
 }
 
+/**
+ * Which Insight Timer fields still need a value, in the order they appear on the
+ * tab. Human labels, so the UI can tell the user *what* is missing instead of
+ * just disabling the confirmation switch with no explanation.
+ *
+ * This is the one list the whole app reads. Previously the Insight Timer tab
+ * required eight fields (including the description) while the readiness model
+ * required eight *different* ones (including voice), so the tab could say
+ * "categorisation complete" and the checklist could still block — or vice versa.
+ */
+export type InsightField =
+  | 'insight_content_type' | 'insight_language' | 'insight_primary_use'
+  | 'insight_audience_level' | 'insight_benefits' | 'insight_practices'
+  | 'insight_themes' | 'insight_voice';
+
+export const INSIGHT_FIELD_LABELS: Record<InsightField, string> = {
+  insight_content_type: 'Content type',
+  insight_language: 'Language',
+  insight_primary_use: 'Primary use',
+  insight_audience_level: 'Audience level',
+  insight_benefits: 'Benefits (at least one)',
+  insight_practices: 'Practices',
+  insight_themes: 'Themes (at least one)',
+  insight_voice: 'Voice (choose "None (Instrumental)" if there are no words)',
+};
+
+export function missingInsightFields(imp: Pick<
+  Improvisation,
+  'insight_content_type' | 'insight_language' | 'insight_primary_use'
+  | 'insight_audience_level' | 'insight_benefits' | 'insight_practices'
+  | 'insight_themes' | 'insight_voice'
+>): InsightField[] {
+  const missing: InsightField[] = [];
+  if (!imp.insight_content_type) missing.push('insight_content_type');
+  if (!imp.insight_language) missing.push('insight_language');
+  if (!imp.insight_primary_use) missing.push('insight_primary_use');
+  if (!imp.insight_audience_level) missing.push('insight_audience_level');
+  if (!(imp.insight_benefits?.length || 0)) missing.push('insight_benefits');
+  if (!imp.insight_practices) missing.push('insight_practices');
+  if (!(imp.insight_themes?.length || 0)) missing.push('insight_themes');
+  if (!imp.insight_voice) missing.push('insight_voice');
+  return missing;
+}
+
 /** Core musical metadata: the three fields the artwork prompt leans on. */
 export function hasCoreMetadata(imp: Pick<Improvisation, 'primary_genre' | 'analysis_data'>): boolean {
   return Boolean(
@@ -93,9 +142,18 @@ export function computeReleaseReadiness(imp: Improvisation): ReleaseReadiness {
   const hasPrompt = Boolean(imp.artwork_prompt);
   const hasNotes = Boolean(imp.notes?.some((n) => n.content.trim().length > 0));
   const hasTags = (imp.user_tags?.length || 0) > 0;
-  const categorized = hasInsightCategorization(imp);
   const description = (imp.description || '').trim();
-  const categorizedOrDescribed = categorized && description.length > 0;
+  // The tab and the checklist now share one definition. Voice counts — the tab
+  // used to be satisfiable without it, so the confirmation switch could be on
+  // while the checklist still blocked.
+  const missingInsight = missingInsightFields(imp).map((f) => INSIGHT_FIELD_LABELS[f]);
+  // Both the description and the explicit review are needed. "Reviewed and
+  // accurate" cannot be claimed for a description that doesn't exist yet.
+  const metadataMissing: string[] = [];
+  if (missingInsight.length) metadataMissing.push(...missingInsight);
+  if (!description) metadataMissing.push('Description');
+  if (!imp.is_metadata_confirmed) metadataMissing.push('Tick "Metadata Review Confirmation" once the fields above are correct');
+  const metadataDone = metadataMissing.length === 0;
 
   const tasks: ReleaseTask[] = [
     {
@@ -166,9 +224,10 @@ export function computeReleaseReadiness(imp: Improvisation): ReleaseReadiness {
       label: 'Populate and review the metadata',
       doneLabel: 'Metadata populated and confirmed',
       why: 'Insight Timer categorisation plus a description, then an explicit review.',
-      done: categorizedOrDescribed && Boolean(imp.is_metadata_confirmed),
+      done: metadataDone,
       severity: 'required',
       tab: 'analysis-distro',
+      missing: metadataDone ? undefined : metadataMissing,
     },
     {
       id: 'ready',

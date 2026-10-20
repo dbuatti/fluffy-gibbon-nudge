@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2, Circle, AlertTriangle, Image as ImageIcon, Music2, Loader2,
-  ArrowRight, Sparkles, Clock, ExternalLink, PartyPopper,
+  ArrowRight, Sparkles, Clock, PartyPopper,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,15 @@ import { displaySessionDate } from '@/lib/display-title';
 import type { ReleaseReadiness } from '@/lib/release-readiness';
 import type { Improvisation } from '@/types/improvisation';
 import { useArtworkInfo } from '@/hooks/useArtworkInfo';
+
+/** Human names for the tabs a task can send you to. */
+const TAB_LABELS: Record<string, string> = {
+  overview: 'Overview',
+  'creative-hub': 'Creative Hub',
+  'assets-downloads': 'Assets & Downloads',
+  'analysis-distro': 'Distribution Prep',
+  social: 'Social',
+};
 
 interface OverviewTabProps {
   imp: Improvisation;
@@ -115,6 +124,17 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                 {isAnalyzing && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
               </h2>
               {next && <p className="text-sm text-muted-foreground max-w-prose">{next.why}</p>}
+              {next?.missing?.length ? (
+                <div className="pt-1 space-y-1">
+                  <p className="text-xs font-semibold text-warning">
+                    Still missing on that tab ({next.missing.length}):
+                  </p>
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                    {next.missing.slice(0, 6).map((m) => <li key={m}>{m}</li>)}
+                    {next.missing.length > 6 && <li>…and {next.missing.length - 6} more</li>}
+                  </ul>
+                </div>
+              ) : null}
             </div>
             <Button
               onClick={handleNext}
@@ -125,7 +145,10 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               {isMarkingReady ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
               ) : (
-                <>{readyToSubmit ? 'Go' : 'Do it'} <ArrowRight className="h-4 w-4 ml-2" /></>
+                <>
+                  {next?.id === 'ready' ? 'Mark ready' : `Open ${TAB_LABELS[next?.tab ?? 'overview']}`}
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
               )}
             </Button>
           </div>
@@ -298,14 +321,23 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                     {!task.done && (
                       <span className="block text-xs text-muted-foreground mt-0.5">{task.why}</span>
                     )}
+                    {!task.done && task.severity === 'required' && task.missing?.length ? (
+                      <span className="block text-xs text-warning mt-1">
+                        Missing: {task.missing.slice(0, 4).join(', ')}
+                        {task.missing.length > 4 ? ` +${task.missing.length - 4} more` : ''}
+                      </span>
+                    ) : null}
                   </span>
                   {!task.done && task.severity === 'required' && (
                     <Badge variant="outline" className="shrink-0 border-warning/60 text-foreground">
                       Blocks release
                     </Badge>
                   )}
-                  {!task.done && task.severity !== 'required' && (
-                    <ExternalLink className="h-3.5 w-3.5 mt-1 shrink-0 text-muted-foreground/50" />
+                  {!task.done && (
+                    <span className="shrink-0 flex items-center gap-1 text-xs font-medium text-primary mt-0.5">
+                      {task.id === 'ready' ? 'Mark ready' : `Open ${TAB_LABELS[task.tab] ?? 'tab'}`}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
                   )}
                 </button>
               </li>
