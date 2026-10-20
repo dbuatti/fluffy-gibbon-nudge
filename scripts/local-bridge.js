@@ -1446,6 +1446,26 @@ function updateSocialBuildJob(id, patch) {
   return job;
 }
 
+/**
+ * In-flight builds, keyed by improvisation id.
+ *
+ * Two builds for the same song must never run at once: they stage into the
+ * same folder and write the same *.part.mp4, so they corrupt each other's
+ * output and each halves the other's CPU. The second request is told the
+ * build is already running rather than being allowed to start.
+ */
+const socialBuildLocks = new Map();
+
+function acquireSocialBuildLock(id) {
+  if (socialBuildLocks.has(id)) return false;
+  socialBuildLocks.set(id, Date.now());
+  return true;
+}
+
+function releaseSocialBuildLock(id) {
+  socialBuildLocks.delete(id);
+}
+
 /** 95 → "1:35" */
 function formatTime(sec) {
   const s = Math.max(0, Math.round(sec));
@@ -2204,6 +2224,24 @@ async function handleSocialBuildKit(req, res, body) {
     const improvisationId = typeof body.improvisationId === 'string' ? body.improvisationId.trim() : '';
     if (!/^[0-9a-f-]{36}$/i.test(improvisationId)) throw new Error('Missing or invalid improvisationId');
     jobId = improvisationId;
+
+    // Refuse a second build for the same song: both would write the same
+    // *.part.mp4 into the same folder and corrupt each other.
+    if (!acquireSocialBuildLock(jobId)) {
+      updateSocialBuildJob(jobId, {
+        status: 'building',
+        step: 'Already building — ignoring the duplicate request',
+        updatedAt: Date.now(),
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: false,
+        error: 'A build for this song is already running. Wait for it to finish before starting another.',
+        timestamp: new Date().toISOString(),
+      }));
+      return;
+    }
+
     updateSocialBuildJob(jobId, {
       status: 'building',
       step: 'Starting…',
@@ -2558,6 +2596,9 @@ async function handleSocialBuildKit(req, res, body) {
     // Temp files are per-build; never leave audio/frames behind.
     if (stagedAudio) { try { fs.unlinkSync(stagedAudio); } catch { /* already gone */ } }
     if (framesDir) { try { fs.rmSync(framesDir, { recursive: true, force: true }); } catch { /* temp dir */ } }
+    // Always release the per-song lock, so a failed build doesn't block the
+    // next attempt.
+    if (jobId) releaseSocialBuildLock(jobId);
   }
 }
 
