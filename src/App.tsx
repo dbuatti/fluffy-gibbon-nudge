@@ -23,6 +23,7 @@ const CompositionScript = React.lazy(() => import("./pages/CompositionScript"));
 const Instructions = React.lazy(() => import("./pages/Instructions"));
 const LocalBridge = React.lazy(() => import("./pages/LocalBridge"));
 const GenerativeArt = React.lazy(() => import("./pages/GenerativeArt"));
+const VideoDrafting = React.lazy(() => import("./pages/VideoDrafting"));
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
                   <Route path="/instructions" element={<Instructions />} />
                   <Route path="/local-bridge" element={<LocalBridge />} />
                   <Route path="/generative-art" element={<GenerativeArt />} />
+<Route path="/video-drafting/:id" element={<VideoDrafting />} />
                 </Route>
               </Route>
 

@@ -13,6 +13,7 @@ import {
   Play, RefreshCw, Check, Info, Clock, ExternalLink, Palette, ChevronDown,
   Save, Image as ImageIcon,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   useLocalBridge, openFolderInFinder, revealInFinder, type SocialKit, type SocialKitFile,
   type SocialCaptionPlatform, type SocialCaptions, type SocialBuildStatus,
@@ -127,6 +128,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   // Use the stable singleton client — the hook's wrapper functions are new
   // identities on every render, which would re-trigger the load effect.
   const { connected, client } = useLocalBridge();
+  const navigate = useNavigate();
   const [kit, setKit] = useState<SocialKit | null>(null);
   const [loadingKit, setLoadingKit] = useState(false);
   const [building, setBuilding] = useState(false);
@@ -149,7 +151,6 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [startAt, setStartAt] = useState('');
   const [posted, setPosted] = useState<Partial<Record<SocialCaptionPlatform, string>>>({});
   const [markingPosted, setMarkingPosted] = useState<SocialCaptionPlatform | null>(null);
-  // Video style options
   // Video style options
   const [visualizerEnabled, setVisualizerEnabled] = useState(true);
   const [visualizerType, setVisualizerType] = useState<'waveform' | 'spectrum' | 'spectrogram' | 'vectorscope' | 'volume'>('waveform');
@@ -536,6 +537,9 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               <Button onClick={handleBuild} disabled={loadingKit}>
                 {kit?.built ? <RefreshCw className="w-4 h-4 mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 {kit?.built ? 'Rebuild Social Kit' : 'Build Social Kit'}
+              </Button>
+              <Button variant="outline" onClick={() => navigate(`/video-drafting/${imp.id}`)}>
+                <Film className="w-4 h-4 mr-2" /> Video Drafting
               </Button>
               {kit?.folder && (
                 <Button variant="outline" onClick={handleReveal}>
