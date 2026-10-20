@@ -534,11 +534,24 @@ async function handlePing(req, res) {
 }
 
 async function handleStatus(req, res) {
-  const [meldConnected, logicRunning, nasMounted, tailscaleConnected] = await Promise.all([
+  const [meldConnected, logicRunning, nasMounted, tailscaleConnected, nasDetail] = await Promise.all([
     checkMeldConnected(),
     checkLogicRunning(),
     checkNasMounted(),
     checkTailscaleConnected(),
+    (async () => {
+      try {
+        const reachable = await checkNasReachable();
+        let readable = false;
+        if (fs.existsSync(NAS_MOUNT_PATH)) {
+          try { readable = fs.readdirSync(NAS_MOUNT_PATH).length > 0; } catch { readable = false; }
+        }
+        const stale = fs.existsSync(NAS_MOUNT_PATH) && !nasMounted;
+        return { readable, stale, nasReachable: reachable.reachable, nasIp: reachable.ip };
+      } catch {
+        return { readable: false, stale: false, nasReachable: false, nasIp: null };
+      }
+    })(),
   ]);
   sendJson(res, 200, {
     success: true,
@@ -549,6 +562,10 @@ async function handleStatus(req, res) {
       meldConnected,
       logicRunning,
       nasMounted,
+      nasReadable: nasDetail.readable,
+      nasStale: nasDetail.stale,
+      nasReachable: nasDetail.nasReachable,
+      nasIp: nasDetail.nasIp,
       tailscaleConnected,
       nasPath: nasMounted ? '/Volumes/Moon Prism' : undefined,
       config: { port: config.port, bindHost: config.bindHost || '127.0.0.1', allowedOrigins: config.allowedOrigins },

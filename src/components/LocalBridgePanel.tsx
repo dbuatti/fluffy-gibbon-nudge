@@ -447,6 +447,30 @@ export const LocalBridgePanel: React.FC = () => {
               <StatusIndicator label="Bridge Uptime" value={`${Math.floor(status.uptimeSeconds / 60)}m`} />
             </div>
           )}
+          {status?.nasStale && connected && (
+            <div className="mt-3 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/20 border border-amber-500/30">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-700 dark:text-amber-400">
+                  <p className="font-medium">NAS mount is stale</p>
+                  <p className="mt-1">The mount point exists but reads are failing — usually after a network switch (Wi-Fi ↔ hotspot). Tailscale IP is stable but the SMB session dropped.</p>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="mt-2 gap-1.5"
+                    onClick={async () => {
+                      const res = await mountNas();
+                      if (res?.success) showSuccess(res.data?.message || 'Remount attempted');
+                      else showError(res?.error || 'Remount failed');
+                    }}
+                    disabled={loading}
+                  >
+                    <HardDrive className="h-3 w-3" /> Repair NAS now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
           {!connected && (
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 space-y-1 mt-2">
               <p>Bridge not reachable at {host}. Restart it with:</p>
@@ -471,7 +495,12 @@ export const LocalBridgePanel: React.FC = () => {
           <div className="space-y-1.5 pt-2">
             <WorkflowButton icon={Upload} label="Upload Latest Audio" desc="Find bounced audio in latest Logic project & upload to Composer Hub" mode="upload_audio" onClick={handleUploadAudio} color="text-emerald-600" disabled={!connected || loading} loading={loading && loadingMode === 'upload_audio'} />
             <WorkflowButton icon={HardDrive} label="Sync to NAS" desc={status?.nasMounted ? "Copy local captures to Moon Prism backup" : "NAS (Moon Prism) not mounted — connect to home network"} mode="sync_nas" onClick={handleSyncNAS} color="text-cyan-600" disabled={!connected || loading || !status?.nasMounted} loading={loading && loadingMode === 'sync_nas'} />
-            {!status?.nasMounted && (
+            {status?.nasStale && connected && (
+              <Button variant="default" size="sm" className="w-full justify-start gap-1.5 text-xs" onClick={async () => { const res = await mountNas(); if (res?.success) showSuccess(res.data?.message || 'Remount attempted'); else showError(res?.error || 'Remount failed'); }} disabled={loading}>
+                <HardDrive className="h-3 w-3" /> Repair NAS (stale mount)
+              </Button>
+            )}
+            {!status?.nasMounted && !status?.nasStale && (
               <Button variant="outline" size="sm" className="w-full justify-start gap-1.5 text-xs" onClick={async () => { const res = await mountNas(); if (res?.success) showSuccess(res.data?.message || 'Mount dialog opened'); else showError(res?.error || 'Mount failed'); }} disabled={!connected || loading}>
                 <HardDrive className="h-3 w-3 text-cyan-600" />
                 Mount NAS (Moon Prism)

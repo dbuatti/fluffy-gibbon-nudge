@@ -107,6 +107,12 @@ export interface BridgeStatusResponse {
   meldConnected: boolean;
   logicRunning: boolean;
   nasMounted: boolean;
+  /** Mount exists and its contents can actually be read (false = stale handle). */
+  nasReadable?: boolean;
+  /** Mountpoint exists but the share is unusable — usually after a network switch. */
+  nasStale?: boolean;
+  nasReachable?: boolean;
+  nasIp?: string | null;
   tailscaleConnected?: boolean;
   nasPath?: string;
   config: Pick<BridgeConfig, 'port' | 'allowedOrigins'> & { bindHost?: string };
