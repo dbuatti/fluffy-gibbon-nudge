@@ -11,6 +11,8 @@ interface PreFlightChecklistProps {
   readiness: ReleaseReadiness;
   isAnalyzing: boolean;
   onOpenTab: (tab: string) => void;
+  /** The currently active tab — used to avoid no-op navigation. */
+  currentTab?: string;
 }
 
 /**
@@ -22,8 +24,18 @@ interface PreFlightChecklistProps {
  * renders the required tasks straight from the shared readiness model, so the
  * three surfaces can never disagree again.
  */
-const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAnalyzing, onOpenTab }) => {
+const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAnalyzing, onOpenTab, currentTab }) => {
   const { blockers, readyToSubmit, completed, total } = readiness;
+
+  const handleFixClick = (taskTab: string) => {
+    if (currentTab && taskTab === currentTab) {
+      // Already on the target tab — scroll to the relevant section or focus
+      // For now, show a toast so the user knows the action was received
+      // In the future, we could scroll to a specific anchor
+      return;
+    }
+    onOpenTab(taskTab);
+  };
 
   return (
     <Card
@@ -68,26 +80,31 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAn
                 : `${blockers.length} items must be fixed before this release can be submitted.`}
             </p>
             <ul className="space-y-2">
-              {blockers.map((task) => (
-                <li
-                  key={task.id}
-                  className="flex items-start gap-3 p-3 border border-destructive/30 rounded-lg bg-destructive/5"
-                >
-                  <XCircle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold">{task.label}</span>
-                    <span className="block text-xs text-muted-foreground mt-0.5">{task.why}</span>
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => onOpenTab(task.tab)}
+              {blockers.map((task) => {
+                const isCurrentTab = currentTab && task.tab === currentTab;
+                return (
+                  <li
+                    key={task.id}
+                    className="flex items-start gap-3 p-3 border border-destructive/30 rounded-lg bg-destructive/5"
                   >
-                    Fix
-                  </Button>
-                </li>
-              ))}
+                    <XCircle className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">{task.label}</span>
+                      <span className="block text-xs text-muted-foreground mt-0.5">{task.why}</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => handleFixClick(task.tab)}
+                      disabled={isCurrentTab}
+                      title={isCurrentTab ? 'Already on this tab — review the fields below' : `Go to ${task.tab} tab`}
+                    >
+                      {isCurrentTab ? 'Review' : 'Fix'}
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}

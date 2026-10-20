@@ -337,6 +337,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             readiness={readiness}
             isAnalyzing={isAnalyzing}
             onOpenTab={handleTabChange}
+            currentTab={currentTab}
           />
         )}
         
