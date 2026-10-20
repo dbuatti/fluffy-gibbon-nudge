@@ -505,8 +505,39 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
           <p className="text-sm text-muted-foreground">
             One click turns <span className="font-medium text-foreground">{title}</span> into a
             vertical cut (Reels/TikTok/Shorts), a square cut, and a full-length YouTube video —
-            with cover art, a thumbnail, and captions, staged in a folder on your Desktop.
+            with cover art, a thumbnail, and captions, staged in a folder on your Desktop, then
+            copied to Moon Prism as a second copy.
           </p>
+
+          {kit?.nas && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {kit.nas.status === 'mirrored' ? (
+                <>
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Also on Moon Prism
+                  </Badge>
+                  {kit.nas.path && (
+                    <button
+                      type="button"
+                      onClick={() => openFolderInFinder(kit.nas!.path!)}
+                      className="text-primary hover:underline flex items-center gap-1"
+                    >
+                      <FolderOpen className="w-3 h-3" /> Open NAS copy
+                    </button>
+                  )}
+                </>
+              ) : kit.nas.status === 'unavailable' ? (
+                <span className="text-amber-600 dark:text-amber-400">
+                  Not copied to Moon Prism — the drive isn't mounted. Rebuild once it's back
+                  (the videos are reused, so it's quick).
+                </span>
+              ) : kit.nas.status === 'failed' ? (
+                <span className="text-destructive">
+                  Moon Prism copy failed: {kit.nas.error}
+                </span>
+              ) : null}
+            </div>
+          )}
 
           {building ? (
             <div className="space-y-3 py-2">

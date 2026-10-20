@@ -218,10 +218,26 @@ export interface SocialKit {
   posted?: Partial<Record<SocialCaptionPlatform, string>>;
   artworkSource?: 'existing' | 'generated';
   artworkUrl?: string | null;
+  /** State of the durable NAS copy of this kit. */
+  nas?: SocialNasMirror | null;
   files: SocialKitFile[];
   /** How long the last build took (seconds). */
   seconds?: number;
   message?: string;
+}
+
+/**
+ * The NAS copy of a kit. Rendering always lands in ~/Desktop/Social first; this
+ * describes the second copy, which is best-effort and can be retried without
+ * rebuilding the videos.
+ */
+export interface SocialNasMirror {
+  status: 'mirrored' | 'unavailable' | 'failed' | 'skipped';
+  path: string | null;
+  error: string | null;
+  files: number;
+  bytes: number;
+  at: string;
 }
 
 export interface SocialKitOptions {
@@ -290,6 +306,8 @@ export interface SocialBuildStatus {
   seconds?: number | null;
   folder?: string | null;
   videoCount?: number | null;
+  /** NAS mirror state once the build finishes. */
+  nas?: SocialNasMirror | null;
   error?: string | null;
 }
 

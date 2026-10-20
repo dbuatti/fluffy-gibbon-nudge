@@ -1065,7 +1065,7 @@ async function handleLogicProjects(req, res) {
             }
           }
         }
-      } catch { /* non-fatal */ }
+      }
     } catch { /* non-fatal */ }
 
     for (const p of projects) {
@@ -1092,28 +1092,6 @@ async function handleLogicProjects(req, res) {
   }
 }
 
-/**
- * Copy a Logic project into DBP/Creation, preserving it as a real .logicx
- * bundle (date-prefixed by default) and verifying it file-by-file.
- *
- * The bundle is copied *as a bundle* — `rsync -a <source> <target>/` with no
- * trailing slash — so the NAS folder contains `<name>.logicx`, which Logic can
- * open directly. The older trailing-slash form exploded the bundle's innards
- * (Alternatives/Media/Resources) into the folder, which could not be opened.
- *
- * Returns { name, folderName, targetFolder, files, bytes, date, seconds }.
- */
-function copyProjectToNas(source, { datePrefix = true } = {}) {
-  /**
- * Copy a Logic project into DBP/Creation, preserving it as a real .logicx
- * bundle (date-prefixed by default) and verifying it file-by-file.
- *
- * The date used for the folder prefix comes from the database's session_date
- * (YYYY-MM-DD), converted to YYYYMMDD format. Falls back to filesystem birth
- * time if not provided.
- *
- * Returns { name, folderName, targetFolder, files, bytes, date, seconds }.
- */
 function copyProjectToNas(source, { datePrefix = true, sessionDate = null } = {}) {
   const name = path.basename(source, '.logicx');
   if (!fs.existsSync(NAS_CREATION_DIR)) {
@@ -1225,7 +1203,7 @@ async function handleLogicArchive(req, res, body) {
           const [match] = await findRes.json();
           if (match?.session_date) sessionDate = match.session_date;
         }
-      } catch { /* non-fatal */ }
+      }
     } catch { /* non-fatal */ }
 
     const result = copyProjectToNas(source, { datePrefix, sessionDate });
@@ -1351,6 +1329,11 @@ async function handleDeleteFolder(req, res, body) {
 // Where finished kits land. Desktop so drag-and-drop into an upload tab is
 // one motion — the whole point is "post with minimal thought".
 const SOCIAL_OUTPUT_DIR = '/Users/danielebuatti/Desktop/Social';
+// Durable second copy on the NAS. Rendering deliberately does *not* write here
+// directly: this is an SMB mount that can drop mid-encode, and a 20-minute
+// render failing at minute 18 because the share vanished is not worth the
+// saving. Desktop is the working copy; this is the archive that outlives it.
+const SOCIAL_NAS_DIR = '/Volumes/Moon Prism/DBP/Social';
 // maxSec = the longest clip that platform accepts (0 = no limit, keep the
 // whole song); defaultSec = the excerpt length used when a recording is too
 // long. Improvisations can run 20+ minutes, so the vertical/square cuts are
@@ -2055,6 +2038,75 @@ const CAPTION_FILES = {
   youtube: 'youtube.txt',
 };
 
+/**
+ * Copy a finished kit to the NAS and verify it file-by-file.
+ *
+ * Deliberately best-effort: a missing or flaky NAS must never fail a render
+ * that already succeeded locally, so every error path returns a status object
+ * instead of throwing. The caller records that status in kit.json so the
+ * mirror can be retried later without rebuilding the videos.
+ *
+ * Mirrors the "copy, verify, then decide" shape of the Logic archive flow.
+ */
+async function mirrorKitToNas(folder) {
+  const result = {
+    status: 'skipped',      // 'mirrored' | 'unavailable' | 'failed' | 'skipped'
+    path: null,
+    error: null,
+    files: 0,
+    bytes: 0,
+    at: new Date().toISOString(),
+  };
+
+  if (!fs.existsSync(SOCIAL_NAS_DIR)) {
+    // The usual case when the share isn't mounted — not an error worth shouting
+    // about, just something to retry when it's back.
+    result.status = 'unavailable';
+    result.error = 'Moon Prism is not mounted';
+    return result;
+  }
+  if (!fs.existsSync(folder)) {
+    result.status = 'failed';
+    result.error = 'Kit folder missing';
+    return result;
+  }
+
+  const dest = path.join(SOCIAL_NAS_DIR, path.basename(folder));
+  try {
+    fs.mkdirSync(dest, { recursive: true });
+
+    // --delete keeps the mirror honest when a rebuild drops an old clip, but it
+    // must stay inside this song's own folder — never the Social root.
+    const copy = spawnSync('rsync', ['-a', '--delete', `${folder}/`, `${dest}/`], {
+      encoding: 'utf-8',
+      timeout: 20 * 60 * 1000,
+    });
+    if (copy.error || copy.status !== 0) {
+      result.status = 'failed';
+      result.error = (copy.stderr || copy.error?.message || 'rsync failed').trim().slice(0, 300);
+      return result;
+    }
+
+    const local = measureTree(folder);
+    const remote = measureTree(dest);
+    if (local.files !== remote.files || local.bytes !== remote.bytes) {
+      result.status = 'failed';
+      result.error = `Verification failed (local ${local.files} files / ${local.bytes} B, NAS ${remote.files} / ${remote.bytes} B)`;
+      return result;
+    }
+
+    result.status = 'mirrored';
+    result.path = dest;
+    result.files = remote.files;
+    result.bytes = remote.bytes;
+    return result;
+  } catch (e) {
+    result.status = 'failed';
+    result.error = e.message.slice(0, 300);
+    return result;
+  }
+}
+
 async function handleSocialBuildKit(req, res, body) {
   // Temp audio staged locally for the build — always removed afterwards.
   let stagedAudio = null;
@@ -2326,13 +2378,16 @@ async function handleSocialBuildKit(req, res, body) {
 
     // Kit manifest so the app can restore state without rebuilding. `posted`
     // survives rebuilds — it's a record of what went out, not of the files.
-    fs.writeFileSync(kitJsonPath, JSON.stringify({
+    // Written before the NAS mirror so a failed mirror still leaves a usable
+    // local kit behind; `nas` is filled in immediately afterwards.
+    const writeKit = (nas) => fs.writeFileSync(kitJsonPath, JSON.stringify({
       improvisationId, title: displayTitle, durationSec, clipCount, clipRatios: [...clipRatios], audioBytes,
       renderVersion: SOCIAL_RENDER_VERSION,
       artworkHash,
       caption: captions.instagram, captions,
       posted: previous.posted || {},
       artworkSource: art.source, artworkUrl: artUrl, builtAt: new Date().toISOString(),
+      nas,
       files: files.map((f) => ({
         name: f.name,
         ratio: f.ratio || null,
@@ -2348,14 +2403,36 @@ async function handleSocialBuildKit(req, res, body) {
       })),
     }, null, 2));
 
+    writeKit(previous.nas || null);
+
+    // Second copy on the NAS. Never fatal: the local kit is already complete
+    // and usable, so an unmounted share downgrades to a retryable status.
+    step('copying to Moon Prism…');
+    const nas = await mirrorKitToNas(folder);
+    writeKit(nas);
+    if (nas.status === 'mirrored') {
+      console.log(`[social] ${displayTitle}: mirrored to ${nas.path} (${nas.files} files)`);
+    } else {
+      console.warn(`[social] ${displayTitle}: NAS mirror ${nas.status} — ${nas.error}`);
+    }
+
     const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
-    step(`done in ${seconds}s`);
+    const videoCount = files.filter((f) => f.kind === 'video').length;
+    const nasNote = nas.status === 'mirrored'
+      ? ' · mirrored to Moon Prism'
+      : nas.status === 'unavailable'
+        ? ' · NAS not mounted, copy later'
+        : nas.status === 'failed'
+          ? ' · NAS copy failed, see kit.json'
+          : '';
+    step(`done in ${seconds}s${nasNote}`);
     updateSocialBuildJob(jobId, {
       status: 'done',
       seconds,
       finishedAt: Date.now(),
       folder,
-      videoCount: files.filter((f) => f.kind === 'video').length,
+      videoCount,
+      nas,
     });
 
     sendJson(res, 200, {
@@ -2363,6 +2440,7 @@ async function handleSocialBuildKit(req, res, body) {
       data: {
         title: displayTitle,
         folder,
+        nas,
         durationSec,
         clipCount,
         clipRatios: [...clipRatios],
@@ -2373,7 +2451,7 @@ async function handleSocialBuildKit(req, res, body) {
         artworkUrl: art.artworkUrl || record.artwork_url || null,
         files,
         seconds,
-        message: `Social kit ready: ${displayTitle} (${formatTime(durationSec)} song, ${files.filter((f) => f.kind === 'video').length} videos in ${seconds}s)`,
+        message: `Social kit ready: ${displayTitle} (${formatTime(durationSec)} song, ${videoCount} videos in ${seconds}s)${nasNote}`,
       },
       timestamp: new Date().toISOString(),
     }, req);
@@ -2420,6 +2498,7 @@ async function handleSocialBuildStatus(req, res, query) {
             seconds: job.seconds ?? null,
             folder: job.folder || null,
             videoCount: job.videoCount ?? null,
+            nas: job.nas || null,
             error: job.error || null,
           }
         : { status: 'idle', building: false, step: null },
@@ -2501,6 +2580,7 @@ async function handleSocialKitStatus(req, res, query) {
         // Older kits only have `caption`; treat it as the Instagram one.
         captions: kit.captions || { instagram: kit.caption || '' },
         posted: kit.posted || {},
+        nas: kit.nas || null,
         files,
       },
       timestamp: new Date().toISOString(),
