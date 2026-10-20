@@ -13,6 +13,8 @@ interface PreFlightChecklistProps {
   onOpenTab: (tab: string) => void;
   /** The currently active tab — used to avoid no-op navigation. */
   currentTab?: string;
+  /** Optional scroll target map: task.id -> element ID to scroll to when on the same tab. */
+  scrollTargets?: Record<string, string>;
 }
 
 /**
@@ -24,14 +26,22 @@ interface PreFlightChecklistProps {
  * renders the required tasks straight from the shared readiness model, so the
  * three surfaces can never disagree again.
  */
-const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAnalyzing, onOpenTab, currentTab }) => {
+const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAnalyzing, onOpenTab, currentTab, scrollTargets }) => {
   const { blockers, readyToSubmit, completed, total } = readiness;
 
-  const handleFixClick = (taskTab: string) => {
+  const handleFixClick = (taskId: string, taskTab: string) => {
     if (currentTab && taskTab === currentTab) {
-      // Already on the target tab — scroll to the relevant section or focus
-      // For now, show a toast so the user knows the action was received
-      // In the future, we could scroll to a specific anchor
+      // Already on the target tab — scroll to the relevant section if mapped
+      const targetId = scrollTargets?.[taskId];
+      if (targetId) {
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.focus({ preventScroll: true });
+          return;
+        }
+      }
+      // Fallback: do nothing (button will be disabled)
       return;
     }
     onOpenTab(taskTab);
@@ -96,7 +106,7 @@ const PreFlightChecklist: React.FC<PreFlightChecklistProps> = ({ readiness, isAn
                       variant="outline"
                       size="sm"
                       className="shrink-0"
-                      onClick={() => handleFixClick(task.tab)}
+                      onClick={() => handleFixClick(task.id, task.tab)}
                       disabled={isCurrentTab}
                       title={isCurrentTab ? 'Already on this tab — review the fields below' : `Go to ${task.tab} tab`}
                     >

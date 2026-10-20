@@ -338,6 +338,10 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
             isAnalyzing={isAnalyzing}
             onOpenTab={handleTabChange}
             currentTab={currentTab}
+            scrollTargets={{
+              metadata: 'insight-timer-categorization',
+              ready: 'mark-ready-section',
+            }}
           />
         )}
         
@@ -413,7 +417,8 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
               />
             </TabsContent>
             <TabsContent value="insight-timer">
-              <InsightTimerTab 
+              <div id="insight-timer-categorization">
+                <InsightTimerTab 
                   imp={imp} 
                   aiGeneratedDescription={aiGeneratedDescription}
                   isPopulating={isPopulating}
@@ -433,6 +438,7 @@ const ImprovisationTabs: React.FC<ImprovisationTabsProps> = ({
                   handleUpdateInsightThemes={handleUpdateInsightThemes}
                   handleUpdateInsightVoice={handleUpdateInsightVoice}
               />
+            </div>
             </TabsContent>
           </Tabs>
         )}

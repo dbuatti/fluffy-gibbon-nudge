@@ -261,7 +261,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
       </div>
 
       {/* --- The full list --- */}
-      <Card className="shadow-card-light dark:shadow-card-dark">
+      <Card id="mark-ready-section" className="shadow-card-light dark:shadow-card-dark">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-violet-500" /> Release checklist
