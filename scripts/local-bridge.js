@@ -1404,12 +1404,12 @@ const SOCIAL_OUTPUT_DIR = '/Users/danielebuatti/Desktop/Social';
 const SOCIAL_NAS_DIR = '/Volumes/Moon Prism/DBP/Social';
 // maxSec = the longest clip that platform accepts (0 = no limit, keep the
 // whole song); defaultSec = the excerpt length used when a recording is too
-// long. Improvisations can run 20+ minutes, so the vertical/square cuts are
-// trimmed to a shareable excerpt (see pickExcerpt).
+// long. Both orientations now carry the FULL recording — the kit is a delivery
+// format (portrait for short-form, landscape for YouTube), not a trimming tool,
+// so excerpting is opt-in per build via clipSec/clipStartSec.
 const SOCIAL_RATIOS = [
-  { key: 'reels',   label: 'Reels / TikTok / Shorts (9:16)', w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 180, defaultSec: 90, multipleClips: true },
-  { key: 'feed',    label: 'Square feed (1:1)',              w: 1080, h: 1080, fileSuffix: '1x1',  maxSec: 180, defaultSec: 90, multipleClips: false },
-  { key: 'youtube', label: 'YouTube (16:9)',                 w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0,   defaultSec: 0,  multipleClips: true },
+  { key: 'reels',   label: 'Portrait (9:16)',  w: 1080, h: 1920, fileSuffix: '9x16', maxSec: 0, defaultSec: 0, multipleClips: false },
+  { key: 'youtube', label: 'Landscape (16:9)', w: 1920, h: 1080, fileSuffix: '16x9', maxSec: 0, defaultSec: 0, multipleClips: false },
 ];
 
 /** Ratios that the app should offer multiple cuts for. */
@@ -1417,7 +1417,7 @@ const SOCIAL_CLIP_RATIOS = SOCIAL_RATIOS.filter((r) => r.multipleClips).map((r) 
 
 // Bump when the composed frame or encode changes — old renders then re-render
 // instead of being reused by the fingerprint check.
-const SOCIAL_RENDER_VERSION = 3;
+const SOCIAL_RENDER_VERSION = 4;
 
 // Live build state, keyed by improvisation id. The build request can run for
 // several minutes, so the app polls this to show the actual step (and to

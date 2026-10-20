@@ -223,8 +223,8 @@ export interface SocialKitFile {
   name: string;
   path: string;
   kind: 'video' | 'image' | 'text';
-  /** Present on rendered videos: which platform cut this file is for. */
-  ratio?: 'reels' | 'feed' | 'youtube' | string;
+  /** Present on rendered videos: which orientation cut this file is for. */
+  ratio?: 'reels' | 'youtube' | string;
   ratioLabel?: string;
   /** Present on caption text files: which destination it belongs to. */
   platform?: SocialCaptionPlatform;
@@ -287,7 +287,7 @@ export interface SocialKitOptions {
   clipStartSec?: number;
   /** How many non-overlapping excerpts to render (1–3). */
   clipCount?: number;
-  /** Ratios to give that many cuts: 'reels' | 'feed' | 'youtube'. */
+  /** Orientations to give that many cuts: 'reels' (portrait) | 'youtube' (landscape). */
   clipRatios?: string[];
   /** Visualizer overlay on the video (replaces waveform). */
   visualizer?: {

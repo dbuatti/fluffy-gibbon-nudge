@@ -2,11 +2,10 @@ import type { SocialCaptionPlatform, SocialCaptions } from '@/lib/local-bridge';
 import type { Improvisation } from '@/types/improvisation';
 import { Instagram, Music2, Youtube } from 'lucide-react';
 
-/** Ratios that can be given several cuts, with the label shown in the UI. */
+/** Orientations the build produces. Both carry the full recording. */
 export const CLIP_TARGETS = [
-  { key: 'reels', label: 'Vertical (9:16)', short: '9:16' },
-  { key: 'feed', label: 'Square (1:1)', short: '1:1' },
-  { key: 'youtube', label: 'YouTube (16:9)', short: '16:9' },
+  { key: 'reels', label: 'Portrait (9:16)', short: '9:16' },
+  { key: 'youtube', label: 'Landscape (16:9)', short: '16:9' },
 ] as const;
 
 /** Upload pages open in a new tab — no API keys, no review process. Clicking one
@@ -40,15 +39,6 @@ export const PLATFORMS = [
     ratio: 'reels',
     captionPlatform: 'youtube' as SocialCaptionPlatform,
     fileHint: 'Copies the caption + shows the 9:16 video',
-  },
-  {
-    key: 'feed',
-    label: 'Instagram Feed',
-    url: 'https://www.instagram.com/create/',
-    icon: Instagram,
-    ratio: 'feed',
-    captionPlatform: 'instagram' as SocialCaptionPlatform,
-    fileHint: 'Copies the caption + shows the square video',
   },
   {
     key: 'youtube',
