@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl } from '@/integrations/supabase/client';
-import { Loader2, Sparkles, Play, Pause, Download, Settings, X, ChevronDown, ChevronUp, Eye, EyeOff, Film, FolderOpen, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, Sparkles, Play, Pause, Download, Settings, X, ChevronDown, ChevronUp, Eye, EyeOff, Film, FolderOpen, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
