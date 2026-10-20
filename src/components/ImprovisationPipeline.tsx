@@ -23,10 +23,10 @@ const fetchStatusCounts = async (supabaseClient: SupabaseClient, sessionUserId: 
       .eq('status', status)
       .eq('user_id', sessionUserId);
 
-    if (error) {
-      console.error(`Error fetching count for status ${status}:`, error);
-      return { status, count: 0 };
-    }
+    // Deliberately throw rather than return 0. Swallowing the error here meant
+    // React Query never saw a failure, so a broken connection rendered as an
+    // honest-looking "0 total" instead of the retry card below.
+    if (error) throw new Error(error.message);
     return { status, count: count || 0 };
   });
 

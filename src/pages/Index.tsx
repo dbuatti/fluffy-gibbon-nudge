@@ -3,7 +3,7 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import ImprovisationList from "@/components/ImprovisationList";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Music, Clock, Zap, Search, Filter, ListOrdered, Grid3X3, ArrowUpDown, ChevronRight } from "lucide-react";
+import { ExternalLink, Music, Clock, Zap, Search, Filter, ListOrdered, Grid3X3, ArrowUpDown, ChevronRight, AlertTriangle, RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import ImprovisationPipeline from "@/components/ImprovisationPipeline";
 import CaptureIdeaDialog from "@/components/CaptureIdeaDialog";
@@ -78,7 +78,7 @@ const Index = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
 
-  const { data: improvisationDates } = useQuery<ImprovisationDate[]>({
+  const { data: improvisationDates, isError, error, isLoading: isQueryLoading } = useQuery<ImprovisationDate[]>({
     queryKey: ['improvisationDates'],
     queryFn: () => fetchImprovisationDates(supabase, session!.user.id),
     enabled: !isSessionLoading && !!session?.user,
@@ -88,7 +88,7 @@ const Index = () => {
   });
 
   const { streak, todayActivity } = useStreakTracker(improvisationDates);
-  const hasNoImprovisations = improvisationDates && improvisationDates.length === 0 && !isSessionLoading;
+  const hasNoImprovisations = improvisationDates && improvisationDates.length === 0 && !isSessionLoading && !isError;
 
   const handleRefetch = () => {
     queryClient.invalidateQueries({ queryKey: ['improvisations'] });
@@ -131,6 +131,20 @@ const Index = () => {
           </div>
           <StreakCard streak={streak} todayActivity={todayActivity} />
         </div>
+
+        {/* Error state for the main improvisation list query */}
+        {isError && (
+          <Card className="shadow-card-light dark:shadow-card-dark w-full border-destructive/40">
+            <CardContent className="text-center p-6">
+              <AlertTriangle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+              <p className="text-destructive font-semibold">Failed to load your improvisations</p>
+              <p className="text-sm text-muted-foreground mb-4">{error?.message || 'Unknown error'}</p>
+              <Button variant="outline" size="sm" className="mt-2" onClick={handleRefetch}>
+                <RefreshCw className="h-4 w-4 mr-2" /> Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Improvisation Pipeline */}
         {hasNoImprovisations ? (

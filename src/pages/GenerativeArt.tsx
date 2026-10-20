@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu, Trash2, Database, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { Sparkles, Download, Shuffle, RefreshCw, Lock, Unlock, Palette, Sliders, Cloud, Cpu, Trash2, Database, ToggleLeft, ToggleRight, Loader2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -86,6 +86,7 @@ const GenerativeArt: React.FC = () => {
   // nothing is wasted when the page reloads.
   const [repoItems, setRepoItems] = useState<ArtRepositoryItem[]>([]);
   const [repoLoading, setRepoLoading] = useState(false);
+  const [repoError, setRepoError] = useState<string | null>(null);
   const [autoSave, setAutoSave] = useState(() => localStorage.getItem('art_autosave') !== 'off');
 
   const toggleAutoSave = () => {
@@ -97,10 +98,11 @@ const GenerativeArt: React.FC = () => {
 
   const refreshRepository = useCallback(async () => {
     setRepoLoading(true);
+    setRepoError(null);
     try {
       setRepoItems(await listRepository(60));
-    } catch {
-      // Not logged in / offline — gallery just stays empty
+    } catch (e: Error) {
+      setRepoError(e.message || 'Failed to load repository');
     } finally {
       setRepoLoading(false);
     }
@@ -734,7 +736,16 @@ const GenerativeArt: React.FC = () => {
               </Button>
             </div>
           </div>
-          {repoItems.length === 0 ? (
+          {repoError ? (
+            <div className="text-center py-8 border border-destructive/40 rounded-lg">
+              <AlertTriangle className="h-10 w-10 mx-auto mb-3 text-destructive" />
+              <p className="text-destructive font-semibold">Failed to load repository</p>
+              <p className="text-sm text-muted-foreground mb-4">{repoError}</p>
+              <Button variant="outline" size="sm" onClick={refreshRepository}>
+                <RefreshCw className="h-4 w-4 mr-2" /> Try Again
+              </Button>
+            </div>
+          ) : repoItems.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
               {repoLoading ? 'Loading repository…' : 'Nothing saved yet — every generation lands here automatically so it\'s never lost.'}
             </p>

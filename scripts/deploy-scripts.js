@@ -11,12 +11,44 @@
  */
 
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/**
+ * Parse a script as ESM before it is allowed anywhere near the live bridge.
+ *
+ * This exists because of a real outage: scripts/local-bridge.js spent several
+ * commits with mismatched braces and a duplicated function header, so the
+ * module could not be parsed at all. The bridge was already running from before
+ * the breakage, so nothing looked wrong — until the next restart, when it came
+ * up dead and the cause was not obvious.
+ *
+ * The gotcha is that `node --check <file>.js` parses as CommonJS, because the
+ * repo's package.json says `"type": "module"` but a bare temp file has no such
+ * context. Checking a `.js` copy therefore *passes* on genuinely broken ESM.
+ * The file must be copied to a `.mjs` path so it is parsed the way it will
+ * actually be loaded.
+ *
+ * Returns null when the file is fine, or a short error string when it is not.
+ */
+function checkEsmSyntax(file) {
+  const tmp = path.join(os.tmpdir(), `deploy-check-${path.basename(file, '.js')}-${process.pid}.mjs`);
+  try {
+    fs.copyFileSync(file, tmp);
+    const result = spawnSync(process.execPath, ['--check', tmp], { encoding: 'utf-8' });
+    if (result.status === 0) return null;
+    const output = (result.stderr || result.stdout || 'unknown error').trim();
+    // Lead with the location, which is the part that actually helps.
+    return output.split('\n').slice(0, 4).join('\n');
+  } finally {
+    try { fs.unlinkSync(tmp); } catch { /* temp file already gone */ }
+  }
+}
 
 const REPO_ROOT = path.dirname(__dirname);
 const SOURCE_DIR = path.join(REPO_ROOT, 'scripts');
@@ -47,6 +79,23 @@ async function main() {
   }
 
   let allOk = true;
+
+  // Gate first: never copy a script that cannot even be parsed. Failing before
+  // any file is written means a bad commit can't half-update the live bridge.
+  for (const file of FILES) {
+    const src = path.join(SOURCE_DIR, file);
+    if (!fs.existsSync(src) || !file.endsWith('.js')) continue;
+    const syntaxError = checkEsmSyntax(src);
+    if (syntaxError) {
+      console.error(`  ✗ ${file}: will not parse as ESM — refusing to deploy`);
+      console.error(`\n${syntaxError}\n`);
+      allOk = false;
+    }
+  }
+  if (!allOk) {
+    console.error('Syntax check failed. Nothing was copied — fix the errors above and retry.');
+    process.exit(1);
+  }
 
   for (const file of FILES) {
     const src = path.join(SOURCE_DIR, file);
