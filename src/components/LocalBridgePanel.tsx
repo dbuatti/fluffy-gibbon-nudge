@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, readBridgeToken, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -193,8 +193,10 @@ export const LocalBridgePanel: React.FC = () => {
     launchPicker,
     checkConnection,
     hasToken,
+    tokenRejected,
     configureToken,
     generateAndSaveToken,
+    clearToken,
     mountNas,
     getCaptures,
     createCaptureEntry,
@@ -220,7 +222,7 @@ export const LocalBridgePanel: React.FC = () => {
     const t = setTimeout(() => setLastResult(null), 6000);
     return () => clearTimeout(t);
   }, [lastResult]);
-  const [tokenInput, setTokenInput] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : ''));
+  const [tokenInput, setTokenInput] = useState(() => readBridgeToken());
   const [copiedToken, setCopiedToken] = useState(false);
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
@@ -406,24 +408,28 @@ export const LocalBridgePanel: React.FC = () => {
   const hiddenUntitledCount = projects.length - visibleProjects.length;
   const localOnlyCount = visibleProjects.filter((p) => !p.archived).length;
 
-  if (!hasToken) {
+  if (!hasToken || tokenRejected) {
     return (
       <>
       <Card className="border-orange-500/30 bg-orange-50/30 dark:bg-orange-900/10">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
             <AlertTriangle className="h-3 w-3" />
-            Local Bridge Not Configured
+            {tokenRejected ? 'Bridge token rejected' : 'Local Bridge Not Configured'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Connect the web app to your local Workflow Picker scripts. This enables launching
-            recording sessions, opening Logic projects, and syncing status directly from here.
+            {tokenRejected
+              ? 'The bridge is running and reachable, but it rejected our token. The two halves are out of sync — copy the token from bridge-config.json into this browser.'
+              : 'Connect the web app to your local Workflow Picker scripts. This enables launching recording sessions, opening Logic projects, and syncing status directly from here.'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            The bridge itself is usually fine — don't re-run the startup commands.
           </p>
           <Button variant="outline" className="w-full" onClick={() => setShowTokenSetup(true)}>
             <Settings className="h-3 w-3 mr-2" />
-            Set Up Bridge Connection
+            {tokenRejected ? 'Fix token' : 'Set Up Bridge Connection'}
           </Button>
         </CardContent>
       </Card>
@@ -432,6 +438,7 @@ export const LocalBridgePanel: React.FC = () => {
         onClose={() => setShowTokenSetup(false)}
         token={tokenInput}
         onTokenChange={setTokenInput}
+        rejected={tokenRejected}
       />
       </>
     );
@@ -881,8 +888,11 @@ export const LocalBridgePanel: React.FC = () => {
                   {copiedToken ? <CheckCircle className="h-3 w-3 text-green-600" /> : <LinkIcon className="h-3 w-3" />}
                 </Button>
               </div>
-              <Button variant="ghost" size="sm" onClick={async () => { const token = await generateAndSaveToken(); setTokenInput(token); setShowTokenSetup(true); }}>
+              <Button variant="ghost" size="sm" onClick={async () => { const token = await generateAndSaveToken(); setTokenInput(token); setShowTokenSetup(true); showError('New token generated in this browser — also update ~/.config/composer-hub/bridge-config.json, or the bridge will reject it.'); }}>
                 Regenerate Token
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { clearToken(); setTokenInput(''); }}>
+                Clear local token
               </Button>
             </div>
           </details>
@@ -894,6 +904,8 @@ export const LocalBridgePanel: React.FC = () => {
       onClose={() => setShowTokenSetup(false)}
       token={tokenInput}
       onTokenChange={setTokenInput}
+      rejected={tokenRejected}
+      onSave={(t) => configureToken(t)}
     />
   </>
   );
@@ -905,7 +917,10 @@ export const LocalBridgeTokenSetup: React.FC<{
   onClose: () => void;
   token: string;
   onTokenChange: (token: string) => void;
-}> = ({ open, onClose, token, onTokenChange }) => {
+  rejected?: boolean;
+  /** Persist the token and re-test the connection. */
+  onSave?: (token: string) => void;
+}> = ({ open, onClose, token, onTokenChange, rejected, onSave }) => {
   const [copied, setCopied] = useState(false);
 
   if (!open) return null;
@@ -914,28 +929,60 @@ export const LocalBridgeTokenSetup: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Configure Local Bridge</CardTitle>
+          <CardTitle>{rejected ? 'Bridge token rejected' : 'Configure Local Bridge'}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            1. Start the bridge server on your Mac:
-            <code className="block mt-1 p-2 bg-muted rounded text-xs">cd ~/Music/Logic/_Scripts && node local-bridge.js</code>
+            There are <strong>two halves</strong> to this connection, and they must match:
           </p>
-          <p className="text-sm text-muted-foreground">
-            2. Copy the config below to <code className="bg-muted px-1 rounded">~/.config/composer-hub/bridge-config.json</code>
-          </p>
-          <div className="p-2 bg-muted rounded text-xs font-mono whitespace-pre-wrap overflow-auto max-h-40">
-            {JSON.stringify({
-              token,
-              port: 34567,
-              allowedOrigins: ['https://composerhub.vercel.app', 'http://localhost:5173'],
-            }, null, 2)}
+
+          <div className="space-y-3 text-sm">
+            <div className="rounded-md border p-3 space-y-1">
+              <p className="font-medium flex items-center gap-2">
+                <span>🖥️</span> The bridge (your Mac)
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Already running via pm2 — you don't need to start it. If it says
+                <code className="bg-muted px-1 rounded mx-1">Port 34567 in use</code>
+                that means it's <em>already working</em>.
+              </p>
+              <code className="block p-2 bg-muted rounded text-xs">pm2 restart composer-hub-bridge</code>
+              <p className="text-xs text-muted-foreground">
+                Its token lives in <code className="bg-muted px-1 rounded">~/.config/composer-hub/bridge-config.json</code>
+              </p>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-1">
+              <p className="font-medium flex items-center gap-2">
+                <span>🌐</span> This browser
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Must send the <strong>same</strong> token. This is stored per-browser and
+                per-origin, which is why a new browser (or switching between
+                localhost and the deployed site) asks again.
+              </p>
+            </div>
           </div>
+
+          <p className="text-sm text-muted-foreground">
+            Paste the token from <code className="bg-muted px-1 rounded">bridge-config.json</code> below.
+          </p>
+          <input
+            type="text"
+            value={token}
+            onChange={(e) => onTokenChange(e.target.value)}
+            placeholder="Paste bridge token…"
+            className="w-full h-9 rounded-md border bg-background px-3 text-xs font-mono"
+          />
+
           <div className="flex gap-2">
-            <Button onClick={() => { navigator.clipboard.writeText(token); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-              {copied ? 'Copied!' : 'Copy Config'}
+            <Button onClick={() => { if (onSave) onSave(token.trim()); onClose(); }}>
+              Save &amp; test connection
             </Button>
-            <Button variant="outline" onClick={onClose}>Done</Button>
+            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(token); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+              {copied ? 'Copied!' : 'Copy token'}
+            </Button>
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
           </div>
         </CardContent>
       </Card>

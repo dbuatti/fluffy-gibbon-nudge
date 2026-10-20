@@ -11,6 +11,38 @@
 
 const BRIDGE_DEFAULT_PORT = 34567;
 
+/**
+ * Bridge token resolution.
+ *
+ * Historically the token lived only in localStorage, which meant every new
+ * browser, private window, cleared-site-data or *different origin*
+ * (localhost:5173 vs composerhub.vercel.app are separate stores) started life
+ * unconfigured — and the user had to paste the token again. Since the token is
+ * the same shared secret as bridge-config.json on the Mac, we can ship it with
+ * the build instead.
+ *
+ * Precedence:
+ *   1. An explicitly stored token (set via the UI or the console) — an escape
+ *      hatch for rotating without a redeploy.
+ *   2. VITE_BRIDGE_TOKEN, baked in at build time. This is the normal path.
+ *   3. Empty — genuinely nothing configured.
+ */
+export const BRIDGE_TOKEN_STORAGE_KEY = 'composer-hub-bridge-token';
+
+const ENV_TOKEN = (import.meta.env.VITE_BRIDGE_TOKEN as string | undefined)?.trim() || '';
+
+export function readBridgeToken(): string {
+  if (typeof window === 'undefined') return ENV_TOKEN;
+  // `|| ENV_TOKEN` rather than `??` — an empty string in storage (e.g. left
+  // behind by clearToken) should still fall through to the baked-in token.
+  return localStorage.getItem(BRIDGE_TOKEN_STORAGE_KEY) || ENV_TOKEN;
+}
+
+/** True when a token is available from any source. */
+export function hasBridgeToken(): boolean {
+  return !!readBridgeToken();
+}
+
 // ============================================================================
 // Request/Response Types
 // ============================================================================
@@ -26,6 +58,12 @@ export interface BridgeResponse<T = unknown> {
   data?: T;
   error?: string;
   timestamp: string;
+  /**
+   * True when the bridge answered but rejected our credentials. Callers can
+   * then say "token rejected" instead of the misleading "bridge offline" — the
+   * bridge is plainly reachable, we just can't authenticate to it.
+   */
+  unauthorized?: boolean;
 }
 
 // --- Workflow Picker Launch ---
@@ -336,7 +374,7 @@ export class BridgeClient {
     this.host = options.host || this.getStoredHost();
     this.port = options.port || BRIDGE_DEFAULT_PORT;
     this.baseUrl = options.baseUrl || `http://${this.host}:${this.port}`;
-    this.token = options.token || this.getStoredToken();
+    this.token = options.token || readBridgeToken();
     // Bind fetch to window to avoid "Illegal invocation" error
     this.fetchImpl = options.fetchImpl || (typeof window !== 'undefined' ? window.fetch.bind(window) : fetch);
   }
@@ -348,22 +386,14 @@ export class BridgeClient {
     return '127.0.0.1';
   }
 
-  private getStoredToken(): string {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('composer-hub-bridge-token') || '';
-    }
-    return '';
-  }
-
   private async request<T>(endpoint: string, options: RequestInit = {}, timeoutMs = 15000): Promise<BridgeResponse<T>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
-    // Re-read from localStorage each request so a token set after page load
-    // (e.g. via the console or the "Regenerate Token" button) is picked up
-    // without a full page reload.
-    const token = this.token || (typeof window !== 'undefined' ? localStorage.getItem('composer-hub-bridge-token') || '' : '');
+    // Re-read each request so a token set after page load (e.g. via the console
+    // or the rotate button) is picked up without a full page reload.
+    const token = this.token || readBridgeToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -384,7 +414,16 @@ export class BridgeClient {
         try {
           const parsed = JSON.parse(text);
           if (parsed && typeof parsed.error === 'string') {
-            return { success: false, error: parsed.error, timestamp: parsed.timestamp || new Date().toISOString() };
+            const unauthorized =
+              res.status === 401 ||
+              res.status === 403 ||
+              /invalid token|unauthor/i.test(parsed.error);
+            return {
+              success: false,
+              error: parsed.error,
+              unauthorized,
+              timestamp: parsed.timestamp || new Date().toISOString(),
+            };
           }
         } catch {
           // not JSON — fall through to raw text
@@ -414,7 +453,7 @@ export class BridgeClient {
   setToken(token: string) {
     this.token = token;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('composer-hub-bridge-token', token);
+      localStorage.setItem(BRIDGE_TOKEN_STORAGE_KEY, token);
     }
   }
 
@@ -422,7 +461,9 @@ export class BridgeClient {
     this.host = host;
     this.baseUrl = `http://${host}:${this.port}`;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('composer-hub-bridge-host', host);
+      // An empty host would produce "http://:34567" and every request would
+      // fail confusingly — fall back to localhost.
+      localStorage.setItem('composer-hub-bridge-host', host || '127.0.0.1');
     }
   }
 
@@ -430,15 +471,20 @@ export class BridgeClient {
     return this.host;
   }
 
+  /**
+   * Forget the locally stored token. The build-time VITE_BRIDGE_TOKEN (if any)
+   * still applies, so this reverts to the default rather than disabling the
+   * bridge entirely.
+   */
   clearToken() {
     this.token = '';
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('composer-hub-bridge-token');
+      localStorage.removeItem(BRIDGE_TOKEN_STORAGE_KEY);
     }
   }
 
   hasToken(): boolean {
-    return !!this.token;
+    return !!readBridgeToken();
   }
 
   // --- API Methods ---
@@ -693,6 +739,9 @@ export function useLocalBridge() {
   const [loadingMode, setLoadingMode] = useState<string | null>(null);
   const [host, setHostState] = useState(() => bridgeClient.getHost());
   const [latency, setLatency] = useState<number | null>(null);
+  const [hasToken, setHasToken] = useState(() => hasBridgeToken());
+  /** Set when the bridge is reachable but rejects our token. */
+  const [tokenRejected, setTokenRejected] = useState(false);
   const warnedOfflineRef = useRef(false); // one-shot console.info per offline transition
 
   const failCountRef = useRef(0);
@@ -715,12 +764,24 @@ export function useLocalBridge() {
       const start = Date.now();
       const res = await client.ping();
       if (!res.success) {
+        // Reachable but rejected: the bridge is up, our token is wrong. That's
+        // a configuration problem, not an offline one, and retrying won't fix
+        // it — so report it distinctly and don't wait for a second failure.
+        if (res.unauthorized) {
+          setTokenRejected(true);
+          setConnected(false);
+          setStatus(null);
+          setLatency(null);
+          failCountRef.current = 0;
+          return;
+        }
         markOffline();
         return;
       }
       failCountRef.current = 0;
       setLatency(Date.now() - start);
       setConnected(true);
+      setTokenRejected(false);
       warnedOfflineRef.current = false; // any success resets the one-shot warning
       const statusRes = await client.getStatus();
       if (statusRes.success && statusRes.data) {
@@ -797,17 +858,39 @@ export function useLocalBridge() {
 
   const configureToken = (token: string) => {
     client.setToken(token);
+    setHasToken(!!token);
+    setTokenRejected(false);
     checkConnection();
   };
 
+  /**
+   * Generate a random token and store it locally.
+   *
+   * NOTE: this only writes the *browser* half of the pair. The bridge still
+   * validates against `token` in ~/.config/composer-hub/bridge-config.json, so
+   * a newly generated token will be rejected until that file is updated to
+   * match. The UI must say so, otherwise the app looks broken rather than
+   * misconfigured.
+   */
   const generateAndSaveToken = useCallback(async () => {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
     const token = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem('composer-hub-bridge-token', token);
+    localStorage.setItem(BRIDGE_TOKEN_STORAGE_KEY, token);
     client.setToken(token);
+    setHasToken(true);
+    setTokenRejected(false);
     checkConnection();
     return token;
+  }, [client, checkConnection]);
+
+  /** Forget any locally stored token, falling back to the baked-in one. */
+  const clearToken = useCallback(() => {
+    client.clearToken();
+    const fallback = hasBridgeToken();
+    setHasToken(fallback);
+    setTokenRejected(false);
+    checkConnection();
   }, [client, checkConnection]);
 
   const setBridgeHost = (newHost: string) => {
@@ -875,6 +958,7 @@ export function useLocalBridge() {
     setMeldScene,
     openLogic,
     openFinder,
+    openFolderInFinder,
     getSyncStatus,
     configureToken,
     generateAndSaveToken,
@@ -891,7 +975,9 @@ export function useLocalBridge() {
     setBridgeHost,
     host,
     latency,
-    hasToken: client.hasToken(),
+    hasToken,
+    tokenRejected,
+    clearToken,
   };
 }
 
@@ -961,7 +1047,7 @@ async function generateBridgeToken(): Promise<string> {
 
 async function setupBridgeToken(): Promise<void> {
   const token = await generateBridgeToken();
-  localStorage.setItem('composer-hub-bridge-token', token);
+  localStorage.setItem(BRIDGE_TOKEN_STORAGE_KEY, token);
 }
 
 // ============================================================================
