@@ -74,6 +74,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [visualizerHeight, setVisualizerHeight] = useState(180);
   const [visualizerBg, setVisualizerBg] = useState('');
   const [titleOverlayEnabled, setTitleOverlayEnabled] = useState(true);
+  const [titleOverlayText, setTitleOverlayText] = useState('');
   const [titleOverlayColor, setTitleOverlayColor] = useState('#FFFFFF');
   const [titleOverlayFontSize, setTitleOverlayFontSize] = useState(56);
   const previewUrlRef = useRef<string | null>(null);

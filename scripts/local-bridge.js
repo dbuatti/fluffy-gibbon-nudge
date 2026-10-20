@@ -469,6 +469,36 @@ async function handleCreateCaptureEntry(req, res, body) {
   }
 }
 
+/**
+ * Auto-configure endpoint: receives a new token from the web app,
+ * writes it to the bridge config file, and restarts the bridge via pm2.
+ * Called by the "Auto-configure" button — zero manual steps.
+ */
+async function handleBridgeConfigure(req, res, body) {
+  const token = typeof body?.token === 'string' && body.token.length >= 32 ? body.token.trim() : null;
+  if (!token) {
+    sendJson(res, 400, { success: false, error: 'Missing or invalid token (must be 32+ hex chars)' }, req);
+    return;
+  }
+  try {
+    // Update in-memory config
+    config.token = token;
+    // Persist to disk
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    fs.chmodSync(CONFIG_FILE, 0o600);
+    console.log(`🔐 Bridge token updated via auto-configure`);
+    // Respond first, then restart
+    sendJson(res, 200, { success: true, message: 'Token saved — restarting bridge…' }, req);
+    // Give the response time to flush, then restart via pm2
+    setTimeout(() => {
+      spawn('pm2', ['restart', 'composer-hub-bridge'], { detached: true, stdio: 'ignore' }).unref();
+    }, 500);
+  } catch (e) {
+    console.error(`[bridge/configure] Failed: ${e.message}`);
+    sendJson(res, 500, { success: false, error: `Failed to save token: ${e.message}` }, req);
+  }
+}
+
 async function handleListCaptures(req, res) {
   const CAPTURES_DIR = '/Users/danielebuatti/Music/Logic/_Captures';
   try {
@@ -2795,6 +2825,8 @@ async function startServer() {
           await handleListCaptures(req, res);
         } else if (pathname === '/captures/create-entry' && req.method === 'POST') {
           await handleCreateCaptureEntry(req, res, parsedBody);
+        } else if (pathname === '/bridge/configure' && req.method === 'POST') {
+          await handleBridgeConfigure(req, res, parsedBody);
         } else {
           sendJson(res, 404, { success: false, error: 'Not found', timestamp: new Date().toISOString() }, req);
         }
