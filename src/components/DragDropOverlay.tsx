@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { UploadCloud, Loader2 } from 'lucide-react'; // Corrected import path
+import { UploadCloud, Loader2, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
@@ -10,11 +10,12 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const { session } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingOverZone, setIsDraggingOverZone] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showZone, setShowZone] = useState(false);
   const dragCounter = useRef(0);
 
-  // Disable global drop on existing improvisation pages — they have their own upload component
+  // Disable on existing improvisation pages — they have their own upload component
   const isOnImprovisationPage = location.pathname.startsWith('/improvisation/');
 
   const handleDragEnter = useCallback((e: DragEvent) => {
@@ -23,7 +24,12 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     e.stopPropagation();
     dragCounter.current++;
     if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-      setIsDragging(true);
+      setShowZone(true);
+      // Check if dragging over the drop zone
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-drop-zone]')) {
+        setIsDraggingOverZone(true);
+      }
     }
   }, [isOnImprovisationPage]);
 
@@ -33,9 +39,10 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     e.stopPropagation();
     dragCounter.current--;
     
-    // Only set dragging to false when the counter hits zero (meaning drag left the entire window)
+    // Only hide zone when drag leaves the entire window
     if (dragCounter.current === 0) {
-        setIsDragging(false);
+      setShowZone(false);
+      setIsDraggingOverZone(false);
     }
   }, [isOnImprovisationPage]);
 
@@ -43,20 +50,25 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (isOnImprovisationPage) return;
     e.preventDefault();
     e.stopPropagation();
+    
+    // Update hover state for the drop zone
+    const target = e.target as HTMLElement;
+    const overZone = !!target.closest('[data-drop-zone]');
+    setIsDraggingOverZone(overZone);
   }, [isOnImprovisationPage]);
 
   const handleDrop = useCallback(async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    setIsDraggingOverZone(false);
+    setShowZone(false);
     dragCounter.current = 0;
 
-    // Don't intercept drops on existing improvisation pages — they have their own upload component
     if (isOnImprovisationPage) return;
 
     if (!session) {
-        showError("Please sign in to upload files.");
-        return;
+      showError("Please sign in to upload files.");
+      return;
     }
 
     const files = e.dataTransfer?.files;
@@ -141,10 +153,60 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     };
   }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
 
+  // Don't render anything on improvisation pages
+  if (isOnImprovisationPage) {
+    return <>{children}</>;
+  }
+
   return (
     <>
       {children}
-      {(isDragging || isProcessing) && (
+      
+      {/* Small drop zone in bottom-left — appears when dragging a file */}
+      {showZone && (
+        <div
+          data-drop-zone
+          className={cn(
+            "fixed bottom-6 left-6 z-[9998] transition-all duration-200",
+            isDraggingOverZone
+              ? "scale-105 ring-2 ring-primary ring-offset-2 ring-offset-background"
+              : "opacity-60 hover:opacity-100"
+          )}
+          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOverZone(true); }}
+          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOverZone(false); }}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onDrop={handleDrop}
+        >
+          <div className="bg-background/95 backdrop-blur-sm border border-border/50 dark:border-border/30 rounded-xl shadow-xl p-4 min-w-[200px]">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-12 h-12 rounded-lg flex items-center justify-center transition-colors",
+                isDraggingOverZone ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+              )}>
+                <UploadCloud className="w-6 h-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {isDraggingOverZone ? "Drop to create new project" : "Drop audio file here"}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  MP3 or M4A — creates a fresh improvisation
+                </p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowZone(false); }}
+                className="ml-auto text-muted-foreground hover:text-foreground p-1 rounded"
+                aria-label="Hide drop zone"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-screen overlay only when actually dropping */}
+      {(isDraggingOverZone || isProcessing) && (
         <div 
           className={cn(
             "fixed inset-0 z-[9999] flex items-center justify-center transition-opacity duration-300",
@@ -153,17 +215,17 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
         >
           <div className="text-center text-white p-10 border-4 border-dashed border-white/50 rounded-xl">
             {isProcessing ? (
-                <>
-                    <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin" />
-                    <h2 className="text-2xl font-bold">Processing Instant Upload...</h2>
-                    <p className="mt-2">Creating improvisation and starting AI analysis.</p>
-                </>
+              <>
+                <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin" />
+                <h2 className="text-2xl font-bold">Processing Instant Upload...</h2>
+                <p className="mt-2">Creating improvisation and starting AI analysis.</p>
+              </>
             ) : (
-                <>
-                    <UploadCloud className="w-16 h-16 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold">Drop Audio File Here to Capture Instantly</h2>
-                    <p className="mt-2">MP3 or M4A only. Creates a new idea and starts AI analysis immediately.</p>
-                </>
+              <>
+                <UploadCloud className="w-16 h-16 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold">Drop Audio File Here to Capture Instantly</h2>
+                <p className="mt-2">MP3 or M4A only. Creates a new idea and starts AI analysis immediately.</p>
+              </>
             )}
           </div>
         </div>
