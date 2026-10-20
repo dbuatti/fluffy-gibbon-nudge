@@ -511,9 +511,11 @@ export class BridgeClient {
     return this.request<SyncStatusResponse>(`/sync/status${qs ? `?${qs}` : ''}`);
   }
 
-  /** Test connectivity (no auth required) */
+  /** Test connectivity (no auth required). Longer timeout than default because
+   *  the bridge can be busy rendering video (ffmpeg) and the event loop
+   *  may be starved for a few seconds. */
   async ping(): Promise<BridgeResponse<{ pong: boolean }>> {
-    return this.request<{ pong: boolean }>('/ping');
+    return this.request<{ pong: boolean }>('/ping', {}, 30000);
   }
 
   /** Open macOS mount dialog for the NAS (Moon Prism) */
@@ -681,11 +683,14 @@ export function useLocalBridge() {
   const [latency, setLatency] = useState<number | null>(null);
   const warnedOfflineRef = useRef(false); // one-shot console.info per offline transition
 
+  const failCountRef = useRef(0);
   const checkConnection = useCallback(async () => {
     const markOffline = () => {
-      // Bridge offline is a normal state (e.g. opened on another machine or
-      // via composerhub.vercel.app) — degrade silently instead of spamming
-      // the console every 30s. Only warn once per offline transition.
+      // Require 2 consecutive failures before declaring offline — a single
+      // slow ping during heavy ffmpeg rendering shouldn't flip the UI to
+      // "disconnected" and scare the user.
+      failCountRef.current += 1;
+      if (failCountRef.current < 2) return;
       setConnected(false);
       setStatus(null);
       setLatency(null);
@@ -701,6 +706,7 @@ export function useLocalBridge() {
         markOffline();
         return;
       }
+      failCountRef.current = 0;
       setLatency(Date.now() - start);
       setConnected(true);
       warnedOfflineRef.current = false; // any success resets the one-shot warning
