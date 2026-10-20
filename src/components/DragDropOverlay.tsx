@@ -1,28 +1,34 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react'; // Corrected import path
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/integrations/supabase/session-context';
 import { showSuccess, showError } from '@/utils/toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session } = useSession();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const dragCounter = useRef(0);
 
+  // Disable global drop on existing improvisation pages — they have their own upload component
+  const isOnImprovisationPage = location.pathname.startsWith('/improvisation/');
+
   const handleDragEnter = useCallback((e: DragEvent) => {
+    if (isOnImprovisationPage) return;
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current++;
     if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
       setIsDragging(true);
     }
-  }, []);
+  }, [isOnImprovisationPage]);
 
   const handleDragLeave = useCallback((e: DragEvent) => {
+    if (isOnImprovisationPage) return;
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current--;
@@ -31,18 +37,22 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (dragCounter.current === 0) {
         setIsDragging(false);
     }
-  }, []);
+  }, [isOnImprovisationPage]);
 
   const handleDragOver = useCallback((e: DragEvent) => {
+    if (isOnImprovisationPage) return;
     e.preventDefault();
     e.stopPropagation();
-  }, []);
+  }, [isOnImprovisationPage]);
 
   const handleDrop = useCallback(async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     dragCounter.current = 0;
+
+    // Don't intercept drops on existing improvisation pages — they have their own upload component
+    if (isOnImprovisationPage) return;
 
     if (!session) {
         showError("Please sign in to upload files.");
