@@ -2015,11 +2015,31 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
   args.push(outFile.replace(/\.mp4$/i, '.part.mp4'));
 }
 
+/**
+ * Encode timeout.
+ *
+ * This has to scale with the length of the clip. A fixed budget was fine when
+ * the kit trimmed everything to 180 seconds, but the kit now carries the whole
+ * recording: a 24-minute improvisation needs a 1080x1920 encode that runs for
+ * well over 20 minutes, and the old flat timeout killed ffmpeg mid-render
+ * (leaving no file and a misleading "ffmpeg failed" with no stderr).
+ *
+ * The estimate is deliberately generous — a killed render wastes far more
+ * time than a slightly-too-long timeout ever costs.
+ */
+function socialEncodeTimeoutMs(outputSec) {
+  const base = 20 * 60 * 1000;                 // 20 min floor
+  const scaled = Math.max(0, (outputSec || 0)) * 3000; // +50s per second of output
+  return Math.max(base, scaled + 10 * 60 * 1000);
+}
+
 /** Run a full encode, then promote every *.part.mp4 it wrote to its real name. */
-async function runSocialVideo(args) {
+async function runSocialVideo(args, outputSec = 0) {
   const parts = args.filter((a) => typeof a === 'string' && a.endsWith('.part.mp4'));
   try {
-    await runProcess('ffmpeg', [...args, '-shortest', '-movflags', '+faststart'], { timeoutMs: 20 * 60 * 1000 });
+    await runProcess('ffmpeg', [...args, '-shortest', '-movflags', '+faststart'], {
+      timeoutMs: socialEncodeTimeoutMs(outputSec),
+    });
   } catch (e) {
     for (const part of parts) { try { fs.unlinkSync(part); } catch { /* nothing to clean */ } }
     throw e;
@@ -2375,7 +2395,7 @@ async function handleSocialBuildKit(req, res, body) {
         // pass instead of one run per clip.
         const lastCut = planned[planned.length - 1];
         args.push('-t', (lastCut.startSec + lastCut.clipSec).toFixed(2));
-        await runSocialVideo(args);
+        await runSocialVideo(args, lastCut.startSec + lastCut.clipSec);
 
         for (const p of planned) {
           files.push({

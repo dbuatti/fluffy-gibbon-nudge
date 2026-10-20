@@ -636,14 +636,20 @@ export class BridgeClient {
 
   /**
    * Build a song's social kit: artwork + platform-ready videos, staged on the
-   * Mac's Desktop. Long-lead (art generation + up to three ffmpeg renders),
-   * so this call gets a very generous leash.
+   * Mac's Desktop. Long-lead (art generation + two full-length ffmpeg renders).
+   *
+   * The kit now carries the whole recording, so a 24-minute improvisation
+   * means two long encodes — the old 25-minute leash expired while the server
+   * was still working, and the browser reported a timeout instead of the
+   * build it had actually completed. The budget is generous on purpose: the
+   * bridge reports real progress via /social/build-status, and a build that
+   * runs long is far better than one that gives up.
    */
   async buildSocialKit(improvisationId: string, opts: SocialKitOptions = {}): Promise<BridgeResponse<SocialKit>> {
     return this.request<SocialKit>('/social/build-kit', {
       method: 'POST',
       body: JSON.stringify({ improvisationId, ...opts }),
-    }, 25 * 60 * 1000);
+    }, 3 * 60 * 60 * 1000);
   }
 
   /**

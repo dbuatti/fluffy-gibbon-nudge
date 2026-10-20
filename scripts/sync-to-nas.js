@@ -43,35 +43,24 @@ function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     .finally(() => clearTimeout(timer));
 }
 
+/**
+ * Shared session helper.
+ *
+ * This used to be a local copy of getSession() with its own refresh logic —
+ * which was a bug waiting to happen. Supabase refresh tokens are single-use
+ * and rotate on every use, so a second implementation refreshing the same
+ * token would get a 400, and this copy's response was to DELETE auth.json.
+ * That raced the bridge's own getSession() and wiped a perfectly good
+ * session, which is what produced the recurring "Not signed in on this Mac"
+ * errors. It also rewrote the file without email_cred/password_cred, quietly
+ * removing the password fallback.
+ *
+ * One implementation, shared: ./composer-hub.js. It refreshes once, writes
+ * atomically, preserves the credentials and never deletes the file.
+ */
 async function getSession() {
-  if (!fs.existsSync(AUTH_FILE)) return null;
-  try {
-    const auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
-    if (!auth.refresh_token) return null;
-
-    const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: auth.refresh_token }),
-    });
-
-    if (!res.ok) {
-      fs.unlinkSync(AUTH_FILE);
-      return null;
-    }
-
-    const body = await res.json();
-    fs.writeFileSync(AUTH_FILE, JSON.stringify({
-      refresh_token: body.refresh_token,
-      user_id: body.user.id,
-      email: body.user.email,
-    }, null, 2));
-    fs.chmodSync(AUTH_FILE, 0o600);
-
-    return { access_token: body.access_token, user_id: body.user.id };
-  } catch {
-    return null;
-  }
+  const { getSession: shared } = await import('./composer-hub.js');
+  return shared();
 }
 
 function checkNasMounted() {

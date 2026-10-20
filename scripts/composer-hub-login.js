@@ -227,13 +227,16 @@ async function validateAndSave(refresh_token, email, password = null) {
   const body = await res.json();
 
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(AUTH_FILE, JSON.stringify({
+  // Atomic write: a concurrent reader must never see a half-written file.
+  const tmp = `${AUTH_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({
     refresh_token: body.refresh_token,
     user_id: body.user.id,
     email: body.user.email || email,
     email_cred: password ? email : null,
     password_cred: password || null,
-  }, null, 2));
+  }, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, AUTH_FILE);
   fs.chmodSync(AUTH_FILE, 0o600);
 
   console.log(`\nLogged in as ${body.user.email || email}. Session cached in ${AUTH_FILE}`);

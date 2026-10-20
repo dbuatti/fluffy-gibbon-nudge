@@ -73,7 +73,42 @@ async function loginWithPassword(email, password) {
   return { access_token: body.access_token, user_id: body.user.id };
 }
 
+/**
+ * Write the auth file atomically.
+ *
+ * A plain writeFileSync truncates first, so a concurrent reader can see a
+ * half-written file and fail to parse it — which used to look like "not signed
+ * in". Writing to a temp file and renaming is atomic on the same filesystem.
+ */
+function writeAuthFile(data) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  const tmp = `${AUTH_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, AUTH_FILE);
+  fs.chmodSync(AUTH_FILE, 0o600);
+}
+
+/**
+ * In-flight session promise.
+ *
+ * Supabase rotates refresh tokens on every use: a refresh token is single-use.
+ * If two callers refresh at the same time they both send the same token, the
+ * second one is rejected with 400 "Invalid refresh token", and (before the
+ * delete guard was fixed) that destroyed the session file. Sharing one
+ * in-flight promise means concurrent callers — e.g. a long build plus the
+ * browser polling /social/kit — use a single refresh between them.
+ */
+let sessionInFlight = null;
+
 async function getSession() {
+  if (sessionInFlight) return sessionInFlight;
+  sessionInFlight = resolveSession().finally(() => {
+    sessionInFlight = null;
+  });
+  return sessionInFlight;
+}
+
+async function resolveSession() {
   if (!fs.existsSync(AUTH_FILE)) return null;
 
   let auth;
@@ -101,14 +136,13 @@ async function getSession() {
 
     if (res.ok) {
       const body = await res.json();
-      fs.writeFileSync(AUTH_FILE, JSON.stringify({
+      writeAuthFile({
         refresh_token: body.refresh_token,
         user_id: body.user.id,
         email: body.user.email,
         email_cred: auth.email_cred,
         password_cred: auth.password_cred,
-      }, null, 2));
-      fs.chmodSync(AUTH_FILE, 0o600);
+      });
       return { access_token: body.access_token, user_id: body.user.id };
     }
 
@@ -118,10 +152,14 @@ async function getSession() {
       if (result) return result;
     }
 
-    // Only discard on definitive auth failures if no credentials to fall back on
-    if ([400, 401, 403, 404].includes(res.status) && !auth.email_cred) {
-      fs.unlinkSync(AUTH_FILE);
-    }
+    // NOTE: we deliberately do NOT delete the auth file here.
+    //
+    // A refresh can fail for reasons that are not "you are signed out" — most
+    // notably a concurrent rotation, where a second refresh reuses a token
+    // that was already spent. Deleting the file then wiped the session and
+    // left the bridge reporting "Not signed in on this Mac" even though the
+    // user had logged in. The file is small and self-healing (the password
+    // fallback above rewrites it), so keeping it is strictly safer.
     return null;
   }
 
