@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save, Link2, ListMusic, SlidersHorizontal, NotebookText } from 'lucide-react';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, logError } from '@/utils/toast';
 import { useSession } from '@/integrations/supabase/session-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { Arrangement, ArrangementStatus } from '@/types/arrangement';
@@ -94,7 +94,7 @@ const ArrangementDialog: React.FC<ArrangementDialogProps> = ({ open, onOpenChang
       onOpenChange(false);
       onSaved();
     } catch (error) {
-      console.error('Failed to save arrangement:', error);
+      logError('Failed to save arrangement:', error);
       showError(`Failed to save arrangement: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSaving(false);

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { useSession } from '@/integrations/supabase/session-context';
 import { supabase } from '@/integrations/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import type { Improvisation } from '@/types/improvisation';
@@ -261,7 +261,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
             const { error: storageError } = await supabase.storage
               .from('piano_improvisations')
               .remove([impToDelete.storage_path]);
-            if (storageError) console.error(`Failed to delete audio file for ${id}:`, storageError);
+            if (storageError) logError(`ImprovisationList.deleteAudio:${id}`, storageError);
           }
           // 2. Delete artwork from Supabase Storage (if manually uploaded and artwork_url is a path)
           //    Currently, artwork_url is just a URL, so this part is effectively skipped.
@@ -280,7 +280,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
     } catch (error) {
-      console.error('Bulk deletion failed:', error);
+      logError('ImprovisationList.bulkDelete', error);
       showError(`Failed to delete improvisations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDeletingBulk(false);
@@ -331,7 +331,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
         const { error: storageError } = await supabase.storage
           .from('piano_improvisations')
           .remove([imp.storage_path]);
-        if (storageError) console.error('Failed to delete audio file:', storageError);
+        if (storageError) logError(`ImprovisationList.deleteAudio:${imp.id}`, storageError);
       }
       // Delete record from database
       const { error: dbError } = await supabase
@@ -343,7 +343,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
     } catch (error) {
-      console.error('Delete failed:', error);
+      logError('ImprovisationList.deleteSingle', error);
       showError(`Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDeleting(false);
@@ -371,7 +371,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
         const { error: storageError } = await supabase.storage
           .from('piano_improvisations')
           .remove([imp.storage_path]);
-        if (storageError) console.error('Failed to delete audio file:', storageError);
+        if (storageError) logError(`ImprovisationList.deleteAudioAndLocal:${imp.id}`, storageError);
       }
       // Delete record from database
       const { error: dbError } = await supabase
@@ -383,7 +383,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
       queryClient.invalidateQueries({ queryKey: ['improvisations'] });
       queryClient.invalidateQueries({ queryKey: ['improvisationStatusCounts'] });
     } catch (error) {
-      console.error('Delete failed:', error);
+      logError('ImprovisationList.deleteSingleAndLocal', error);
       showError(`Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setDeleting(false);
@@ -420,7 +420,7 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
 
       showSuccess(`${selectedImprovisations.size} improvisations exported successfully.`);
     } catch (error) {
-      console.error('Bulk export failed:', error);
+      logError('ImprovisationList.bulkExport', error);
       showError(`Failed to export improvisations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExportingBulk(false);

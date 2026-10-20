@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 
 const ABSTRACT_WORDS = [
   'Echo', 'Silence', 'Drift', 'Luminescence', 'Void', 'Aether', 'Bloom', 'Wander', 
@@ -69,7 +69,7 @@ export const useTitleGenerator = (improvisationId: string, onTitleGenerated: (ti
       }
 
     } catch (error) {
-      console.error('AI title generation failed:', error);
+      logError('AI title generation failed:', error);
       showError(`Failed to generate AI title: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);

@@ -9,8 +9,7 @@
  * Config: ~/.config/composer-hub/bridge-config.json
  */
 
-export const BRIDGE_DEFAULT_PORT = 34567;
-export const BRIDGE_CONFIG_PATH = '~/.config/composer-hub/bridge-config.json';
+const BRIDGE_DEFAULT_PORT = 34567;
 
 // ============================================================================
 // Request/Response Types
@@ -879,36 +878,6 @@ export async function openFolderInFinder(folderPath: string): Promise<boolean> {
   }
 }
 
-/**
- * Open several folders in Finder with a single bridge call. Reports which
- * opened and which did not, so one unmounted volume (e.g. the NAS at home but
- * not on the road) never hides the folder that did open.
- */
-export async function openFoldersInFinder(folderPaths: string[]): Promise<boolean> {
-  const paths = folderPaths.filter(Boolean);
-  if (paths.length === 0) return false;
-  // A single path is just the plain helper, so the toast stays specific.
-  if (paths.length === 1) return openFolderInFinder(paths[0]);
-  try {
-    const res = await bridgeClient.openFinderPair(paths);
-    const opened = res.data?.opened || [];
-    const failed = res.data?.failed || [];
-    if (opened.length > 0) {
-      const names = opened.map((o) => o.path.split('/').filter(Boolean).pop() || o.path);
-      if (failed.length > 0) {
-        showSuccess(`Opened ${names.join(' + ')} — ${failed[0].error}`);
-      } else {
-        showSuccess(`Opened ${names.join(' + ')} in Finder`);
-      }
-      return true;
-    }
-    showError(res.error || failed[0]?.error || 'Could not open those folders in Finder');
-    return false;
-  } catch {
-    showError('Local Bridge unreachable — it runs on your Mac. Start it with: pm2 start composer-hub-bridge');
-    return false;
-  }
-}
 
 /** Local Logic projects directory (mirrors LOGIC_PROJECTS_DIR in the bridge). */
 export const LOGIC_PROJECTS_DIR = '/Users/danielebuatti/Music/Logic';
@@ -947,13 +916,13 @@ export async function revealInFinder(filePath: string): Promise<boolean> {
  *   await setupBridgeToken()
  * Then copy the printed token to ~/.config/composer-hub/bridge-config.json on your Mac.
  */
-export async function generateBridgeToken(): Promise<string> {
+async function generateBridgeToken(): Promise<string> {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function setupBridgeToken(): Promise<void> {
+async function setupBridgeToken(): Promise<void> {
   const token = await generateBridgeToken();
   localStorage.setItem('composer-hub-bridge-token', token);
 }

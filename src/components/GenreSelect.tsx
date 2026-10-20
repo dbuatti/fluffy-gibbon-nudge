@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Check, X, Edit2, Loader2 } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 // Common genres for quick selection (Comprehensive list for DistroKid/general use)
@@ -103,7 +103,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
             setIsEditing(false);
             setIsCustomInput(!COMMON_GENRES.includes(trimmedValue));
         } catch (error) {
-            console.error('Failed to save genre:', error);
+            logError('Failed to save genre:', error);
             showError(`Failed to update ${label}.`);
         } finally {
             setIsLoading(false);

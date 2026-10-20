@@ -95,22 +95,6 @@ export async function deleteFromRepository(item: Pick<ArtRepositoryItem, 'id' | 
   await supabase.storage.from(BUCKET).remove([item.storage_path]).catch(() => {});
 }
 
-/** Assign a repository image as an improvisation's artwork. */
-export async function assignArtworkToImprovisation(improvisationId: string, item: ArtRepositoryItem): Promise<void> {
-  const { error } = await supabase
-    .from('improvisations')
-    .update({ artwork_url: item.public_url, artwork_prompt: item.prompt })
-    .eq('id', improvisationId);
-  if (error) throw error;
-  try {
-    // Best-effort link back from the repository entry — the artwork is
-    // already assigned above, so a failure here is not fatal.
-    await supabase.from('art_repository').update({ improvisation_id: improvisationId }).eq('id', item.id);
-  } catch {
-    // ignore
-  }
-}
-
 /**
  * Convert a canvas to a Blob, preferring JPEG for AI-like content (smaller
  * files) — PNG for procedural keeps crisp gradients.

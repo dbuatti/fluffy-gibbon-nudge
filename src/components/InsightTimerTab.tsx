@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -97,7 +97,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         throw new Error('No description returned');
       }
     } catch (error) {
-      console.error('Description generation failed:', error);
+      logError('InsightTimerTab.generateDescription', error);
       showError(`Failed to generate description: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGeneratingDescription(false);
@@ -124,7 +124,7 @@ const InsightTimerTab: React.FC<InsightTimerTabProps> = ({
         await handleUpdateDescription(description); // Use passed handler
         showSuccess("Description saved successfully.");
     } catch (error) {
-        console.error("Failed to save description:", error);
+        logError('InsightTimerTab.saveDescription', error);
         showError("Failed to save description.");
         setDescription(imp.description || ''); // Revert on error
     }

@@ -194,7 +194,7 @@ const COMPOSITIONS = [
   'quiet negative space', 'interlocking soft forms',
 ];
 
-export const ENERGY_LABELS: Record<ArtEnergy, string> = {
+const ENERGY_LABELS: Record<ArtEnergy, string> = {
   still: 'Still — held breath, minimal movement',
   gentle: 'Gentle — slow drift, soft motion',
   flowing: 'Flowing — continuous movement, rising and falling',

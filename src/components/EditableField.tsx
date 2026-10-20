@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Check, X, Edit2, Loader2 } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface EditableFieldProps {
@@ -51,7 +51,7 @@ const EditableField: React.FC<EditableFieldProps> = ({
       showSuccess(`${label} updated successfully.`);
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to save field:', error);
+      logError('Failed to save field:', error);
       showError(`Failed to update ${label}.`);
     } finally {
       setIsLoading(false);

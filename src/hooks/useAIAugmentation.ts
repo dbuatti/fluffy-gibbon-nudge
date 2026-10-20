@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AIAugmentationResult {
@@ -41,7 +41,7 @@ export const useAIAugmentation = (improvisationId: string) => { // Renamed param
       }
 
     } catch (error) {
-      console.error('AI Population failed:', error);
+      logError('AI Population failed:', error);
       showError(`Failed to populate metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsPopulating(false);

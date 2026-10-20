@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2, RefreshCw, Music, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, logError } from '@/utils/toast';
 import CaptureIdeaDialog from './CaptureIdeaDialog';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,7 +13,7 @@ const fetchDailyPrompt = async (): Promise<string> => {
   const { data, error } = await supabase.functions.invoke('generate-daily-prompt');
 
   if (error) {
-    console.error("Failed to fetch daily prompt:", error);
+    logError("Failed to fetch daily prompt:", error);
     throw new Error(error.message || "Failed to fetch daily prompt.");
   }
 

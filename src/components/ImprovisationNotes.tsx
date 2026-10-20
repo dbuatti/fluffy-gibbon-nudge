@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Save, Loader2, NotebookText, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError } from '@/utils/toast';
+import { showError, logError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface NoteTab {
@@ -47,7 +47,7 @@ const ImprovisationNotes: React.FC<ImprovisationNotesProps> = ({ improvisationId
       // Reset status after a short delay to show the checkmark
       setTimeout(() => setSaveStatus('idle'), 2000); 
     } catch (error) {
-      console.error('Failed to save notes:', error);
+      logError('Failed to save notes:', error);
       showError('Failed to autosave notes.');
       setSaveStatus('idle'); // Revert to idle on error
     }

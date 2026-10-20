@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Loader2, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, logError } from '@/utils/toast';
 import { useSession } from '@/integrations/supabase/session-context';
 import { Progress } from '@/components/ui/progress';
 
@@ -112,7 +112,7 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
       });
 
       if (functionError) {
-        console.error('Failed to invoke analysis function:', functionError);
+        logError('Failed to invoke analysis function:', functionError);
         showError('File uploaded, but failed to start background processing.');
       } else {
         showSuccess(`Audio file attached and background processing started!`);
@@ -125,7 +125,7 @@ const AudioUploadForImprovisation: React.FC<AudioUploadForImprovisationProps> = 
     } catch (error) {
       clearInterval(progressInterval);
       setUploadProgress(0);
-      console.error('Upload failed:', error);
+      logError('Upload failed:', error);
       showError(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);

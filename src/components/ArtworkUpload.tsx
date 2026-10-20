@@ -4,7 +4,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Upload, Loader2, Image as ImageIcon, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, logError } from '@/utils/toast';
 import { upscaleToMinSize, toSquareExport, RELEASE_EXPORT_SIZE } from '@/lib/image-compliance';
 import { useSession } from '@/integrations/supabase/session-context';
 
@@ -121,7 +121,7 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
       onUploadSuccess(newArtworkUrl); // Notify parent component with the new URL
 
     } catch (error) {
-      console.error('Artwork upload failed:', error);
+      logError('ArtworkUpload.upload', error);
       showError(`Failed to upload artwork: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);

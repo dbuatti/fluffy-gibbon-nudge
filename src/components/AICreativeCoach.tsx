@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Lightbulb, Zap, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 
 interface AICreativeCoachProps {
@@ -34,7 +34,7 @@ const AICreativeCoach: React.FC<AICreativeCoachProps> = ({ improvisationId }) =>
       }
 
     } catch (error) {
-      console.error('Suggestion generation failed:', error);
+      logError('Suggestion generation failed:', error);
       showError(`Failed to generate suggestions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);

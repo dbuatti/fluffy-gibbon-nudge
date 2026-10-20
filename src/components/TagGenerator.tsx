@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Tag, X, Loader2, Check } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +34,7 @@ const TagGenerator: React.FC<TagGeneratorProps> = ({ improvisationId, initialTag
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000); 
     } catch (error) {
-      console.error('Failed to save tags:', error);
+      logError('Failed to save tags:', error);
       showError('Failed to autosave tags.');
       setSaveStatus('idle');
     }

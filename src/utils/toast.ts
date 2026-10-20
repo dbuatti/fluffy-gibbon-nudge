@@ -15,3 +15,10 @@ export const showLoading = (message: string) => {
 export const dismissToast = (toastId: string) => {
   toast.dismiss(toastId);
 };
+
+/** Dev-only console log — stripped in production builds. */
+export const logError = (context: string, error: unknown) => {
+  if (import.meta.env.DEV) {
+    console.error(`[${context}]`, error);
+  }
+};

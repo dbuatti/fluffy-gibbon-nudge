@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showError, showSuccess } from '@/utils/toast';
+import { showError, showSuccess, logError } from '@/utils/toast';
 import { useSession } from '@/integrations/supabase/session-context';
 import { useNavigate } from 'react-router-dom';
 
@@ -54,7 +54,7 @@ export const useCaptureIdea = () => {
       return newImprovisationId;
 
     } catch (error) {
-      console.error('Failed to capture idea:', error);
+      logError('Failed to capture idea:', error);
       showError(`Failed to capture idea: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return null;
     } finally {
