@@ -1,4 +1,4 @@
-import { toSquareExport, downloadBlob } from '@/lib/image-compliance';
+import { toSquareExport, downloadBlob, getImageDimensions, describeImage } from '@/lib/image-compliance';
 import React, { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Info, Music, Clock, Download, ExternalLink, Image as ImageIcon, Sparkles } from 'lucide-react';

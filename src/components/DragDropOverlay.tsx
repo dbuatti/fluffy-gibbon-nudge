@@ -194,7 +194,7 @@ const DragDropOverlay: React.FC<{ children: React.ReactNode }> = ({ children }) 
           onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOverZone(true); }}
           onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOverZone(false); }}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onDrop={handleDrop}
+          onDrop={handleDrop as unknown as React.DragEventHandler<HTMLDivElement>}
         >
           <div className="bg-background/95 backdrop-blur-sm border border-border/50 dark:border-border/30 rounded-xl shadow-xl p-4 min-w-[200px]">
             <div className="flex items-center gap-3">

@@ -19,7 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import type { Improvisation } from '@/types/improvisation';
 import { displayTitle } from '@/lib/display-title';
 import FolderPathLine from '@/components/FolderPathLine';
-import { openFolderInFinder, deleteLocalFolder } from '@/lib/local-bridge';
+import { openFolderInFinder } from '@/lib/local-bridge';
 import { useLocalBridge } from '@/lib/local-bridge';
 
 const STALLED_THRESHOLD_HOURS = 24;

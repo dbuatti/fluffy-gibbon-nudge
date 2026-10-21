@@ -479,7 +479,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
             <div className="space-y-3 py-2">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                {buildStep || BUILD_PHASES[phase]}
+                {buildStep || BUILD_PHASES[phase].step}
                  {buildProgress != null && <span className="ml-auto tabular-nums text-muted-foreground">{buildProgress}%</span>}
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -658,7 +658,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
                       <div className="grid gap-4 sm:grid-cols-2 pl-6">
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium text-muted-foreground">Type</label>
-                          <Select value={visualizerType} onValueChange={setVisualizerType}>
+                          <Select value={visualizerType} onValueChange={(v) => setVisualizerType(v as typeof visualizerType)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="waveform">Waveform (bars)</SelectItem>

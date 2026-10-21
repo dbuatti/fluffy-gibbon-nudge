@@ -3,7 +3,7 @@ import { useParams, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase, getPublicAudioUrl as getPublicAudioUrlHelper } from '@/integrations/supabase/client';
 import { Loader2, AlertTriangle, RefreshCw, ImageIcon, Music } from 'lucide-react';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, logError } from '@/utils/toast';
 import AudioPlayer from '@/components/AudioPlayer';
 import { useUpdateImprovisation } from '@/hooks/useUpdateImprovisation';
 import { useAIAugmentation } from '@/hooks/useAIAugmentation';
@@ -26,7 +26,7 @@ const fetchImprovisationDetails = async (id: string): Promise<Improvisation> => 
     .single();
 
   if (error) throw new Error(error.message);
-  return data as Improvisation;
+  return data as unknown as Improvisation;
 };
 
 const getPublicAudioUrl = (storagePath: string | null): string | null => {

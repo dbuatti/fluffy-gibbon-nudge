@@ -73,7 +73,7 @@ const GenerativeArt: React.FC = () => {
       } else if (data?.error) {
         showError(data.error);
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Failed to generate prompt');
     } finally {
       setPromptLoading(false);
@@ -101,7 +101,7 @@ const GenerativeArt: React.FC = () => {
     setRepoError(null);
     try {
       setRepoItems(await listRepository(60));
-    } catch (e: Error) {
+    } catch (e: any) {
       setRepoError(e.message || 'Failed to load repository');
     } finally {
       setRepoLoading(false);
@@ -233,7 +233,7 @@ const GenerativeArt: React.FC = () => {
           return updated;
         });
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'AI generation failed');
     } finally {
       setGenerating(false);
@@ -268,7 +268,7 @@ const GenerativeArt: React.FC = () => {
         showSuccess('Gemini artwork generated');
         persistGeneration(base64ToBlob(data.image), 'gemini', prompt.trim()).catch(() => {});
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Gemini generation failed');
     } finally {
       setGenerating(false);
@@ -328,7 +328,7 @@ const GenerativeArt: React.FC = () => {
       downloadBlob(square, `cover-3000x3000-${Date.now()}.jpg`);
       const dims = await getImageDimensions(square);
       showSuccess(`Exported ${describeImage(square, dims)} — ready for Insight Timer`);
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Export failed');
     } finally {
       setExporting(false);
@@ -367,7 +367,7 @@ const GenerativeArt: React.FC = () => {
         .eq('id', improvisationId);
       if (updateError) throw updateError;
       showSuccess('Artwork saved to improvisation');
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Failed to save artwork');
     } finally {
       setGenerating(false);
@@ -406,7 +406,7 @@ const GenerativeArt: React.FC = () => {
       await deleteFromRepository(item);
       setRepoItems((h) => h.filter((x) => x.id !== item.id));
       showSuccess('Deleted from repository');
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Delete failed');
     }
   };

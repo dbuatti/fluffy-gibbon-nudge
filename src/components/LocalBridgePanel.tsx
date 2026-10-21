@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, readBridgeToken, type LogicProject, type LocalCapture } from '@/lib/local-bridge';
+import { useLocalBridge, useRealtimeSyncStatus, openFolderInFinder, readBridgeToken, type LogicProject, type LocalCapture, type WorkflowMode } from '@/lib/local-bridge';
 import { showSuccess, showError } from '@/utils/toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -226,7 +226,7 @@ export const LocalBridgePanel: React.FC = () => {
   const [copiedToken, setCopiedToken] = useState(false);
   const [showTokenSetup, setShowTokenSetup] = useState(false);
 
-  const handleLaunch = async (mode: string, extras: Record<string, unknown> = {}) => {
+  const handleLaunch = async (mode: WorkflowMode, extras: Record<string, unknown> = {}) => {
     const res = await launchPicker({ mode, ...extras });
     if (res) setLastResult({ success: true, message: res.message || 'Launched' });
     else setLastResult({ success: false, message: 'Launch failed' });
@@ -306,7 +306,7 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         setLastResult({ success: false, message: res?.error || 'Scan failed' });
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       setLastResult({ success: false, message: e.message || 'Scan failed' });
     } finally {
       setCapturesLoading(false);
@@ -346,7 +346,7 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         showError(res?.error || 'Could not list Logic projects');
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Could not list Logic projects');
     } finally {
       setProjectsLoading(false);
@@ -363,7 +363,7 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         showError(res?.error || 'Archive failed');
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Archive failed');
     } finally {
       setArchivingPath(null);
@@ -385,7 +385,7 @@ export const LocalBridgePanel: React.FC = () => {
       } else {
         showError(res?.error || 'Could not move to Trash');
       }
-    } catch (e: Error) {
+    } catch (e: any) {
       showError(e.message || 'Could not move to Trash');
     } finally {
       setTrashingPath(null);
