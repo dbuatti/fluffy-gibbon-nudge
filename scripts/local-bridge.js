@@ -1475,16 +1475,54 @@ function updateSocialBuildJob(id, patch) {
  * output and each halves the other's CPU. The second request is told the
  * build is already running rather than being allowed to start.
  */
-const socialBuildLocks = new Map();
+function socialBuildLockPath(id) {
+  return path.join(os.homedir(), '.config', 'composer-hub', `social-build-${id}.lock`);
+}
 
 function acquireSocialBuildLock(id) {
-  if (socialBuildLocks.has(id)) return false;
-  socialBuildLocks.set(id, Date.now());
-  return true;
+  const lockPath = socialBuildLockPath(id);
+  try {
+    fs.mkdirSync(lockPath);
+    try {
+      fs.writeFileSync(path.join(lockPath, 'info'), JSON.stringify({ pid: process.pid, startedAt: Date.now() }));
+    } catch {
+      // Non-fatal: the directory itself is the lock.
+    }
+    return true;
+  } catch (e) {
+    if (e.code !== 'EEXIST') return false;
+    // Possibly a stale lock from a crashed or killed build. Break it if the
+    // owner is gone or the lock is older than two hours.
+    let stale = false;
+    try {
+      const info = JSON.parse(fs.readFileSync(path.join(lockPath, 'info'), 'utf-8'));
+      if (info.startedAt && Date.now() - info.startedAt > 2 * 60 * 60 * 1000) stale = true;
+      try {
+        process.kill(info.pid, 0);
+      } catch {
+        stale = true;
+      }
+    } catch {
+      stale = true;
+    }
+    if (stale) {
+      try {
+        fs.rmSync(lockPath, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+      return acquireSocialBuildLock(id);
+    }
+    return false;
+  }
 }
 
 function releaseSocialBuildLock(id) {
-  socialBuildLocks.delete(id);
+  try {
+    fs.rmSync(socialBuildLockPath(id), { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
 }
 
 /** 95 → "1:35" */
