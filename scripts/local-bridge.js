@@ -105,7 +105,7 @@ function sendJson(res, statusCode, data, req) {
   const headers = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Hub-Access-Token',
     'Vary': 'Origin',
   };
   if (allowOrigin) headers['Access-Control-Allow-Origin'] = allowOrigin;
@@ -130,10 +130,13 @@ function requireAuth(req, res) {
   return true;
 }
 
-function runScript(scriptName, args = [], timeoutMs = 120000) {
+function runScript(scriptName, args = [], timeoutMs = 120000, extraEnv = null) {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(SCRIPTS_DIR, scriptName);
-    const child = spawn('node', ['--no-warnings', scriptPath, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('node', ['--no-warnings', scriptPath, ...args], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
+    });
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`Script timed out after ${Math.round(timeoutMs / 1000)}s`)); }, timeoutMs);
@@ -722,7 +725,10 @@ async function handleLaunchPicker(req, res, body) {
       case 'sync_nas': {
         // NAS copies of Logic bundles can take many minutes — give this mode a
         // long leash (the client matches with an even larger timeout).
-        const output = await runScript('sync-to-nas.js', ['--apply'], 600000);
+        const hubForSync = await import('./composer-hub.js');
+        const appTokenForSync = hubForSync.getClientAccessToken();
+        const output = await runScript('sync-to-nas.js', ['--apply'], 600000,
+          appTokenForSync ? { HUB_ACCESS_TOKEN: appTokenForSync } : null);
         result = {
           launched: true,
           message: 'NAS sync initiated',
@@ -2282,7 +2288,7 @@ async function handleSocialBuildKit(req, res, body) {
 
     const hub = await import('./composer-hub.js');
     const session = await hub.getSession();
-    if (!session) throw new Error('Not signed in on this Mac (run composer-hub-login)');
+    if (!session) throw new Error('Not signed in: open the Composer Hub web app and sign in (or run composer-hub-login on this Mac)');
 
     const headers = {
       apikey: hub.ANON_KEY,
@@ -2673,7 +2679,7 @@ async function resolveSocialSong(improvisationId) {
 
   const hub = await import('./composer-hub.js');
   const session = await hub.getSession();
-  if (!session) throw new Error('Not signed in on this Mac (run composer-hub-login)');
+  if (!session) throw new Error('Not signed in: open the Composer Hub web app and sign in (or run composer-hub-login on this Mac)');
 
   const recRes = await fetch(
     `${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}&select=id,generated_name,original_name`,
@@ -2866,7 +2872,7 @@ async function startServer() {
       const allowOrigin = getAllowedOrigin(req);
       const headers = {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Hub-Access-Token',
         'Access-Control-Max-Age': '86400',
         'Vary': 'Origin',
       };
@@ -2908,6 +2914,19 @@ async function startServer() {
         return;
       }
       const query = Object.fromEntries(url.searchParams);
+
+      // The app sends its live Supabase access token on every call. Recording it
+      // here means every Supabase read below uses a token the browser keeps
+      // fresh, instead of one the bridge has to rotate itself and can lose.
+      const appAccessToken = req.headers['x-hub-access-token'];
+      if (typeof appAccessToken === 'string' && appAccessToken) {
+        try {
+          const hub = await import('./composer-hub.js');
+          hub.setClientAccessToken(appAccessToken);
+        } catch {
+          // Ignore a bad header — the stored session is still the fallback.
+        }
+      }
 
       try {
         if (pathname === '/status' && req.method === 'GET') {

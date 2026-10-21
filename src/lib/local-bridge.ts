@@ -398,6 +398,19 @@ export class BridgeClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // Hand the bridge our live Supabase access token. The browser keeps this
+    // session fresh (auto-refresh on expiry), so the bridge can act as this
+    // user without maintaining its own long-lived session on the Mac — that
+    // stored session was the recurring "Not signed in on this Mac" failure.
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers['X-Hub-Access-Token'] = session.access_token;
+      }
+    } catch {
+      // Not signed in / offline — bridge falls back to its stored session.
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {

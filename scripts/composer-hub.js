@@ -124,7 +124,72 @@ function writeAuthFileIfUnchanged(expectedRefreshToken, data) {
  */
 let sessionInFlight = null;
 
+/**
+ * Access token handed over by the signed-in web app.
+ *
+ * The app always has a live Supabase session, and its browser refreshes that
+ * token automatically. So the bridge does not need to keep a second,
+ * independently-rotating session on the Mac — and that stored session was the
+ * recurring failure: its refresh token is single-use, so any race or gap broke
+ * it, and with no password saved there was no way back without pasting a token
+ * again.
+ *
+ * Whatever the app sends on a request is preferred while it is still valid.
+ * The stored session stays as the fallback for work with no request behind it
+ * (headless sync, the sync-to-nas child process).
+ */
+let clientAccessToken = null;
+let clientAccessTokenUserId = null;
+let clientAccessTokenExp = 0;
+
+/** Seconds of remaining validity required before a token stops being used. */
+const CLIENT_TOKEN_MIN_REMAINING_MS = 60_000;
+
+function decodeJwtPayload(token) {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function freshClientSession() {
+  if (!clientAccessToken) return null;
+  if (clientAccessTokenExp - Date.now() <= CLIENT_TOKEN_MIN_REMAINING_MS) return null;
+  return { access_token: clientAccessToken, user_id: clientAccessTokenUserId };
+}
+
+/**
+ * Record an access token supplied by the app. Rejects anything malformed or
+ * already expiring, so a bad header cannot shadow the stored session.
+ */
+export function setClientAccessToken(token) {
+  if (typeof token !== 'string' || token.split('.').length !== 3) return false;
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) return false;
+  const expMs = payload.exp * 1000;
+  if (expMs - Date.now() <= CLIENT_TOKEN_MIN_REMAINING_MS) return false;
+  clientAccessToken = token;
+  clientAccessTokenUserId = payload.sub || null;
+  clientAccessTokenExp = expMs;
+  return true;
+}
+
+/** The app-supplied token, if still usable. Lets child processes inherit it. */
+export function getClientAccessToken() {
+  return freshClientSession() ? clientAccessToken : null;
+}
+
+// A child process (sync-to-nas) has no request of its own; the bridge passes
+// the app's token through the environment so it doesn't fall back to the
+// stored session either.
+if (process.env.HUB_ACCESS_TOKEN) {
+  setClientAccessToken(process.env.HUB_ACCESS_TOKEN);
+}
+
 async function getSession() {
+  const client = freshClientSession();
+  if (client) return client;
   if (sessionInFlight) return sessionInFlight;
   sessionInFlight = resolveSession().finally(() => {
     sessionInFlight = null;
