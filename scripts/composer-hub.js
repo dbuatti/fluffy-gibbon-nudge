@@ -89,6 +89,30 @@ function writeAuthFile(data) {
 }
 
 /**
+ * Write the auth file, but only if it still holds the refresh token we
+ * replaced.
+ *
+ * Supabase refresh tokens rotate on every use, so two writers can each hold a
+ * valid "new" token while the older one is already spent. A plain write means
+ * the slower writer wins and clobbers the fresh token with a dead one — the
+ * session then fails forever with "refresh_token_already_used" and can only be
+ * recovered by logging in again. Comparing before writing keeps the newest
+ * token.
+ *
+ * Returns true if the file was written.
+ */
+function writeAuthFileIfUnchanged(expectedRefreshToken, data) {
+  try {
+    const current = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+    if (current.refresh_token !== expectedRefreshToken) return false;
+  } catch {
+    // Unreadable or missing — proceed with the write.
+  }
+  writeAuthFile(data);
+  return true;
+}
+
+/**
  * In-flight session promise.
  *
  * Supabase rotates refresh tokens on every use: a refresh token is single-use.
@@ -111,6 +135,12 @@ async function getSession() {
 async function resolveSession() {
   if (!fs.existsSync(AUTH_FILE)) return null;
 
+  // Supabase refresh tokens are single-use: every refresh issues a new one and
+  // invalidates the old. Two processes (the bridge and the sync-to-nas child)
+  // can therefore race, and the loser sees "refresh_token_already_used".
+  // Retrying with whatever is on disk now resolves that, because the winner
+  // has already written the fresh token.
+  for (let attempt = 0; attempt < 3; attempt++) {
   let auth;
   try {
     auth = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
@@ -136,14 +166,31 @@ async function resolveSession() {
 
     if (res.ok) {
       const body = await res.json();
-      writeAuthFile({
+      // Compare-and-swap: only persist the new token if the file still holds
+      // the one we just replaced. Without this, a slower writer can overwrite
+      // a newer token with one that has already been spent, which leaves the
+      // session permanently broken and unrecoverable without a fresh login.
+      const stored = writeAuthFileIfUnchanged(auth.refresh_token, {
         refresh_token: body.refresh_token,
         user_id: body.user.id,
         email: body.user.email,
         email_cred: auth.email_cred,
         password_cred: auth.password_cred,
       });
+      if (!stored) continue; // someone else rotated first — read theirs and retry
       return { access_token: body.access_token, user_id: body.user.id };
+    }
+
+    // The token was already spent by a concurrent refresh. Re-read the file
+    // and retry with whatever the winner wrote.
+    if (res.status === 400) {
+      let current = null;
+      try {
+        current = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf-8'));
+      } catch { /* unreadable */ }
+      if (current?.refresh_token && current.refresh_token !== auth.refresh_token) {
+        continue;
+      }
     }
 
     // If refresh failed with auth error, try password login if we have credentials
@@ -168,6 +215,8 @@ async function resolveSession() {
     return loginWithPassword(auth.email_cred, auth.password_cred);
   }
 
+  return null;
+  }
   return null;
 }
 
