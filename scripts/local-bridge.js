@@ -1969,16 +1969,21 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
   const fadeOutSec = length > 4 ? 1.2 : 0;
   const fadeInSec = Math.min(0.8, length > 0 ? length / 4 : 0.8);
 
+  // curve=qsin (quintic sine) gives a smoother, more musical fade than the
+  // default linear ramp — the picture and audio ease in/out instead of cutting.
   const audioFades = [];
-  if (fadeInSec > 0) audioFades.push(`afade=t=in:st=0:d=${fadeInSec.toFixed(2)}`);
+  if (fadeInSec > 0) audioFades.push(`afade=t=in:st=0:d=${fadeInSec.toFixed(2)}:curve=qsin`);
   if (fadeOutSec > 0) {
-    audioFades.push(`afade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}`);
+    audioFades.push(`afade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}:curve=qsin`);
   }
+  // Consistent loudness across songs so a quiet take and a loud take don't
+  // need manual levelling before posting.
+  audioFades.push('loudnorm=I=-16:TP=-1.5:LRA=11');
 
   const videoFades = [];
-  if (fadeInSec > 0) videoFades.push(`fade=t=in:st=0:d=${fadeInSec.toFixed(2)}`);
+  if (fadeInSec > 0) videoFades.push(`fade=t=in:st=0:d=${fadeInSec.toFixed(2)}:curve=qsin`);
   if (fadeOutSec > 0) {
-    videoFades.push(`fade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}`);
+    videoFades.push(`fade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}:curve=qsin`);
   }
 
   // Seek on the audio input only (fast, sample-accurate enough for music) and
@@ -1991,7 +1996,7 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
   // earlier base mapping here PLUS the branch mapping below produced an MP4
   // with two video and two audio streams — every frame was encoded twice
   // (doubling the render time) and the file was malformed for upload.
-  args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-tune', 'stillimage', '-r', String(SOCIAL_FPS));
+  args.push('-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-tune', 'stillimage', '-r', String(SOCIAL_FPS), '-threads', '4');
 
   // Build the video filter chain: fades + optional visualizer + optional title
   const vfParts = [...videoFades];
@@ -2126,18 +2131,67 @@ function socialEncodeTimeoutMs(outputSec) {
   return Math.max(base, scaled + 10 * 60 * 1000);
 }
 
-/** Run a full encode, then promote every *.part.mp4 it wrote to its real name. */
-async function runSocialVideo(args, outputSec = 0) {
+/** Run a full encode, then promote every *.part.mp4 it wrote to its real name.
+ *
+ * Uses spawn (not execFile) so we can stream `-progress` lines and report
+ * percent-done to the build job — a 24-minute encode otherwise looks stuck.
+ * `onProgress` receives a 0..100 number (or null when unknown).
+ */
+function runSocialVideo(args, outputSec = 0, onProgress = null) {
   const parts = args.filter((a) => typeof a === 'string' && a.endsWith('.part.mp4'));
-  try {
-    await runProcess('ffmpeg', [...args, '-shortest', '-movflags', '+faststart'], {
-      timeoutMs: socialEncodeTimeoutMs(outputSec),
+  return new Promise((resolve, reject) => {
+    const fullArgs = [...args, '-progress', 'pipe:1', '-nostats', '-shortest', '-movflags', '+faststart'];
+    const child = spawn('ffmpeg', fullArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stderr = '';
+    let stdoutBuf = '';
+    const timer = setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch { /* already gone */ }
+      reject(new Error('ffmpeg timed out'));
+    }, socialEncodeTimeoutMs(outputSec));
+
+    child.stdout.on('data', (chunk) => {
+      stdoutBuf += chunk.toString('utf-8');
+      // -progress emits key=value pairs, one per line, ending with
+      // progress=continue / progress=end.
+      let idx;
+      while ((idx = stdoutBuf.indexOf('\\n')) >= 0) {
+        const line = stdoutBuf.slice(0, idx).trim();
+        stdoutBuf = stdoutBuf.slice(idx + 1);
+        const eq = line.indexOf('=');
+        if (eq < 0) continue;
+        const key = line.slice(0, eq).trim();
+        const val = line.slice(eq + 1).trim();
+        if (key === 'out_time_ms' && onProgress && outputSec > 0) {
+          const ms = Number(val);
+          if (Number.isFinite(ms)) {
+            const pct = Math.min(99, Math.round((ms / 1e6 / outputSec) * 100));
+            try { onProgress(pct); } catch { /* ignore */ }
+          }
+        }
+      }
     });
-  } catch (e) {
-    for (const part of parts) { try { fs.unlinkSync(part); } catch { /* nothing to clean */ } }
-    throw e;
-  }
-  for (const part of parts) fs.renameSync(part, part.replace(/\.part\.mp4$/i, '.mp4'));
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf-8'); });
+
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        for (const part of parts) { try { fs.unlinkSync(part); } catch { /* nothing */ } }
+        const detail = stderr.trim().split('\\n').filter(Boolean).slice(-6).join(' | ');
+        reject(new Error(`ffmpeg failed: ${detail || 'exit ' + code}`));
+        return;
+      }
+      try {
+        for (const part of parts) fs.renameSync(part, part.replace(/\\.part\\.mp4$/i, '.mp4'));
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
 }
 
 /** Single-clip convenience wrapper (thumbnail-style one-offs, tests). */
@@ -2506,7 +2560,9 @@ async function handleSocialBuildKit(req, res, body) {
         // pass instead of one run per clip.
         const lastCut = planned[planned.length - 1];
         args.push('-t', (lastCut.startSec + lastCut.clipSec).toFixed(2));
-        await runSocialVideo(args, lastCut.startSec + lastCut.clipSec);
+        await runSocialVideo(args, lastCut.startSec + lastCut.clipSec, (pct) => {
+          updateSocialBuildJob(jobId, { step: `rendering ${ratio.label}… ${pct}%`, progress: pct });
+        });
 
         for (const p of planned) {
           files.push({

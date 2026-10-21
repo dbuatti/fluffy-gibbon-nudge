@@ -340,6 +340,8 @@ export interface SocialBuildStatus {
   status: 'idle' | 'building' | 'done' | 'error';
   building: boolean;
   step?: string | null;
+  /** 0..100 percent of the current encode, when known. */
+  progress?: number | null;
   startedAt?: number | null;
   finishedAt?: number | null;
   elapsedSec?: number;
