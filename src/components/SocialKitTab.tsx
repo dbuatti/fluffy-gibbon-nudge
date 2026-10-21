@@ -480,6 +480,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 {buildStep || BUILD_PHASES[phase]}
+                 {buildProgress != null && <span className="ml-auto tabular-nums text-muted-foreground">{buildProgress}%</span>}
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
@@ -505,7 +506,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={handleBuild} disabled={loadingKit}>
+              <Button onClick={handleBuild} disabled={loadingKit || building}>
                 {kit?.built ? <RefreshCw className="w-4 h-4 mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                 {kit?.built ? 'Rebuild Social Kit' : 'Build Social Kit'}
               </Button>
