@@ -2019,9 +2019,9 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
   audioFades.push('loudnorm=I=-16:TP=-1.5:LRA=11');
 
   const videoFades = [];
-  if (fadeInSec > 0) videoFades.push(`fade=t=in:st=0:d=${fadeInSec.toFixed(2)}:curve=qsin`);
+  if (fadeInSec > 0) videoFades.push(`fade=t=in:st=0:d=${fadeInSec.toFixed(2)}`);
   if (fadeOutSec > 0) {
-    videoFades.push(`fade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}:curve=qsin`);
+    videoFades.push(`fade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}`);
   }
 
   // Seek on the audio input only (fast, sample-accurate enough for music) and
