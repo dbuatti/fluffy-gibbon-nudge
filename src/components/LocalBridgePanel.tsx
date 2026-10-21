@@ -608,7 +608,6 @@ export const LocalBridgePanel: React.FC = () => {
                       onClick={() => openFolderInFinder(c.fullPath)}
                       title={`Open capture folder in Finder: ${c.fullPath}`}
                       aria-label="Open capture folder in Finder"
-                      aria-label="Open capture folder in Finder"
                     >
                       <FolderOpen className="h-3 w-3" />
                     </Button>

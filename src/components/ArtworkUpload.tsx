@@ -223,7 +223,6 @@ const ArtworkUpload: React.FC<ArtworkUploadProps> = ({ improvisationId, onUpload
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     title="Clear selected file"
                     aria-label="Clear selected file"
-                    aria-label="Clear selected file"
                 >
                     <XCircle className="h-4 w-4" />
                 </Button>
