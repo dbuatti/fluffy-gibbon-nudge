@@ -1445,6 +1445,11 @@ async function handleDeleteFolder(req, res, body) {
 // is writable without extra permissions. Override with `socialOutputDir` in
 // bridge-config.json if you want a different location (e.g. Desktop).
 const SOCIAL_OUTPUT_DIR = (loadConfig().socialOutputDir) || path.join(os.homedir(), 'Documents', 'Social');
+// Live ffmpeg encodes, so a shutdown can take them with it. pm2 restarts used to
+// orphan an in-flight encode: the process kept writing a *.part.mp4 that nobody
+// was waiting for, while the fresh bridge reported "idle" for the build it had
+// lost. Killing children on shutdown keeps the two in sync.
+const activeChildren = new Set();
 // Durable second copy on the NAS. Rendering deliberately does *not* write here
 // directly: this is an SMB mount that can drop mid-encode, and a 20-minute
 // render failing at minute 18 because the share vanished is not worth the
@@ -2028,10 +2033,11 @@ function appendSocialVideoArgs(args, audioFile, startSec, clipSec, outFile, opts
     videoFades.push(`fade=t=out:st=${(length - fadeOutSec).toFixed(2)}:d=${fadeOutSec}`);
   }
 
-  // Seek on the audio input only (fast, sample-accurate enough for music) and
-  // trim there; the video stops when its output finishes.
-  if (start > 0) args.push('-ss', String(start), '-t', length.toFixed(2));
-  else args.push('-t', length.toFixed(2));
+  // Seek on the audio input (fast, sample-accurate). The output -t (pushed
+  // by the caller after all cuts are planned) limits total duration. The -t
+  // here would apply to the *video* input (since it precedes -i audioFile),
+  // causing pathological slowdown on long encodes — so we omit it entirely.
+  if (start > 0) args.push('-ss', String(start));
   args.push('-i', audioFile);
   // NOTE: no -map here. The map is decided further down, because the visualizer
   // path maps the composited [v] output rather than the raw 0:v input. An
@@ -2184,6 +2190,7 @@ function runSocialVideo(args, outputSec = 0, onProgress = null) {
   return new Promise((resolve, reject) => {
     const fullArgs = [...args, '-progress', 'pipe:1', '-nostats', '-shortest', '-movflags', '+faststart'];
     const child = spawn('ffmpeg', fullArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
+    activeChildren.add(child);
     let stderr = '';
     let stdoutBuf = '';
     const timer = setTimeout(() => {
@@ -2216,10 +2223,12 @@ function runSocialVideo(args, outputSec = 0, onProgress = null) {
 
     child.on('error', (err) => {
       clearTimeout(timer);
+      activeChildren.delete(child);
       reject(err);
     });
     child.on('close', (code) => {
       clearTimeout(timer);
+      activeChildren.delete(child);
       if (code !== 0) {
         for (const part of parts) { try { fs.unlinkSync(part); } catch { /* nothing */ } }
         const detail = stderr.trim().split('\\n').filter(Boolean).slice(-6).join(' | ');
@@ -3187,9 +3196,40 @@ async function startServer() {
 
 function gracefulShutdown(signal) {
   console.log(`\nReceived ${signal}, shutting down bridge...`);
+  for (const child of activeChildren) {
+    try { child.kill('SIGKILL'); } catch { /* already gone */ }
+  }
   process.exit(0);
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+/** Kill ffmpeg processes left over from a previous bridge that wrote into the
+ *  social output dir. A crash (or SIGKILL) skips gracefulShutdown, so those
+ *  encodes can outlive the process that owned them and corrupt a re-render.
+ *  Best-effort: matches only our own social-frames/part.mp4 invocations. */
+function reapStraySocialEncodes() {
+  try {
+    const res = spawnSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf-8' });
+    if (res.error || typeof res.stdout !== 'string') return;
+    const self = process.pid;
+    for (const line of res.stdout.split('\n')) {
+      const m = line.match(/^\s*(\d+)\s+(.*)$/);
+      if (!m) continue;
+      const pid = Number(m[1]);
+      const cmd = m[2];
+      if (pid === self) continue;
+      if (!cmd.includes('ffmpeg')) continue;
+      if (!cmd.includes(SOCIAL_OUTPUT_DIR)) continue;
+      try {
+        process.kill(pid, 'SIGKILL');
+        console.log(`[social] reaped stray encode pid ${pid}`);
+      } catch { /* already gone */ }
+    }
+  } catch (e) {
+    console.warn(`[social] stray-encode sweep skipped: ${e.message}`);
+  }
+}
+
+reapStraySocialEncodes();
 startServer();
