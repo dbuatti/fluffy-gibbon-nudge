@@ -27,6 +27,7 @@ import { pathToFileURL } from 'url';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'composer-hub');
 const AUTH_FILE = path.join(CONFIG_DIR, 'auth.json');
+const SERVICE_ROLE_FILE = path.join(CONFIG_DIR, 'service-role.json');
 
 const SUPABASE_URL = 'https://rqesjpnhrjdjnrzdhzgw.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxZXNqcG5ocmpkam5yemRoemd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMzgwNzgsImV4cCI6MjA3NzYxNDA3OH0.NqFKBFI-l96hWOGNc8QxuQdaGKVmvzw6LDGO_MsIoQc';
@@ -187,9 +188,28 @@ if (process.env.HUB_ACCESS_TOKEN) {
   setClientAccessToken(process.env.HUB_ACCESS_TOKEN);
 }
 
+function loadServiceRole() {
+  try {
+    const raw = fs.readFileSync(SERVICE_ROLE_FILE, 'utf-8');
+    const d = JSON.parse(raw);
+    if (d && typeof d.key === 'string' && d.key.split('.').length === 3 && typeof d.userId === 'string') {
+      return { key: d.key, userId: d.userId };
+    }
+  } catch {
+    // Missing or unreadable — no service-role fallback.
+  }
+  return null;
+}
+
 async function getSession() {
   const client = freshClientSession();
   if (client) return client;
+  // Service role key is the durable fallback: it never expires and never
+  // rotates, so a Mac that has it configured is never "Not signed in".
+  const sr = loadServiceRole();
+  if (sr) {
+    return { access_token: sr.key, user_id: sr.userId };
+  }
   if (sessionInFlight) return sessionInFlight;
   sessionInFlight = resolveSession().finally(() => {
     sessionInFlight = null;

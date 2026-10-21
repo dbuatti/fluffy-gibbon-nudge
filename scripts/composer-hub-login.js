@@ -244,6 +244,65 @@ async function validateAndSave(refresh_token, email, password = null) {
   return true;
 }
 
+async function loginWithServiceRole() {
+  console.log('\\n--- Service role key (durable, never expires) ---');
+  console.log('Find it in the Supabase dashboard: Project Settings → API → service_role key.');
+  console.log('This key has full access to your project — keep it on this Mac only (stored mode 600).\\n');
+
+  const key = (await prompt('Paste the service_role key: ')).trim();
+  if (!key || key.split('.').length !== 3) {
+    console.error('That does not look like a JWT service_role key.');
+    process.exit(1);
+  }
+
+  const email = (await prompt('Your account email (to look up your user id): ')).trim();
+  if (!email) {
+    console.error('Email is required.');
+    process.exit(1);
+  }
+
+  console.log('\\nLooking up your account...');
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    headers: {
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error(`Admin lookup failed (${res.status}):`, body.msg || body.error_description || body.error || 'Unknown error');
+    console.error('Make sure you pasted the service_role key (not the anon key).');
+    process.exit(1);
+  }
+  const data = await res.json();
+  const users = Array.isArray(data) ? data : (data.users || []);
+  const user = users.find((u) => (u.email || '').toLowerCase() === email.toLowerCase());
+  if (!user) {
+    console.error(`No user found with email ${email}.`);
+    process.exit(1);
+  }
+
+  const userId = user.id;
+  const outPath = path.join(CONFIG_DIR, 'service-role.json');
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  const tmp = `${outPath}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ key, userId, email }, null, 2), { mode: 0o600 });
+  fs.renameSync(tmp, outPath);
+  fs.chmodSync(outPath, 0o600);
+
+  // Verify it persisted and is readable.
+  const verify = JSON.parse(fs.readFileSync(outPath, 'utf-8'));
+  if (verify.key !== key || verify.userId !== userId) {
+    console.error('Write verification failed — the file did not persist correctly.');
+    process.exit(1);
+  }
+
+  console.log(`\\nSaved. user_id = ${userId}`);
+  console.log('The bridge will use this key as a fallback whenever no user session is available.');
+  console.log('You will never need to log in again on this Mac.');
+  return;
+}
+
 async function main() {
   console.log('Composer Hub — Login\n');
 
@@ -289,13 +348,17 @@ async function main() {
   console.log('How would you like to log in?');
   console.log('  1 — Email & password (if you use email login)');
   console.log('  2 — Paste token from browser (GitHub / SSO users)');
-  const choice = await prompt('Choice (1 or 2): ');
-
+  console.log('  3 — Service role key (never expires; for your own Mac)');
+  const choice = await prompt('Choice (1, 2 or 3): ');
+  
   let result = null;
   if (choice === '1') {
     result = await loginWithPassword();
   } else if (choice === '2') {
     result = await loginWithPastedToken();
+  } else if (choice === '3') {
+    await loginWithServiceRole();
+    return;
   } else {
     console.error('Invalid choice.');
     process.exit(1);
