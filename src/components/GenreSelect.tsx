@@ -163,6 +163,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     size="icon" 
                     variant="ghost" 
                     className="h-8 w-8"
+                    aria-label="Save"
                     disabled={isLoading}
                     aria-label="Save custom genre"
                 >
@@ -173,6 +174,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     size="icon" 
                     variant="ghost" 
                     className="h-8 w-8"
+                    aria-label="Cancel"
                     disabled={isLoading}
                     aria-label="Cancel custom genre"
                 >
@@ -216,6 +218,7 @@ const GenreSelect: React.FC<GenreSelectProps> = ({
                     size="icon" 
                     variant="ghost" 
                     className="h-8 w-8 flex-shrink-0"
+                    aria-label="Edit"
                     title="Edit Custom Genre Text"
                     aria-label="Edit custom genre"
                 >

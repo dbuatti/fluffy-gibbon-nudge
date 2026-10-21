@@ -54,6 +54,7 @@ const FilePathSuggestion: React.FC<FilePathSuggestionProps> = ({ generatedName, 
             size="icon" 
             onClick={handleCopy} 
             title="Copy Path"
+            aria-label="Copy Path"
             aria-label="Copy file path"
             className="bg-foreground hover:bg-foreground/90 text-background h-10 w-10"
           >

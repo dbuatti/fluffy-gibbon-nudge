@@ -457,7 +457,7 @@ export const LocalBridgePanel: React.FC = () => {
             </Badge>
             <span className="ml-2 text-[10px] text-muted-foreground">{host}{latency !== null && connected ? ` · ${latency}ms` : ''}</span>
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={checkConnection} disabled={loading} title="Refresh connection">
+          <Button variant="ghost" size="icon" onClick={checkConnection} disabled={loading} title="Refresh connection" aria-label="Refresh connection">
             <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
           </Button>
         </div>
@@ -607,6 +607,7 @@ export const LocalBridgePanel: React.FC = () => {
                       className="h-5 w-5 flex-shrink-0"
                       onClick={() => openFolderInFinder(c.fullPath)}
                       title={`Open capture folder in Finder: ${c.fullPath}`}
+                      aria-label="Open capture folder in Finder"
                       aria-label="Open capture folder in Finder"
                     >
                       <FolderOpen className="h-3 w-3" />
