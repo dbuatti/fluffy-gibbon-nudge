@@ -2489,7 +2489,14 @@ async function handleSocialBuildKit(req, res, body) {
     }
 
     const artCopy = path.join(folder, `${displayTitle} - artwork.png`);
-    fs.copyFileSync(art.file, artCopy);
+    try {
+      fs.copyFileSync(art.file, artCopy);
+    } catch (e) {
+      // macOS TCC can block writes to Desktop even when the process owns the
+      // folder's other files. The artwork is also in Supabase, so a missing
+      // local copy is a cosmetic loss, not a build failure.
+      console.warn(`[social] could not copy artwork to ${artCopy}: ${e.message}`);
+    }
 
     // Read the previous manifest before anything is replaced: it tells us what
     // can be reused and preserves the posted record across rebuilds.
@@ -2683,7 +2690,9 @@ async function handleSocialBuildKit(req, res, body) {
     // survives rebuilds — it's a record of what went out, not of the files.
     // Written before the NAS mirror so a failed mirror still leaves a usable
     // local kit behind; `nas` is filled in immediately afterwards.
-    const writeKit = (nas) => fs.writeFileSync(kitJsonPath, JSON.stringify({
+    const writeKit = (nas) => {
+      try {
+        fs.writeFileSync(kitJsonPath, JSON.stringify({
       improvisationId, title: displayTitle, durationSec, clipCount, clipRatios: [...clipRatios], audioBytes,
       renderVersion: SOCIAL_RENDER_VERSION,
       artworkHash,
@@ -2705,6 +2714,10 @@ async function handleSocialBuildKit(req, res, body) {
         platform: f.platform || null,
       })),
     }, null, 2));
+      } catch (e) {
+        console.warn(`[social] could not write kit.json to ${kitJsonPath}: ${e.message}`);
+      }
+    };
 
     writeKit(previous.nas || null);
 
