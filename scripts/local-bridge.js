@@ -29,6 +29,14 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import net from 'net';
 
+// Global error handlers to catch unhandled rejections that crash the bridge
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[bridge] UNHANDLED REJECTION:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[bridge] UNCAUGHT EXCEPTION:', err);
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -2187,10 +2195,12 @@ function socialEncodeTimeoutMs(outputSec) {
  */
 function runSocialVideo(args, outputSec = 0, onProgress = null) {
   const parts = args.filter((a) => typeof a === 'string' && a.endsWith('.part.mp4'));
+  console.log(`[social] runSocialVideo: outputSec=${outputSec}, parts=${parts.length}, args[0..5]=${args.slice(0,6).join(' ')}`);
   return new Promise((resolve, reject) => {
     const fullArgs = [...args, '-progress', 'pipe:1', '-nostats', '-shortest', '-movflags', '+faststart'];
     const child = spawn('ffmpeg', fullArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
     activeChildren.add(child);
+    console.log(`[social] ffmpeg spawned pid=${child.pid}`);
     let stderr = '';
     let stdoutBuf = '';
     const timer = setTimeout(() => {
@@ -2214,8 +2224,12 @@ function runSocialVideo(args, outputSec = 0, onProgress = null) {
           const ms = Number(val);
           if (Number.isFinite(ms)) {
             const pct = Math.min(99, Math.round((ms / 1e6 / outputSec) * 100));
+            console.log(`[social] ffmpeg progress: ${pct}% (${(ms/1e6).toFixed(1)}s / ${outputSec}s)`);
             try { onProgress(pct); } catch { /* ignore */ }
           }
+        }
+        if (key === 'progress') {
+          console.log(`[social] ffmpeg progress state: ${val}`);
         }
       }
     });
@@ -2226,13 +2240,15 @@ function runSocialVideo(args, outputSec = 0, onProgress = null) {
       activeChildren.delete(child);
       reject(err);
     });
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       clearTimeout(timer);
       activeChildren.delete(child);
-      if (code !== 0) {
+      if (code !== 0 || signal) {
         for (const part of parts) { try { fs.unlinkSync(part); } catch { /* nothing */ } }
         const detail = stderr.trim().split('\\n').filter(Boolean).slice(-6).join(' | ');
-        reject(new Error(`ffmpeg failed: ${detail || 'exit ' + code}`));
+        const why = signal ? `signal ${signal}` : `exit ${code}`;
+        console.error(`[social] ffmpeg ${why}: ${detail || '(no stderr)'}`);
+        reject(new Error(`ffmpeg failed: ${detail || why}`));
         return;
       }
       try {
@@ -2437,10 +2453,13 @@ async function handleSocialBuildKit(req, res, body) {
       apikey: hub.ANON_KEY,
       Authorization: `Bearer ${session.access_token}`,
     };
+    console.log(`[social] fetching song record for ${improvisationId}...`);
+    const fetchStart = Date.now();
     const recRes = await fetch(
       `${hub.SUPABASE_URL}/rest/v1/improvisations?id=eq.${improvisationId}&select=id,generated_name,original_name,artwork_url,artwork_prompt,nas_folder_path,storage_path`,
-      { headers, signal: AbortSignal.timeout(15000) },
+      { headers, signal: AbortSignal.timeout(60000) },
     );
+    console.log(`[social] fetch completed in ${Date.now() - fetchStart}ms, ok=${recRes.ok}`);
     const [record] = recRes.ok ? await recRes.json() : [];
     if (!record) throw new Error('Song not found');
 
@@ -2466,9 +2485,13 @@ async function handleSocialBuildKit(req, res, body) {
     };
 
     step('finding audio…');
+    const audioStart = Date.now();
     const audio = await findSocialAudio(session, record);
+    console.log(`[social] findSocialAudio took ${Date.now() - audioStart}ms, file=${audio.file}`);
     stagedAudio = audio.file;
+    const durStart = Date.now();
     const durationSec = await mediaDurationSec(audio.file);
+    console.log(`[social] mediaDurationSec took ${Date.now() - durStart}ms, duration=${durationSec}`);
     if (!durationSec) throw new Error('Could not read audio duration — is the file a valid MP3?');
 
     step('preparing artwork…');
@@ -2794,7 +2817,7 @@ async function handleSocialBuildKit(req, res, body) {
         finishedAt: Date.now(),
       });
     }
-    sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req);
+    try { sendJson(res, 500, { success: false, error: e.message, timestamp: new Date().toISOString() }, req); } catch { /* client gone */ }
   } finally {
     // Temp files are per-build; never leave audio/frames behind.
     if (stagedAudio) { try { fs.unlinkSync(stagedAudio); } catch { /* already gone */ } }
