@@ -48,6 +48,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
   const [loadingKit, setLoadingKit] = useState(false);
   const [building, setBuilding] = useState(false);
   const [buildStep, setBuildStep] = useState<string | null>(null);
+  const [buildProgress, setBuildProgress] = useState<number | null>(null);
   const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [phase, setPhase] = useState(0);
@@ -146,6 +147,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         setBuilding(true);
         setBuildStep(status.step || 'Rendering…');
         setBuildStartedAt(status.startedAt || Date.now());
+        if (status.progress != null) setBuildProgress(status.progress);
       }
     });
     return () => { cancelled = true; };
@@ -161,6 +163,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
       const status: SocialBuildStatus = res.data;
       if (status.status === 'idle') return;
       if (status.step) setBuildStep(status.step);
+      if (status.progress != null) setBuildProgress(status.progress);
 
       if (status.status === 'done') {
         const refreshed = await client.getSocialKit(imp.id);
@@ -168,6 +171,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
         if (!cancelled) {
           setBuilding(false);
           setBuildStep(null);
+          setBuildProgress(null);
           setBuildStartedAt(null);
         }
       } else if (status.status === 'error') {
@@ -175,6 +179,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
           showError(status.error || 'The social kit build failed');
           setBuilding(false);
           setBuildStep(null);
+          setBuildProgress(null);
           setBuildStartedAt(null);
         }
       }
@@ -215,6 +220,7 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
     const targets = count > 1 && clipTargets.length ? clipTargets : ['reels'];
     setBuilding(true);
     setBuildStep('Starting…');
+    setBuildProgress(null);
     setBuildStartedAt(Date.now());
     try {
       const res = await client.buildSocialKit(imp.id, {
@@ -477,8 +483,12 @@ const SocialKitTab: React.FC<SocialKitTabProps> = ({ imp }) => {
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all duration-1000 ease-out"
-                  style={{ width: `${((phase + 1) / BUILD_PHASES.length) * 100}%` }}
+                  className="h-full bg-primary transition-all duration-500 ease-out"
+                  style={{
+                     width: buildProgress != null
+                       ? `${buildProgress}%`
+                       : `${((phase + 1) / BUILD_PHASES.length) * 100}%`,
+                   }}
                 />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
