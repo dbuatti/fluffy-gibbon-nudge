@@ -339,11 +339,43 @@ async function stageAudioLocally(sourceFile) {
 }
 
 async function handleMountNas(req, res) {
-  const smbCandidates = [
+  // Order candidates by reachability so we never lead with an unreachable host
+  // (e.g. the Tailscale IP when Tailscale is off) — that produced the
+  // "There was a problem connecting to the server 100.124.90.53" dialog.
+  const rawCandidates = [
     { host: '100.124.90.53', url: 'smb://100.124.90.53/Moon%20Prism' },
     { host: 'Crystal-Tokyo.local', url: 'smb://Crystal-Tokyo.local/Moon%20Prism' },
     { host: '192.168.1.102', url: 'smb://192.168.1.102/Moon%20Prism' },
   ];
+  const reachability = await Promise.all(rawCandidates.map(async (c) => {
+    try {
+      await new Promise((resolve, reject) => {
+        const socket = new net.Socket();
+        socket.setTimeout(1500);
+        socket.on('connect', () => { socket.destroy(); resolve(true); });
+        socket.on('timeout', () => { socket.destroy(); reject(new Error('timeout')); });
+        socket.on('error', (e) => { socket.destroy(); reject(e); });
+        socket.connect(445, c.host);
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }));
+  const smbCandidates = rawCandidates
+    .map((c, i) => ({ ...c, reachable: reachability[i] }))
+    .sort((a, b) => (b.reachable ? 1 : 0) - (a.reachable ? 1 : 0));
+
+  // If nothing is reachable, fail early with a clear message instead of
+  // popping a Finder dialog for an unreachable host.
+  if (!smbCandidates.some((c) => c.reachable)) {
+    sendJson(res, 500, {
+      success: false,
+      error: 'NAS not reachable. Connect to Tailscale or the home Wi-Fi (192.168.1.x) and try again.',
+      timestamp: new Date().toISOString(),
+    }, req);
+    return;
+  }
 
   try {
     // A stale mount left behind by a network switch blocks remounting. Detect
@@ -368,7 +400,7 @@ async function handleMountNas(req, res) {
         if (await checkNasMounted()) {
           sendJson(res, 200, {
             success: true,
-            data: { message: `NAS mounted via Tailscale (${c.host}) — no Finder needed.`, mounted: true, method: 'mount_smbfs', host: c.host },
+            data: { message: `NAS mounted via ${c.host} — no Finder needed.`, mounted: true, method: 'mount_smbfs', host: c.host },
             timestamp: new Date().toISOString(),
           }, req);
           return;
@@ -378,9 +410,15 @@ async function handleMountNas(req, res) {
       }
     }
 
-    // Method 2: Fallback to Finder mount dialog (handles Keychain auth)
-    execFile('open', [smbCandidates[0].url], (err) => {
-      if (err) execFile('open', [smbCandidates[2].url], () => {});
+    // Method 2: Fallback to Finder mount dialog (handles Keychain auth).
+    // Use the first REACHABLE candidate — never the Tailscale IP when we're
+    // on the LAN, or Finder pops "There was a problem connecting to the server".
+    const finderCandidate = smbCandidates.find((c) => c.reachable) || smbCandidates[0];
+    execFile('open', [finderCandidate.url], (err) => {
+      if (err) {
+        const fallback = smbCandidates.find((c) => c !== finderCandidate && c.reachable);
+        if (fallback) execFile('open', [fallback.url], () => {});
+      }
     });
     await new Promise(r => setTimeout(r, 2500));
     const mounted = await checkNasMounted();
