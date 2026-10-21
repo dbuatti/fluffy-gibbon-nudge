@@ -1440,7 +1440,11 @@ async function handleDeleteFolder(req, res, body) {
 
 // Where finished kits land. Desktop so drag-and-drop into an upload tab is
 // one motion — the whole point is "post with minimal thought".
-const SOCIAL_OUTPUT_DIR = '/Users/danielebuatti/Desktop/Social';
+// Social kit output folder. Desktop is TCC-protected and the pm2/launchd bridge
+// process usually lacks Full Disk Access, so default to ~/Documents/Social which
+// is writable without extra permissions. Override with `socialOutputDir` in
+// bridge-config.json if you want a different location (e.g. Desktop).
+const SOCIAL_OUTPUT_DIR = (loadConfig().socialOutputDir) || path.join(os.homedir(), 'Documents', 'Social');
 // Durable second copy on the NAS. Rendering deliberately does *not* write here
 // directly: this is an SMB mount that can drop mid-encode, and a 20-minute
 // render failing at minute 18 because the share vanished is not worth the
