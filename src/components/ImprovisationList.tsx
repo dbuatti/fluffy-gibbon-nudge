@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FolderOpen, ExternalLink } from 'lucide-react';
+import { Clock, CheckCircle, Music, Image as ImageIcon, AlertTriangle, ArrowRight, NotebookText, Palette, Send, Loader2, Trash2, Download, RefreshCw, PartyPopper, CloudUpload, XCircle, FolderOpen, ExternalLink, Sparkles } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -803,8 +803,20 @@ const ImprovisationList: React.FC<ImprovisationListProps> = ({ viewMode, setView
             <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
               <Music className="w-8 h-8" />
             </div>
-            <p className="text-lg font-medium text-foreground">No improvisations match</p>
-            <p className="text-sm mt-1">Try adjusting your search or filter to see more ideas.</p>
+            {totalCount === 0 ? (
+              <>
+                <p className="text-lg font-medium text-foreground">No improvisations yet</p>
+                <p className="text-sm mt-1">Record your first take to get started.</p>
+                <Button className="mt-4" onClick={() => navigate('/')}>
+                  <Sparkles className="w-4 h-4 mr-2" /> Go to Home
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-medium text-foreground">No improvisations match</p>
+                <p className="text-sm mt-1">Try adjusting your search or filter to see more ideas.</p>
+              </>
+            )}
           </div>
         )}
       </CardContent>
