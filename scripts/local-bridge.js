@@ -2476,10 +2476,16 @@ async function handleSocialBuildKit(req, res, body) {
 
     // A bridge killed mid-render can leave *.part.mp4 behind (renders write to
     // a temp name and rename on success). Clear them so the folder stays clean.
-    for (const name of fs.readdirSync(folder)) {
-      if (name.endsWith('.part.mp4')) {
-        try { fs.unlinkSync(path.join(folder, name)); } catch { /* in use */ }
+    // Best-effort: the folder may be unreadable under macOS TCC (e.g. Desktop
+    // without Full Disk Access), in which case we just skip the sweep.
+    try {
+      for (const name of fs.readdirSync(folder)) {
+        if (name.endsWith('.part.mp4')) {
+          try { fs.unlinkSync(path.join(folder, name)); } catch { /* in use */ }
+        }
       }
+    } catch (e) {
+      console.warn(`[social] could not sweep ${folder}: ${e.message}`);
     }
 
     const artCopy = path.join(folder, `${displayTitle} - artwork.png`);
@@ -2663,10 +2669,14 @@ async function handleSocialBuildKit(req, res, body) {
     // renders all exist, drop generated videos that are no longer referenced
     // (never touches anything the user put in the folder).
     const keep = new Set(files.map((f) => f.name));
-    for (const name of fs.readdirSync(folder)) {
-      if (!name.startsWith(`${displayTitle} - `) || !name.endsWith('.mp4')) continue;
-      if (keep.has(name)) continue;
-      try { fs.unlinkSync(path.join(folder, name)); } catch { /* in use */ }
+    try {
+      for (const name of fs.readdirSync(folder)) {
+        if (!name.startsWith(`${displayTitle} - `) || !name.endsWith('.mp4')) continue;
+        if (keep.has(name)) continue;
+        try { fs.unlinkSync(path.join(folder, name)); } catch { /* in use */ }
+      }
+    } catch (e) {
+      console.warn(`[social] could not sweep stale videos in ${folder}: ${e.message}`);
     }
 
     // Kit manifest so the app can restore state without rebuilding. `posted`
