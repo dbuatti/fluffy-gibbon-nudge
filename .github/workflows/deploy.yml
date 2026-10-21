@@ -1,9 +1,5 @@
 name: Deploy to Vercel
 
-# The Composer Hub app is served by two Vercel projects from this one repo:
-#   composerhub          (node 22) — the long-standing URL
-#   fluffy-gibbon-nudge  (node 24) — the newer URL
-# Both are kept in step. To retire one, delete its step below.
 on:
   push:
     branches: [main]
@@ -23,8 +19,21 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Enable pnpm
+        run: corepack enable
+
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
+
+      - name: Install dependencies
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            pnpm install --frozen-lockfile
+          elif [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Deploy to composerhub
         run: |
